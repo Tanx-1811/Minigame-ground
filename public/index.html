@@ -85,6 +85,13 @@
         </button>
       </div>
 
+      <div id="quizWaiting" class="quiz-waiting hidden">
+        <span class="quiz-waiting-icon">⏳</span>
+        <p class="quiz-waiting-headline">Đã vào phòng chờ, đợi Admin bấm bắt đầu...</p>
+        <p id="quizWaitingCount" class="quiz-waiting-count">0 người đã sẵn sàng</p>
+        <ul id="quizWaitingList" class="quiz-waiting-list"></ul>
+      </div>
+
       <div id="quizPlay" class="quiz-play hidden">
         <div class="quiz-progress">
           <div class="quiz-progress-top">
@@ -109,6 +116,11 @@
         <p class="quiz-hint">⏳ Đang chờ Admin chốt 4 Nhóm Trưởng để mở khóa vòng Random...</p>
       </div>
     </main>
+
+    <div id="quizCountdownOverlay" class="quiz-countdown-overlay hidden">
+      <span id="quizCountdownNumber" class="quiz-countdown-number">3</span>
+      <p class="quiz-countdown-hint">Chuẩn bị vào làm bài...</p>
+    </div>
   </section>
 
   <div id="appScreen" class="app-screen hidden">

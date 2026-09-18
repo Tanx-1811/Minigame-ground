@@ -54,6 +54,8 @@ body {
   filter: blur(60px);
   opacity: 0.45;
   animation: blobFloat 22s ease-in-out infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .blob-1 {
@@ -1384,7 +1386,8 @@ body {
   .toast,
   .shake,
   .cursor-spark,
-  .group-card-inner {
+  .group-card-inner,
+  .blob {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

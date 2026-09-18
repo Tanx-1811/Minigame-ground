@@ -5,6 +5,10 @@ const eventTimeInput = document.getElementById('eventTimeInput');
 const saveTimeBtn = document.getElementById('saveTimeBtn');
 const clearTimeBtn = document.getElementById('clearTimeBtn');
 const timeMsg = document.getElementById('timeMsg');
+const lobbyStatusText = document.getElementById('lobbyStatusText');
+const lobbyMembersList = document.getElementById('lobbyMembersList');
+const startQuizBtn = document.getElementById('startQuizBtn');
+const lobbyMsg = document.getElementById('lobbyMsg');
 const refreshQuizBtn = document.getElementById('refreshQuizBtn');
 const finishQuizBtn = document.getElementById('finishQuizBtn');
 const forceFinishCheckbox = document.getElementById('forceFinishCheckbox');
@@ -88,6 +92,81 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function renderLobby(status, members) {
+  const list = Array.isArray(members) ? members : [];
+  lobbyStatusText.textContent =
+    status === 'active' ? '✅ Quiz đã bắt đầu.' : `⏳ Đang chờ (${list.length} người đã sẵn sàng)`;
+  lobbyMembersList.innerHTML = list.length
+    ? list.map((name) => `<li><span>${escapeHtml(name)}</span></li>`).join('')
+    : '<li>Chưa có ai tham gia phòng chờ</li>';
+  startQuizBtn.disabled = status === 'active';
+}
+
+async function loadLobby() {
+  try {
+    const res = await fetch('/api/quiz/lobby');
+    const data = await res.json();
+    renderLobby(data.status, data.members);
+  } catch (err) {
+    console.error(err);
+  }
+}
+loadLobby();
+
+startQuizBtn.addEventListener('click', async () => {
+  const secret = secretInput.value.trim();
+  if (!secret) {
+    lobbyMsg.textContent = 'Vui lòng nhập mã bí mật';
+    lobbyMsg.className = 'admin-msg err';
+    return;
+  }
+
+  const confirmed = confirm('Bắt đầu làm bài Quiz cho tất cả mọi người đang chờ trong phòng chờ?');
+  if (!confirmed) return;
+
+  startQuizBtn.disabled = true;
+  lobbyMsg.textContent = 'Đang bắt đầu...';
+  lobbyMsg.className = 'admin-msg';
+
+  try {
+    const res = await fetch('/api/admin/quiz/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      lobbyMsg.textContent = data.error || 'Có lỗi xảy ra';
+      lobbyMsg.className = 'admin-msg err';
+      startQuizBtn.disabled = false;
+      return;
+    }
+
+    lobbyMsg.textContent = data.alreadyStarted
+      ? 'Quiz đã được bắt đầu từ trước.'
+      : 'Đã bắt đầu! Mọi người trong phòng chờ sẽ thấy đếm ngược 3 giây.';
+    lobbyMsg.className = 'admin-msg ok';
+    loadLobby();
+  } catch (err) {
+    lobbyMsg.textContent = 'Không thể kết nối máy chủ';
+    lobbyMsg.className = 'admin-msg err';
+    startQuizBtn.disabled = false;
+  }
+});
+
+if (window.io) {
+  const lobbySocket = window.io();
+  lobbySocket.on('quiz:lobby', (payload) => {
+    if (payload && Array.isArray(payload.members)) {
+      renderLobby('waiting', payload.members);
+    }
+  });
+  lobbySocket.on('quiz:started', () => {
+    loadLobby();
+  });
 }
 
 async function loadQuizLeaderboard() {
@@ -197,6 +276,7 @@ resetLeadersBtn.addEventListener('click', async () => {
     quizMsg.textContent = 'Đã reset vòng chọn Nhóm Trưởng! Mọi người sẽ làm lại quiz từ đầu.';
     quizMsg.className = 'admin-msg ok';
     loadQuizLeaderboard();
+    loadLobby();
   } catch (err) {
     quizMsg.textContent = 'Không thể kết nối máy chủ';
     quizMsg.className = 'admin-msg err';
@@ -237,6 +317,7 @@ resetBtn.addEventListener('click', async () => {
     msg.textContent = 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)';
     msg.className = 'admin-msg ok';
     loadQuizLeaderboard();
+    loadLobby();
   } catch (err) {
     msg.textContent = 'Không thể kết nối máy chủ';
     msg.className = 'admin-msg err';

@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require('../prisma');
+const quizLobby = require('../quizLobby');
 
 const router = express.Router();
 
@@ -70,6 +71,47 @@ router.get('/quiz/state', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải tiến độ quiz' });
+  }
+});
+
+// GET /api/quiz/lobby - trang thai phong cho (waiting/active) + danh sach nguoi da tham gia
+router.get('/quiz/lobby', async (req, res) => {
+  try {
+    const status = await quizLobby.getQuizStatus();
+    res.json({ status, members: quizLobby.getLobbyMembers() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải phòng chờ' });
+  }
+});
+
+// POST /api/quiz/join - 1 thanh vien vao phong cho, cho admin bam bat dau
+// (idempotent - vao lai nhieu lan khong sao; neu quiz da active thi tra ve luon de
+// client tu chuyen sang lam bai ngay, khong can cho)
+router.post('/quiz/join', async (req, res) => {
+  const { name } = req.body || {};
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Thiếu tên thành viên' });
+  }
+
+  try {
+    const member = await prisma.member.findUnique({ where: { name: name.trim() } });
+    if (!member) {
+      return res.status(404).json({ error: 'Không tìm thấy thành viên' });
+    }
+
+    const status = await quizLobby.getQuizStatus();
+    if (status === 'active') {
+      return res.json({ status: 'active', members: quizLobby.getLobbyMembers() });
+    }
+
+    quizLobby.addLobbyMember(member.name);
+    const members = quizLobby.getLobbyMembers();
+    req.io.emit('quiz:lobby', { members });
+    res.json({ status: 'waiting', members });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi vào phòng chờ' });
   }
 });
 
@@ -175,6 +217,32 @@ router.post('/quiz/answer', async (req, res) => {
   }
 });
 
+// POST /api/admin/quiz/start - admin bam bat dau, khoa phong cho va bao tat ca dem nguoc 3 giay
+// truoc khi vao lam bai (idempotent - bam lai khi da active thi khong dem nguoc lai tu dau)
+router.post('/admin/quiz/start', async (req, res) => {
+  const { secret } = req.body || {};
+
+  if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
+    return res.status(401).json({ error: 'Sai mã bí mật' });
+  }
+
+  try {
+    const status = await quizLobby.getQuizStatus();
+    if (status === 'active') {
+      return res.json({ ok: true, alreadyStarted: true });
+    }
+
+    await quizLobby.setQuizStatus('active');
+    const startAt = new Date(Date.now() + 3000).toISOString();
+    req.io.emit('quiz:started', { startAt });
+
+    res.json({ ok: true, startAt });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi bắt đầu quiz' });
+  }
+});
+
 // POST /api/admin/quiz/finish - chot 4 nhom truong dua tren diem quiz, mo khoa man random
 router.post('/admin/quiz/finish', async (req, res) => {
   const { secret, force } = req.body || {};
@@ -263,6 +331,9 @@ router.post('/admin/quiz/reset', async (req, res) => {
       update: { value: newPhase },
       create: { key: 'phase', value: newPhase },
     });
+
+    quizLobby.clearLobby();
+    await quizLobby.setQuizStatus('waiting');
 
     req.io.emit('groups:reset', { phase: newPhase });
 

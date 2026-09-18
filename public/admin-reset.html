@@ -138,6 +138,15 @@
     </div>
 
     <div class="admin-card" style="margin-top:16px;">
+      <h1>🚀 Bắt đầu làm bài Quiz</h1>
+      <p>Danh sách người đã chọn tên và đang chờ trong phòng chờ (cập nhật realtime). Khi đủ người, bấm nút bên dưới để đếm ngược 3 giây và mở câu hỏi đầu tiên cho tất cả cùng lúc.</p>
+      <p id="lobbyStatusText" class="admin-hint"></p>
+      <ol id="lobbyMembersList" class="admin-quiz-list"></ol>
+      <button id="startQuizBtn" class="admin-btn" type="button">🚀 Bắt đầu làm bài (đếm ngược 3 giây)</button>
+      <p id="lobbyMsg" class="admin-msg"></p>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px;">
       <h1>👑 Chốt 4 Nhóm Trưởng</h1>
       <p>Xem điểm quiz hiện tại và chốt 4 người điểm cao nhất (hòa thì ai nhanh hơn thắng) làm Nhóm Trưởng. Sau khi chốt, vòng Random mới mở khóa cho mọi người. Chỉ chốt được khi đã có ít nhất 4 người trả lời hết câu hỏi.</p>
 
@@ -161,6 +170,7 @@
     </div>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="/js/admin-reset.js"></script>
 </body>
 </html>

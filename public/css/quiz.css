@@ -69,6 +69,36 @@
   font-size: 2.2rem;
 }
 
+.quiz-name-pick .field {
+  flex: none;
+  width: 100%;
+  text-align: left;
+}
+
+.quiz-name-pick label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+#quizMemberSelect {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-size: 1rem;
+  transition: border-color 0.15s ease;
+}
+
+#quizMemberSelect:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
 /* ---------- thanh tien do dang cham tron ---------- */
 
 .quiz-progress {
@@ -335,6 +365,97 @@
 .quiz-hint {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+/* ---------- phong cho: dang cho admin bam bat dau ---------- */
+
+.quiz-waiting {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.quiz-waiting-icon {
+  font-size: 2.4rem;
+  display: block;
+  margin-bottom: 8px;
+  animation: quizMascotFloat 3.4s ease-in-out infinite;
+}
+
+.quiz-waiting-headline {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.quiz-waiting-count {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  margin: 0 0 16px;
+}
+
+.quiz-waiting-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.quiz-waiting-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.quiz-waiting-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- overlay dem nguoc 3-2-1 truoc khi vao lam bai ---------- */
+
+.quiz-countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.quiz-countdown-number {
+  font-size: 5.5rem;
+  font-weight: 800;
+  color: #fff;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: quizCountdownPulse 1s ease;
+}
+
+@keyframes quizCountdownPulse {
+  0% { transform: scale(0.6); opacity: 0; }
+  50% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.quiz-countdown-hint {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 /* ---------- icon rieng cho nhom truong ---------- */

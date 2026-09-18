@@ -8,6 +8,11 @@
   const quizNamePick = document.getElementById('quizNamePick');
   const quizMemberSelect = document.getElementById('quizMemberSelect');
   const quizStartBtn = document.getElementById('quizStartBtn');
+  const quizWaiting = document.getElementById('quizWaiting');
+  const quizWaitingCount = document.getElementById('quizWaitingCount');
+  const quizWaitingList = document.getElementById('quizWaitingList');
+  const quizCountdownOverlay = document.getElementById('quizCountdownOverlay');
+  const quizCountdownNumber = document.getElementById('quizCountdownNumber');
   const quizPlay = document.getElementById('quizPlay');
   const quizProgressLabel = document.getElementById('quizProgressLabel');
   const quizProgressScore = document.getElementById('quizProgressScore');
@@ -40,8 +45,17 @@
 
   function showStep(step) {
     quizNamePick.classList.toggle('hidden', step !== 'pick');
+    quizWaiting.classList.toggle('hidden', step !== 'waiting');
     quizPlay.classList.toggle('hidden', step !== 'play');
     quizDone.classList.toggle('hidden', step !== 'done');
+  }
+
+  function renderWaitingList(members) {
+    const list = Array.isArray(members) ? members : [];
+    quizWaitingCount.textContent = `${list.length} người đã sẵn sàng`;
+    quizWaitingList.innerHTML = list.length
+      ? list.map((name) => `<li class="quiz-waiting-chip">${escapeHtml(name)}</li>`).join('')
+      : '<li class="quiz-waiting-empty">Chưa có ai tham gia...</li>';
   }
 
   async function loadMemberOptions() {
@@ -231,6 +245,68 @@
     }
   }
 
+  // Vao phong cho thay vi lam bai ngay: cho den khi admin bam bat dau (hoac quiz da
+  // active tu truoc, vd nguoi vao tre / F5 lai trang) thi moi thuc su vao cau hoi.
+  async function joinQuizLobby(name) {
+    currentName = name;
+    localStorage.setItem(QUIZ_NAME_KEY, name);
+
+    try {
+      const res = await fetch('/api/quiz/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        notify(data.error || 'Có lỗi xảy ra', 'error');
+        return;
+      }
+
+      if (data.status === 'active') {
+        beginQuizFor(name);
+        return;
+      }
+
+      renderWaitingList(data.members);
+      showStep('waiting');
+    } catch (err) {
+      console.error(err);
+      notify('Không thể kết nối máy chủ', 'error');
+    }
+  }
+
+  function runStartCountdown(startAtMs) {
+    quizCountdownOverlay.classList.remove('hidden');
+    if (typeof window.playClick === 'function') window.playClick();
+    let lastShown = null;
+    let timer = null;
+
+    function tick() {
+      const remainingMs = startAtMs - Date.now();
+      const secondsLeft = Math.max(0, Math.ceil(remainingMs / 1000));
+      if (secondsLeft !== lastShown) {
+        lastShown = secondsLeft;
+        quizCountdownNumber.textContent = secondsLeft > 0 ? String(secondsLeft) : 'Bắt đầu!';
+        // reset animation moi giay de so nhay lai tu dau
+        quizCountdownNumber.style.animation = 'none';
+        void quizCountdownNumber.offsetWidth;
+        quizCountdownNumber.style.animation = '';
+      }
+
+      if (remainingMs <= 0) {
+        if (timer) clearInterval(timer);
+        quizCountdownOverlay.classList.add('hidden');
+        if (typeof window.playWin === 'function') window.playWin();
+        beginQuizFor(currentName);
+      }
+    }
+
+    tick();
+    timer = setInterval(tick, 200);
+  }
+
   quizStartBtn.addEventListener('click', () => {
     const name = quizMemberSelect.value;
     if (!name) {
@@ -238,7 +314,7 @@
       return;
     }
     if (typeof window.playClick === 'function') window.playClick();
-    beginQuizFor(name);
+    joinQuizLobby(name);
   });
 
   if (window.socket) {
@@ -250,6 +326,20 @@
         refreshLeaderboard();
       }
     });
+
+    window.socket.on('quiz:lobby', (payload) => {
+      if (quizWaiting.classList.contains('hidden')) return;
+      if (payload && Array.isArray(payload.members)) {
+        renderWaitingList(payload.members);
+      }
+    });
+
+    window.socket.on('quiz:started', (payload) => {
+      // Chi nhung ai dang o phong cho (da co currentName) moi bi keo vao dem nguoc.
+      if (quizWaiting.classList.contains('hidden') || !currentName) return;
+      const startAtMs = payload && payload.startAt ? new Date(payload.startAt).getTime() : Date.now();
+      runStartCountdown(startAtMs);
+    });
   }
 
   window.QuizUI = {
@@ -258,7 +348,7 @@
       loadMemberOptions();
       const savedName = localStorage.getItem(QUIZ_NAME_KEY);
       if (savedName) {
-        beginQuizFor(savedName);
+        joinQuizLobby(savedName);
       }
     },
   };

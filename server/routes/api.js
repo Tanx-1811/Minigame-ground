@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require('../prisma');
+const quizLobby = require('../quizLobby');
 
 const router = express.Router();
 
@@ -225,6 +226,9 @@ router.post('/admin/reset', async (req, res) => {
       update: { value: newPhase },
       create: { key: 'phase', value: newPhase },
     });
+
+    quizLobby.clearLobby();
+    await quizLobby.setQuizStatus('waiting');
 
     recentActivity = [];
     req.io.emit('groups:reset', { phase: newPhase });
