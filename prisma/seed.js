@@ -4,19 +4,19 @@ const prisma = new PrismaClient();
 
 const groups = [
   {
-    name: 'Nhóm Lành - Lành ít dữ nhiều',
+    name: 'Nhóm Gà - Gà ít, chiến nhiều',
     description: 'Chơi thì 9, quoặy là 10',
   },
   {
-    name: 'Nhóm này là số một',
+    name: 'Nhóm Zô – Zô là chiến',
     description: 'Không tranh cãi, số 1 là số 1',
   },
   {
-    name: 'Nhóm hạt nhài hạt lựu',
+    name: 'Nhóm Yếu - Yếu ít, liều nhiều',
     description: 'Không cần hài, giải là chủ yếu',
   },
   {
-    name: 'Nhóm mầm non gánh tạ',
+    name: 'Nhóm Tới - Tới đâu quậy đó',
     description: 'Mầm non nhưng gánh cả team',
   },
 ];

@@ -12,10 +12,10 @@ Website random chia nhóm cho nhiều người dùng, realtime bằng Socket.IO,
 
 ## Danh sách nhóm
 
-1. Nhóm Lành - Lành ít dữ nhiều
-2. Nhóm này là số một
-3. Nhóm hạt nhài hạt lựu
-4. Nhóm mầm non gánh tạ
+1. Nhóm Gà - Gà ít, chiến nhiều
+2. Nhóm Zô – Zô là chiến
+3. Nhóm Yếu - Yếu ít, liều nhiều
+4. Nhóm Tới - Tới đâu quậy đó
 
 ## Cấu trúc thư mục
 
