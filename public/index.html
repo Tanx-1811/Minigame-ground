@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2563eb" />
+<title>Dimaco - Random Chia Nhóm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/quiz.css" />
+</head>
+<body>
+  <div class="bg-decor" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+  </div>
+  <canvas id="confettiCanvas" class="hidden"></canvas>
+  <canvas id="fireworksCanvas" class="hidden"></canvas>
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="fx-dock" role="toolbar" aria-label="Tuỳ chỉnh giao diện">
+    <button type="button" id="soundToggleBtn" class="fx-btn" title="Bật/tắt âm thanh" aria-label="Bật/tắt âm thanh">🔊</button>
+    <button type="button" id="fxToggleBtn" class="fx-btn" title="Bật/tắt hiệu ứng con trỏ" aria-label="Bật/tắt hiệu ứng con trỏ">✨</button>
+    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">🟢 --</span>
+  </div>
+
+  <button type="button" id="backToTopBtn" class="back-to-top hidden" aria-label="Lên đầu trang">⬆️</button>
+
+  <section id="introScreen" class="intro-screen">
+    <div class="intro-particles" aria-hidden="true"></div>
+
+    <div class="company-banner intro-banner">
+      <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
+    </div>
+
+    <div class="intro-content">
+      <span class="header-badge">✨ Mãi mãi là anh em nha mọi người cho dù vào nhóm nào thì mọi người cũng nhẹ tay với nhau</span>
+      <h1 class="intro-title">🎉 Bốc Thăm Chia Nhóm</h1>
+      <p class="intro-subtitle">Chọn tên của bạn, nhấn nút và khám phá bạn thuộc đội nào!</p>
+
+      <div id="countdownBlock" class="countdown-block hidden">
+        <p class="countdown-label">Bốc thăm sẽ mở sau</p>
+        <div class="countdown-tiles">
+          <div class="countdown-tile"><span id="cdDays">00</span><small>Ngày</small></div>
+          <div class="countdown-tile"><span id="cdHours">00</span><small>Giờ</small></div>
+          <div class="countdown-tile"><span id="cdMinutes">00</span><small>Phút</small></div>
+          <div class="countdown-tile"><span id="cdSeconds">00</span><small>Giây</small></div>
+        </div>
+      </div>
+
+      <button id="startBtn" type="button" class="start-btn">
+        <span class="btn-icon">🎲</span> <span id="startBtnText">Bắt đầu bốc thăm</span>
+      </button>
+
+      <p class="intro-hint">4 nhóm đang chờ bạn tham gia</p>
+    </div>
+  </section>
+
+  <section id="quizScreen" class="quiz-screen hidden">
+    <div class="company-banner">
+      <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
+    </div>
+
+    <header class="quiz-header">
+      <span class="header-badge">🎯 Vòng chọn Nhóm Trưởng</span>
+      <h1>🧠 Ai sẽ là 4 Nhóm Trưởng?</h1>
+      <p class="subtitle">Trả lời đúng &amp; nhanh nhất để có cơ hội trở thành Nhóm Trưởng 👑. Sau khi chốt xong 4 Nhóm Trưởng, vòng Random mới mở!</p>
+    </header>
+
+    <main class="quiz-container">
+      <div id="quizNamePick" class="quiz-name-pick">
+        <div class="field">
+          <label for="quizMemberSelect">Tên của bạn</label>
+          <select id="quizMemberSelect">
+            <option value="">-- Chọn tên --</option>
+          </select>
+        </div>
+        <button id="quizStartBtn" type="button" class="start-btn">
+          <span class="btn-icon">🧠</span> Bắt đầu trả lời
+        </button>
+      </div>
+
+      <div id="quizPlay" class="quiz-play hidden">
+        <div class="quiz-progress">
+          <span id="quizProgressText"></span>
+          <div class="quiz-progress-bar"><div id="quizProgressFill" class="quiz-progress-fill"></div></div>
+        </div>
+        <h2 id="quizQuestionText" class="quiz-question-text"></h2>
+        <div id="quizOptions" class="quiz-options"></div>
+        <p id="quizFeedback" class="quiz-feedback hidden"></p>
+      </div>
+
+      <div id="quizDone" class="quiz-done hidden">
+        <p class="quiz-done-headline">✅ Bạn đã trả lời xong tất cả câu hỏi!</p>
+        <p>Điểm của bạn: <strong id="quizMyScore">0</strong></p>
+        <h3>🏆 Bảng xếp hạng tạm thời (top 4 sẽ là Nhóm Trưởng 👑)</h3>
+        <ol id="quizLeaderboardList" class="quiz-leaderboard-list"></ol>
+        <p class="quiz-hint">⏳ Đang chờ Admin chốt 4 Nhóm Trưởng để mở khóa vòng Random...</p>
+      </div>
+    </main>
+  </section>
+
+  <div id="appScreen" class="app-screen hidden">
+    <div class="company-banner">
+      <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
+    </div>
+
+    <header class="app-header">
+      <span class="header-badge">✨ Mãi mãi là anh em nha mọi người cho dù vào nhóm nào thì mọi người cũng nhẹ tay với nhau</span>
+      <h1>Random Chia Nhóm</h1>
+      <p class="subtitle">Chọn tên của bạn và bấm Random để biết mình thuộc nhóm nào</p>
+    </header>
+
+    <main class="container">
+      <section class="random-panel">
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span id="progressText">Đã random 0/0 người</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="groups-preview" id="groupsPreview"></div>
+
+        <div class="random-form">
+          <div class="field">
+            <label for="memberSelect">Tên của bạn</label>
+            <select id="memberSelect">
+              <option value="">-- Chọn tên --</option>
+            </select>
+          </div>
+          <button id="randomBtn" type="button"><span class="btn-icon">🎲</span> Random ngay</button>
+        </div>
+
+        <div class="panel-meta">
+          <span id="remainingText" class="remaining-text"></span>
+          <button type="button" id="rulesBtn" class="rules-link">❓ Cách chơi</button>
+        </div>
+
+        <div id="slotMachine" class="slot-machine hidden">
+          <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip0"></div></div>
+          <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip1"></div></div>
+          <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip2"></div></div>
+        </div>
+
+        <div id="resultBox" class="result-box hidden">
+          <p id="resultText"></p>
+          <p id="resultMotto" class="result-motto"></p>
+          <div class="result-actions">
+            <button id="shareBtn" type="button" class="share-btn hidden">📸 Tải ảnh</button>
+            <button id="copyResultBtn" type="button" class="share-btn hidden">📋 Copy kết quả</button>
+            <button id="nativeShareBtn" type="button" class="share-btn hidden">📤 Chia sẻ</button>
+          </div>
+        </div>
+        <p id="errorText" class="error-text hidden"></p>
+      </section>
+
+      <section class="stats-col">
+        <div class="stats-card leaderboard-card">
+          <h3>🏆 Bảng xếp hạng nhóm</h3>
+          <ol id="leaderboardList" class="leaderboard-list"></ol>
+        </div>
+        <div class="stats-card activity-card">
+          <h3>⚡ Hoạt động gần đây</h3>
+          <ul id="activityList" class="activity-list">
+            <li class="activity-empty">Chưa có ai bốc thăm...</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="groups-section">
+        <div class="groups-toolbar">
+          <h2 class="groups-title">📋 Danh sách các nhóm</h2>
+          <div class="search-field">
+            <span class="search-icon">🔍</span>
+            <input type="search" id="memberSearch" placeholder="Tìm tên thành viên..." aria-label="Tìm tên thành viên" />
+          </div>
+        </div>
+        <p class="flip-hint">💡 Bấm vào thẻ nhóm để xem câu slogan vui của nhóm</p>
+        <div class="groups-grid" id="groupsGrid">
+          <!-- 4 nhom se duoc render boi main.js -->
+        </div>
+      </section>
+    </main>
+
+    <dialog id="rulesModal" class="rules-modal">
+      <h3>🎯 Cách chơi</h3>
+      <ol>
+        <li>Chọn đúng tên của bạn trong danh sách.</li>
+        <li>Bấm <strong>Random ngay</strong> và chờ 3 cột quay dừng lại.</li>
+        <li>Hệ thống chọn ngẫu nhiên 1 trong 4 nhóm, luôn chia đều số lượng giữa các nhóm.</li>
+        <li>Mỗi người chỉ random 1 lần — random lại hoặc tải lại trang vẫn ra đúng nhóm cũ.</li>
+        <li>Sau khi có kết quả, bạn có thể tải ảnh kết quả để chia sẻ.</li>
+      </ol>
+      <button type="button" id="rulesCloseBtn" class="rules-close-btn">Đã hiểu</button>
+    </dialog>
+
+    <footer class="app-footer">
+      <p>Một ngày là anh em suốt đời anh em</p>
+    </footer>
+  </div>
+
+  <canvas id="shareCanvas" class="hidden" width="800" height="800"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="/js/quiz.js"></script>
+</body>
+</html>

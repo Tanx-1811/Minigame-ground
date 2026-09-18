@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+npm-debug.log*
+.DS_Store
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+tools/cloudflared.exe

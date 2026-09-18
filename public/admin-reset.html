@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Admin - Reset Random</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  .admin-wrap {
+    max-width: 420px;
+    margin: 80px auto;
+    padding: 0 16px;
+  }
+  .admin-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+  .admin-card h1 {
+    margin: 0 0 6px;
+    font-size: 1.3rem;
+  }
+  .admin-card p {
+    margin: 0 0 20px;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  .admin-field {
+    margin-bottom: 16px;
+  }
+  .admin-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+  .admin-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    font-size: 1rem;
+  }
+  .admin-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--color-error);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .admin-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .admin-msg {
+    margin-top: 14px;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  .admin-msg.ok { color: var(--color-success); }
+  .admin-msg.err { color: var(--color-error); }
+  .admin-btn-secondary {
+    background: var(--color-surface-alt);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    margin-top: 10px;
+  }
+  .admin-hint {
+    margin: -10px 0 16px;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+  }
+  .admin-quiz-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .admin-quiz-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+  <div class="bg-decor" aria-hidden="true"></div>
+
+  <div class="admin-wrap">
+    <div class="admin-card">
+      <h1>🔑 Mã bí mật admin</h1>
+      <p>Nhập mã bí mật một lần, dùng chung cho cả hai thao tác bên dưới.</p>
+      <div class="admin-field">
+        <label for="secretInput">Mã bí mật</label>
+        <input id="secretInput" type="password" placeholder="Nhập mã bí mật" autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px;">
+      <h1>⏰ Giờ mở bốc thăm</h1>
+      <p>Đặt thời điểm mở khóa nút "Bắt đầu bốc thăm" trên trang chủ — mọi người đang mở trang sẽ tự động thấy đếm ngược cập nhật ngay. Để trống rồi bấm "Mở ngay" để bỏ đếm ngược.</p>
+
+      <div class="admin-field">
+        <label for="eventTimeInput">Ngày giờ mở (theo giờ máy của bạn)</label>
+        <input id="eventTimeInput" type="datetime-local" />
+      </div>
+      <p class="admin-hint">Chưa đặt giờ nào thì bốc thăm mở ngay lập tức, không đếm ngược.</p>
+
+      <button id="saveTimeBtn" class="admin-btn" type="button">Lưu giờ mở</button>
+      <button id="clearTimeBtn" class="admin-btn admin-btn-secondary" type="button">Mở ngay (xóa giờ)</button>
+      <p id="timeMsg" class="admin-msg"></p>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px;">
+      <h1>👑 Chốt 4 Nhóm Trưởng</h1>
+      <p>Xem điểm quiz hiện tại và chốt 4 người điểm cao nhất (hòa thì ai nhanh hơn thắng) làm Nhóm Trưởng. Sau khi chốt, vòng Random mới mở khóa cho mọi người. Chỉ chốt được khi đã có ít nhất 4 người trả lời hết câu hỏi.</p>
+
+      <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button">Tải bảng xếp hạng quiz</button>
+      <ol id="quizAdminLeaderboard" class="admin-quiz-list"></ol>
+      <button id="finishQuizBtn" class="admin-btn" type="button">Chốt 4 Nhóm Trưởng & Mở Random</button>
+      <p id="quizMsg" class="admin-msg"></p>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px;">
+      <h1>⚠️ Reset toàn bộ random</h1>
+      <p>Thao tác này sẽ xóa kết quả random và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của <strong>tất cả thành viên</strong> để mọi người chơi lại từ đầu (kể cả vòng chọn Nhóm Trưởng nếu có câu hỏi). Không thể hoàn tác.</p>
+
+      <button id="resetBtn" class="admin-btn" type="button">Reset toàn bộ ngay</button>
+      <p id="msg" class="admin-msg"></p>
+    </div>
+  </div>
+
+  <script src="/js/admin-reset.js"></script>
+</body>
+</html>

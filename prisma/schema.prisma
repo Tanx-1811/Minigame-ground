@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Group {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  members     Member[]
+}
+
+model Member {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  groupId     Int?
+  group       Group?   @relation(fields: [groupId], references: [id])
+  createdAt   DateTime @default(now())
+  isLeader    Boolean  @default(false)
+  quizScore   Int      @default(0)
+  quizTimeMs  Int      @default(0)
+  answers     Answer[]
+}
+
+model Setting {
+  key   String  @id
+  value String?
+}
+
+model Question {
+  id           Int      @id @default(autoincrement())
+  order        Int      @unique
+  text         String
+  options      Json
+  correctIndex Int
+  createdAt    DateTime @default(now())
+  answers      Answer[]
+}
+
+model Answer {
+  id            Int      @id @default(autoincrement())
+  memberId      Int
+  member        Member   @relation(fields: [memberId], references: [id])
+  questionId    Int
+  question      Question @relation(fields: [questionId], references: [id])
+  selectedIndex Int
+  correct       Boolean
+  timeMs        Int
+  createdAt     DateTime @default(now())
+
+  @@unique([memberId, questionId])
+}
