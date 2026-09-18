@@ -23,8 +23,10 @@ app.use(
   express.static(path.join(__dirname, '..', 'public'), {
     maxAge: '1d',
     setHeaders: (res, filePath) => {
-      // index.html co the doi noi dung (vd sau deploy), khong cache lau
-      if (filePath.endsWith('.html')) {
+      // html/js/css thay doi thuong xuyen (sua cau hoi quiz, fix bug...) ke ca trong luc
+      // su kien dang dien ra - bat buoc trinh duyet revalidate (ETag) thay vi dung cache mu
+      // 1 ngay, tranh client chay code cu lech voi html moi va bi loi runtime nhu getElementById null.
+      if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
         res.setHeader('Cache-Control', 'no-cache');
       }
     },
