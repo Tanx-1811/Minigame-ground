@@ -9,8 +9,9 @@
   const quizMemberSelect = document.getElementById('quizMemberSelect');
   const quizStartBtn = document.getElementById('quizStartBtn');
   const quizPlay = document.getElementById('quizPlay');
-  const quizProgressText = document.getElementById('quizProgressText');
-  const quizProgressFill = document.getElementById('quizProgressFill');
+  const quizProgressLabel = document.getElementById('quizProgressLabel');
+  const quizProgressScore = document.getElementById('quizProgressScore');
+  const quizProgressDots = document.getElementById('quizProgressDots');
   const quizQuestionText = document.getElementById('quizQuestionText');
   const quizOptions = document.getElementById('quizOptions');
   const quizFeedback = document.getElementById('quizFeedback');
@@ -25,6 +26,9 @@
   let currentName = '';
   let questionShownAt = 0;
   let answering = false;
+  let liveScore = 0;
+
+  const OPTION_MARKS = { correct: '✓', wrong: '✗' };
 
   function notify(message, type) {
     if (typeof window.showToast === 'function') {
@@ -92,14 +96,32 @@
     }
   }
 
+  function renderProgress(activeIdx) {
+    quizProgressLabel.textContent = `Câu ${activeIdx + 1}/${questions.length}`;
+    quizProgressScore.textContent = `${liveScore} điểm`;
+    quizProgressDots.innerHTML = questions
+      .map((q, i) => {
+        const state = i < activeIdx ? 'done' : i === activeIdx ? 'current' : '';
+        return `<span class="quiz-progress-dot ${state}"></span>`;
+      })
+      .join('');
+  }
+
   function renderQuestion(q) {
     const idx = questions.findIndex((x) => x.id === q.id);
-    quizProgressText.textContent = `Câu ${idx + 1}/${questions.length}`;
-    quizProgressFill.style.width = `${Math.round((idx / questions.length) * 100)}%`;
+    renderProgress(idx);
     quizQuestionText.textContent = q.text;
     quizFeedback.classList.add('hidden');
+    const letters = ['A', 'B', 'C', 'D'];
     quizOptions.innerHTML = q.options
-      .map((opt, i) => `<button type="button" class="quiz-option-btn" data-index="${i}">${escapeHtml(opt)}</button>`)
+      .map(
+        (opt, i) => `
+        <button type="button" class="quiz-option-btn" data-index="${i}">
+          <span class="quiz-option-letter">${letters[i] || i + 1}</span>
+          <span class="quiz-option-text">${escapeHtml(opt)}</span>
+          <span class="quiz-option-mark"></span>
+        </button>`
+      )
       .join('');
     questionShownAt = performance.now();
     answering = false;
@@ -135,10 +157,18 @@
       }
 
       answeredIds.add(question.id);
+      liveScore = data.myScore;
+      quizProgressScore.textContent = `${liveScore} điểm`;
       quizOptions.querySelectorAll('.quiz-option-btn').forEach((btn) => {
         const idx = Number(btn.dataset.index);
-        if (idx === data.correctIndex) btn.classList.add('correct');
-        else if (idx === selectedIndex) btn.classList.add('wrong');
+        const mark = btn.querySelector('.quiz-option-mark');
+        if (idx === data.correctIndex) {
+          btn.classList.add('correct');
+          if (mark) mark.textContent = OPTION_MARKS.correct;
+        } else if (idx === selectedIndex) {
+          btn.classList.add('wrong');
+          if (mark) mark.textContent = OPTION_MARKS.wrong;
+        }
       });
 
       if (typeof window.playWin === 'function' && typeof window.playError === 'function') {
@@ -184,6 +214,7 @@
       }
 
       answeredIds = new Set(state.answeredIds);
+      liveScore = state.score;
 
       if (state.finished || !questions.length) {
         quizMyScore.textContent = String(state.score);

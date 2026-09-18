@@ -177,7 +177,7 @@ router.post('/quiz/answer', async (req, res) => {
 
 // POST /api/admin/quiz/finish - chot 4 nhom truong dua tren diem quiz, mo khoa man random
 router.post('/admin/quiz/finish', async (req, res) => {
-  const { secret } = req.body || {};
+  const { secret, force } = req.body || {};
 
   if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
     return res.status(401).json({ error: 'Sai mã bí mật' });
@@ -204,14 +204,21 @@ router.post('/admin/quiz/finish', async (req, res) => {
     });
     const eligible = finishers.filter((m) => m._count.answers >= total);
 
-    if (eligible.length < LEADER_COUNT) {
+    // Nhom truong (admin) co the buoc chot du chua du LEADER_COUNT nguoi hoan thanh,
+    // de khong bi ket man chi vi thieu nguoi lam het quiz.
+    const pool = force ? finishers : eligible;
+
+    if (!force && eligible.length < LEADER_COUNT) {
       return res.status(400).json({
         error: `Chưa đủ ${LEADER_COUNT} người hoàn thành hết câu hỏi (hiện có ${eligible.length})`,
       });
     }
+    if (force && pool.length === 0) {
+      return res.status(400).json({ error: 'Chưa có ai làm quiz để chốt' });
+    }
 
-    eligible.sort((a, b) => (b.quizScore - a.quizScore) || (a.quizTimeMs - b.quizTimeMs));
-    const winners = eligible.slice(0, LEADER_COUNT);
+    pool.sort((a, b) => (b.quizScore - a.quizScore) || (a.quizTimeMs - b.quizTimeMs));
+    const winners = pool.slice(0, LEADER_COUNT);
     const winnerIds = winners.map((w) => w.id);
 
     await prisma.$transaction([
@@ -231,6 +238,38 @@ router.post('/admin/quiz/finish', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi chốt nhóm trưởng' });
+  }
+});
+
+// POST /api/admin/quiz/reset - xoa tien do quiz + bo chot nhom truong, quay lai vong quiz tu dau
+// (khong dong den groupId nen ket qua random cua thanh vien thuong khong bi mat)
+router.post('/admin/quiz/reset', async (req, res) => {
+  const { secret } = req.body || {};
+
+  if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
+    return res.status(401).json({ error: 'Sai mã bí mật' });
+  }
+
+  try {
+    await prisma.answer.deleteMany({});
+    await prisma.member.updateMany({
+      data: { isLeader: false, quizScore: 0, quizTimeMs: 0 },
+    });
+
+    const total = await prisma.question.count();
+    const newPhase = total > 0 ? 'quiz' : 'random';
+    await prisma.setting.upsert({
+      where: { key: 'phase' },
+      update: { value: newPhase },
+      create: { key: 'phase', value: newPhase },
+    });
+
+    req.io.emit('groups:reset', { phase: newPhase });
+
+    res.json({ ok: true, phase: newPhase });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi reset vòng chọn nhóm trưởng' });
   }
 });
 

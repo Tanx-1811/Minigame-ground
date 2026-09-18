@@ -7,6 +7,8 @@ const clearTimeBtn = document.getElementById('clearTimeBtn');
 const timeMsg = document.getElementById('timeMsg');
 const refreshQuizBtn = document.getElementById('refreshQuizBtn');
 const finishQuizBtn = document.getElementById('finishQuizBtn');
+const forceFinishCheckbox = document.getElementById('forceFinishCheckbox');
+const resetLeadersBtn = document.getElementById('resetLeadersBtn');
 const quizAdminLeaderboard = document.getElementById('quizAdminLeaderboard');
 const quizMsg = document.getElementById('quizMsg');
 
@@ -122,7 +124,11 @@ finishQuizBtn.addEventListener('click', async () => {
     return;
   }
 
-  const confirmed = confirm('Chốt 4 Nhóm Trưởng dựa trên điểm quiz hiện tại và mở khóa vòng Random cho mọi người?');
+  const force = forceFinishCheckbox.checked;
+  const confirmMessage = force
+    ? 'Chốt 4 Nhóm Trưởng dựa trên điểm quiz hiện tại (kể cả khi chưa đủ 4 người hoàn thành) và mở khóa vòng Random cho mọi người?'
+    : 'Chốt 4 Nhóm Trưởng dựa trên điểm quiz hiện tại và mở khóa vòng Random cho mọi người?';
+  const confirmed = confirm(confirmMessage);
   if (!confirmed) return;
 
   finishQuizBtn.disabled = true;
@@ -133,7 +139,7 @@ finishQuizBtn.addEventListener('click', async () => {
     const res = await fetch('/api/admin/quiz/finish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret }),
+      body: JSON.stringify({ secret, force }),
     });
     const data = await res.json();
 
@@ -154,6 +160,48 @@ finishQuizBtn.addEventListener('click', async () => {
     quizMsg.className = 'admin-msg err';
   } finally {
     finishQuizBtn.disabled = false;
+  }
+});
+
+resetLeadersBtn.addEventListener('click', async () => {
+  const secret = secretInput.value.trim();
+  if (!secret) {
+    quizMsg.textContent = 'Vui lòng nhập mã bí mật';
+    quizMsg.className = 'admin-msg err';
+    return;
+  }
+
+  const confirmed = confirm(
+    'Reset lại vòng chọn Nhóm Trưởng: xóa điểm quiz, câu trả lời và bỏ chốt 4 Nhóm Trưởng hiện tại để mọi người làm lại quiz từ đầu. Không thể hoàn tác.'
+  );
+  if (!confirmed) return;
+
+  resetLeadersBtn.disabled = true;
+  quizMsg.textContent = 'Đang reset vòng chọn Nhóm Trưởng...';
+  quizMsg.className = 'admin-msg';
+
+  try {
+    const res = await fetch('/api/admin/quiz/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      quizMsg.textContent = data.error || 'Có lỗi xảy ra';
+      quizMsg.className = 'admin-msg err';
+      return;
+    }
+
+    quizMsg.textContent = 'Đã reset vòng chọn Nhóm Trưởng! Mọi người sẽ làm lại quiz từ đầu.';
+    quizMsg.className = 'admin-msg ok';
+    loadQuizLeaderboard();
+  } catch (err) {
+    quizMsg.textContent = 'Không thể kết nối máy chủ';
+    quizMsg.className = 'admin-msg err';
+  } finally {
+    resetLeadersBtn.disabled = false;
   }
 });
 

@@ -65,6 +65,7 @@
     </div>
 
     <header class="quiz-header">
+      <span class="quiz-mascot">🦜</span>
       <span class="header-badge">🎯 Vòng chọn Nhóm Trưởng</span>
       <h1>🧠 Ai sẽ là 4 Nhóm Trưởng?</h1>
       <p class="subtitle">Trả lời đúng &amp; nhanh nhất để có cơ hội trở thành Nhóm Trưởng 👑. Sau khi chốt xong 4 Nhóm Trưởng, vòng Random mới mở!</p>
@@ -72,6 +73,7 @@
 
     <main class="quiz-container">
       <div id="quizNamePick" class="quiz-name-pick">
+        <span class="quiz-name-pick-icon">🎓</span>
         <div class="field">
           <label for="quizMemberSelect">Tên của bạn</label>
           <select id="quizMemberSelect">
@@ -85,18 +87,24 @@
 
       <div id="quizPlay" class="quiz-play hidden">
         <div class="quiz-progress">
-          <span id="quizProgressText"></span>
-          <div class="quiz-progress-bar"><div id="quizProgressFill" class="quiz-progress-fill"></div></div>
+          <div class="quiz-progress-top">
+            <span id="quizProgressLabel" class="quiz-progress-label"></span>
+            <span id="quizProgressScore" class="quiz-progress-score"></span>
+          </div>
+          <div id="quizProgressDots" class="quiz-progress-dots"></div>
         </div>
-        <h2 id="quizQuestionText" class="quiz-question-text"></h2>
-        <div id="quizOptions" class="quiz-options"></div>
-        <p id="quizFeedback" class="quiz-feedback hidden"></p>
+        <div class="quiz-question-card">
+          <h2 id="quizQuestionText" class="quiz-question-text"></h2>
+          <div id="quizOptions" class="quiz-options"></div>
+          <p id="quizFeedback" class="quiz-feedback hidden"></p>
+        </div>
       </div>
 
       <div id="quizDone" class="quiz-done hidden">
-        <p class="quiz-done-headline">✅ Bạn đã trả lời xong tất cả câu hỏi!</p>
-        <p>Điểm của bạn: <strong id="quizMyScore">0</strong></p>
-        <h3>🏆 Bảng xếp hạng tạm thời (top 4 sẽ là Nhóm Trưởng 👑)</h3>
+        <span class="quiz-done-icon">🎉</span>
+        <p class="quiz-done-headline">Bạn đã trả lời xong tất cả câu hỏi!</p>
+        <p class="quiz-done-score">Điểm của bạn: <strong id="quizMyScore">0</strong></p>
+        <h3 class="quiz-leaderboard-title">🏆 Bảng xếp hạng tạm thời (top 4 sẽ là Nhóm Trưởng 👑)</h3>
         <ol id="quizLeaderboardList" class="quiz-leaderboard-list"></ol>
         <p class="quiz-hint">⏳ Đang chờ Admin chốt 4 Nhóm Trưởng để mở khóa vòng Random...</p>
       </div>

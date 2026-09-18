@@ -81,7 +81,7 @@ const questions = [
   {
     order: 6,
     text: 'Nhóm đẹp trai nhất công ty Dimaco là nhóm tên gì?',
-    options: ['Nhóm hạt nhài hạt lựu', 'Nam thần', 'Nhóm mầm non gánh tạ', 'Nhóm này là số một'],
+    options: ['Hoa hậu', 'Nam thần', 'Idol quốc dân', 'Thánh lầy'],
     correctIndex: 1,
   },
 ];
@@ -97,6 +97,8 @@ async function main() {
   }
 
   console.log('Clearing old members...');
+  // Answer co FK toi Member, phai xoa truoc thi moi deleteMany Member duoc
+  await prisma.answer.deleteMany({});
   await prisma.member.deleteMany({});
 
   console.log('Seeding members...');
