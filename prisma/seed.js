@@ -26,16 +26,19 @@ const memberNames = [
   'Chế Thị Huỳnh Như',
   'Nguyễn Thị Lệ My',
   'Phạm Nguyễn Bảo Uyên',
+  'Bùi Huỳnh Bích Trâm',
+  'Lê Phạm Như Thùy',
   'Võ Nguyễn Phương Nghĩa',
   'Phạm Thuỳ Dương',
   'Lệ Thị Thu Trà',
+  'Lê Thị Kiều Nga',
   'Nguyễn Minh Cường',
   'Nguyễn Anh Đôn',
   'Trương Ngọc Tấn',
   'Trần Đăng Khoa',
-  'Nguyễn Hữu Khánh',
   'Bùi Xuân Đạt',
   'Huỳnh Quang Thắng',
+  'Nguyễn Hữu Khánh',
 ];
 
 // Chi co dap an dung duoc cung cap, 3 phuong an nhieu con lai la tu soan them
