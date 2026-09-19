@@ -37,6 +37,7 @@ const memberNames = [
   'Bùi Xuân Đạt',
   'Huỳnh Quang Thắng',
   'Nguyễn Hữu Khánh',
+  'Nguyễn Thị Thu Hương'
 ];
 
 // Chi co dap an dung duoc cung cap, 3 phuong an nhieu con lai la tu soan them
