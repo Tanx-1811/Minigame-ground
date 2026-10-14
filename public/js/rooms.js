@@ -555,6 +555,7 @@ socket.on('members:updated', reloadAll);
 
 // Admin doi noi dung hien thi -> ap dung ngay, khong can tai lai trang
 if (window.UiConfig) window.UiConfig.bind(socket);
+if (window.VersionGuard) window.VersionGuard.bind(socket);
 
 let hasConnectedOnce = false;
 socket.on('connect', () => {

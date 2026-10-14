@@ -412,6 +412,9 @@ window.AdminCommon = (function () {
   // nen khong mo nhieu socket cho cung 1 tab trinh duyet.
   const socket = window.io ? window.io() : null;
 
+  // Nhac tai lai khi may chu co ban moi (xem js/version-guard.js)
+  if (window.VersionGuard) window.VersionGuard.bind(socket);
+
   // Khoi dong: mo lai dung tab admin xem lan truoc
   let initialTab = null;
   try {

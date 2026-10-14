@@ -1254,6 +1254,7 @@ socket.on('groups:reset', async (payload) => {
 
   await syncConfig();
   window.UiConfig.bind(socket);
+  if (window.VersionGuard) window.VersionGuard.bind(socket);
 
   const myName = localStorage.getItem(STORAGE_KEY);
   if (myName) {
