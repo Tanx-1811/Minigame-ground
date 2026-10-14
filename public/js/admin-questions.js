@@ -11,6 +11,8 @@
   const newQuestionText = document.getElementById('newQuestionText');
   const newQuestionOptions = document.getElementById('newQuestionOptions');
   const newQuestionCorrect = document.getElementById('newQuestionCorrect');
+  const newQuestionPoints = document.getElementById('newQuestionPoints');
+  const newQuestionTime = document.getElementById('newQuestionTime');
   const addQuestionBtn = document.getElementById('addQuestionBtn');
   const addQuestionMsg = document.getElementById('addQuestionMsg');
 
@@ -32,7 +34,7 @@
       const optional = i >= 2 ? ' (tùy chọn)' : '';
       return `
         <div class="admin-option" data-option-index="${i}">
-          <span>${LETTERS[i]}</span>
+          <span class="admin-option-letter">${LETTERS[i]}</span>
           <input type="text" data-option="${i}" value="${A.escapeHtml(value)}" placeholder="Phương án ${LETTERS[i]}${optional}" />
         </div>`;
     }).join('');
@@ -75,12 +77,15 @@
         text: newQuestionText.value,
         options: collectOptions(newQuestionOptions),
         correctIndex: newQuestionCorrect.value,
+        points: newQuestionPoints.value,
+        timeLimitSec: newQuestionTime.value,
       })
     );
     if (!data) return;
 
-    A.setMsg(addQuestionMsg, `Đã thêm câu hỏi số ${data.question.order}.`, 'ok');
+    A.done(addQuestionMsg, `Đã thêm câu hỏi số ${data.question.order}.`);
     newQuestionText.value = '';
+    newQuestionTime.value = '';
     newQuestionOptions.innerHTML = optionInputsHtml([]);
     syncCorrectSelect(newQuestionOptions, newQuestionCorrect, 0);
     loadQuestions();
@@ -111,9 +116,13 @@
             Câu
             <input type="number" min="1" data-field="order" value="${question.order}" title="Thứ tự câu hỏi" />
           </span>
-          <button type="button" class="admin-row-btn" data-action="move-up" ${index === 0 ? 'disabled data-keep-disabled="1"' : ''} title="Lên trên">↑</button>
-          <button type="button" class="admin-row-btn" data-action="move-down" ${index === total - 1 ? 'disabled data-keep-disabled="1"' : ''} title="Xuống dưới">↓</button>
-          <span class="admin-question-badge">${answered === null ? 'Đáp án đang ẩn' : `${answered} câu trả lời`}</span>
+          <button type="button" class="admin-row-btn icon-only" data-action="move-up" ${index === 0 ? 'disabled data-keep-disabled="1"' : ''} title="Lên trên">${A.icon('chevron-up')}</button>
+          <button type="button" class="admin-row-btn icon-only" data-action="move-down" ${index === total - 1 ? 'disabled data-keep-disabled="1"' : ''} title="Xuống dưới">${A.icon('chevron-down')}</button>
+          <span class="admin-question-badge">
+            ${A.icon('star', 'ic-sm')} ${question.points || 1} điểm
+            ${question.timeLimitSec ? ` · ${A.icon('timer', 'ic-sm')} ${question.timeLimitSec}s` : ''}
+            · ${answered === null ? 'đáp án đang ẩn' : `${answered} câu trả lời`}
+          </span>
         </div>
         <div class="admin-question-body">
           <div class="admin-field">
@@ -129,19 +138,27 @@
               <label>Đáp án đúng</label>
               <select data-field="correctIndex"></select>
             </div>
+            <div class="admin-field">
+              <label>Điểm cho câu này</label>
+              <input type="number" min="1" max="100" data-field="points" value="${question.points || 1}" />
+            </div>
+            <div class="admin-field">
+              <label>Giới hạn (giây)</label>
+              <input type="number" min="3" max="600" data-field="timeLimitSec" value="${question.timeLimitSec || ''}" placeholder="Trống = không giới hạn" />
+            </div>
           </div>
         </div>
         <div class="admin-question-foot">
-          <button type="button" class="admin-row-btn" data-action="save-question">💾 Lưu câu này</button>
-          <button type="button" class="admin-row-btn" data-action="duplicate-question">📄 Nhân bản</button>
-          <button type="button" class="admin-row-btn danger" data-action="delete-question">🗑️ Xóa câu này</button>
+          <button type="button" class="admin-row-btn" data-action="save-question">${A.icon('save')} Lưu câu này</button>
+          <button type="button" class="admin-row-btn" data-action="duplicate-question">${A.icon('copy')} Nhân bản</button>
+          <button type="button" class="admin-row-btn danger" data-action="delete-question">${A.icon('trash-2')} Xóa câu này</button>
         </div>
       </div>`;
   }
 
   function renderBulkBar() {
     bulkBar.hidden = selected.size === 0;
-    bulkCount.textContent = `Đã chọn ${selected.size} câu`;
+    bulkCount.innerHTML = `${A.icon('check-check')} Đã chọn ${selected.size} câu`;
   }
 
   function render() {
@@ -152,7 +169,13 @@
     const list = visibleQuestions();
     questionList.innerHTML = list.length
       ? list.map((q, i) => questionHtml(q, questions.indexOf(q), questions.length)).join('')
-      : `<p class="admin-empty">${questions.length ? 'Không có câu hỏi nào khớp từ khóa' : 'Chưa có câu hỏi nào. Không có câu hỏi thì hệ thống bỏ qua vòng quiz và mở random luôn.'}</p>`;
+      : `<div class="admin-empty-rich">${A.icon(questions.length ? 'search-x' : 'circle-help')}
+          <strong>${questions.length ? 'Không có câu hỏi nào khớp từ khóa' : 'Chưa có câu hỏi nào'}</strong>
+          <p>${
+            questions.length
+              ? 'Thử xóa bớt từ khóa tìm kiếm.'
+              : 'Không có câu hỏi thì hệ thống bỏ qua vòng quiz và mở random luôn.'
+          }</p></div>`;
 
     questionList.querySelectorAll('.admin-question').forEach((card) => {
       const question = questions.find((q) => q.id === Number(card.dataset.questionId));
@@ -173,7 +196,8 @@
     if (!canSeeAnswers && questions.length) {
       A.setMsg(
         lockNote,
-        '🔒 Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để xem đáp án đúng và sửa câu hỏi.'
+        'Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để xem đáp án đúng và sửa câu hỏi.',
+        'warn'
       );
     }
   }
@@ -226,10 +250,11 @@
   });
 
   questionList.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
-    if (!action) return;
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
 
-    const card = e.target.closest('.admin-question');
+    const card = btn.closest('.admin-question');
     const questionId = Number(card.dataset.questionId);
 
     if (action === 'save-question') {
@@ -238,9 +263,11 @@
         options: collectOptions(card.querySelector('[data-options]')),
         correctIndex: card.querySelector('[data-field="correctIndex"]').value,
         order: card.querySelector('[data-field="order"]').value,
+        points: card.querySelector('[data-field="points"]').value,
+        timeLimitSec: card.querySelector('[data-field="timeLimitSec"]').value,
       };
 
-      const data = await A.run(e.target, questionMsg, 'Đang lưu câu hỏi...', () =>
+      const data = await A.run(btn, questionMsg, 'Đang lưu câu hỏi...', () =>
         A.request('PUT', `/api/admin/questions/${questionId}`, body)
       );
       if (!data) return;
@@ -251,7 +278,7 @@
     }
 
     if (action === 'move-up' || action === 'move-down') {
-      const data = await A.run(e.target, questionMsg, 'Đang đổi thứ tự...', () =>
+      const data = await A.run(btn, questionMsg, 'Đang đổi thứ tự...', () =>
         A.request('POST', `/api/admin/questions/${questionId}/move`, {
           direction: action === 'move-up' ? 'up' : 'down',
         })
@@ -263,7 +290,7 @@
     }
 
     if (action === 'duplicate-question') {
-      const data = await A.run(e.target, questionMsg, 'Đang nhân bản...', () =>
+      const data = await A.run(btn, questionMsg, 'Đang nhân bản...', () =>
         A.request('POST', `/api/admin/questions/${questionId}/duplicate`)
       );
       if (!data) return;
@@ -274,9 +301,14 @@
 
     if (action === 'delete-question') {
       const text = card.querySelector('[data-field="text"]').value;
-      if (!confirm(`Xóa câu hỏi "${text}"? Câu trả lời của mọi người cho câu này cũng bị xóa.`)) return;
+      const ok = await A.confirmAction({
+        title: 'Xóa câu hỏi',
+        message: `Xóa câu hỏi <strong>${A.escapeHtml(text)}</strong>?<br />Câu trả lời của mọi người cho câu này cũng bị xóa.`,
+        okText: 'Xóa câu hỏi',
+      });
+      if (!ok) return;
 
-      const data = await A.run(e.target, questionMsg, 'Đang xóa...', () =>
+      const data = await A.run(btn, questionMsg, 'Đang xóa...', () =>
         A.request('DELETE', `/api/admin/questions/${questionId}`)
       );
       if (!data) return;
@@ -288,8 +320,9 @@
   });
 
   bulkBar.addEventListener('click', async (e) => {
-    const action = e.target.dataset.bulk;
-    if (!action) return;
+    const btn = e.target.closest('[data-bulk]');
+    if (!btn) return;
+    const action = btn.dataset.bulk;
 
     if (action === 'clear-selection') {
       selected.clear();
@@ -302,7 +335,12 @@
         A.setMsg(questionMsg, 'Chưa chọn câu nào', 'err');
         return;
       }
-      if (!confirm(`Xóa ${selected.size} câu hỏi đã chọn? Câu trả lời của mọi người cho các câu đó cũng bị xóa.`)) return;
+      const ok = await A.confirmAction({
+        title: 'Xóa câu hỏi',
+        message: `Xóa <strong>${selected.size} câu hỏi</strong> đã chọn?<br />Câu trả lời của mọi người cho các câu đó cũng bị xóa.`,
+        okText: 'Xóa tất cả',
+      });
+      if (!ok) return;
 
       const data = await A.run(null, questionMsg, 'Đang xóa...', () =>
         A.request('POST', '/api/admin/questions/bulk', { ids: [...selected], action: 'delete' })
@@ -316,7 +354,7 @@
   });
 
   exportBtn.addEventListener('click', () => {
-    const rows = [['Thứ tự', 'Câu hỏi', ...LETTERS.map((l) => `Phương án ${l}`), 'Đáp án đúng']];
+    const rows = [['Thứ tự', 'Câu hỏi', ...LETTERS.map((l) => `Phương án ${l}`), 'Đáp án đúng', 'Điểm', 'Giới hạn (giây)']];
     visibleQuestions().forEach((q) => {
       const options = Array.isArray(q.options) ? q.options : [];
       rows.push([
@@ -324,6 +362,8 @@
         q.text,
         ...Array.from({ length: MAX_OPTIONS }, (_, i) => options[i] || ''),
         canSeeAnswers ? `${LETTERS[q.correctIndex] || ''}. ${options[q.correctIndex] || ''}` : '(ẩn)',
+        q.points || 1,
+        q.timeLimitSec || '',
       ]);
     });
     A.downloadCsv('cau-hoi-quiz.csv', rows);

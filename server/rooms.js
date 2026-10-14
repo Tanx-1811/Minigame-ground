@@ -35,7 +35,7 @@ function shuffle(items) {
 // Danh sach phong kem so cho da dung, dang gon de thuat toan ghep xu ly nhanh
 async function loadRoomSlots(client) {
   const rooms = await client.room.findMany({
-    orderBy: { id: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     include: { _count: { select: { members: true } } },
   });
   return rooms.map((r) => ({
@@ -43,38 +43,53 @@ async function loadRoomSlots(client) {
     name: r.name,
     gender: r.gender,
     capacity: r.capacity,
+    locked: r.locked,
     occupancy: r._count.members,
   }));
 }
 
-// Chon phong cho 1 nguoi: chi lay phong dung gioi tinh va con cho trong.
+// Chon phong cho 1 nguoi: chi lay phong dung gioi tinh, KHONG bi khoa va con cho trong.
 // Uu tien phong DANG CO NGUOI nhung chua day de lap kin tung phong (ghep du cap,
 // khong de nhieu phong le loi moi phong 1 nguoi), random giua cac phong cung muc
 // lap day nen ai o voi ai van hoan toan ngau nhien.
 function pickRoom(slots, gender) {
-  const available = slots.filter((r) => r.gender === gender && r.occupancy < r.capacity);
+  const available = slots.filter((r) => r.gender === gender && !r.locked && r.occupancy < r.capacity);
   if (!available.length) return null;
   const maxFilled = Math.max(...available.map((r) => r.occupancy));
   const candidates = available.filter((r) => r.occupancy === maxFilled);
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-// Ghep phong hang loat cho tat ca nguoi chua co phong (admin bam 1 nut).
+// Ghep phong hang loat cho tat ca nguoi du dieu kien ma chua co phong (admin bam 1 nut).
 // Tron thu tu truoc khi chia nen ket qua ghep cap la ngau nhien.
-async function assignAllPending(tx) {
+// options.includeAssigned = true -> boc het nguoi ra roi ghep lai tu dau,
+// tru nhung nguoi duoc ghim (pinnedRoom).
+async function assignAllPending(tx, options = {}) {
+  const { includeAssigned = false } = options;
+
+  if (includeAssigned) {
+    await tx.member.updateMany({
+      where: { joinRoom: true, pinnedRoom: false, roomId: { not: null } },
+      data: { roomId: null },
+    });
+  }
+
   const slots = await loadRoomSlots(tx);
   const pending = await tx.member.findMany({
     where: { roomId: null },
-    select: { id: true, name: true, gender: true },
+    select: { id: true, name: true, gender: true, joinRoom: true },
     orderBy: { id: 'asc' },
   });
 
   const assigned = [];
-  const skipped = pending
-    .filter((m) => !m.gender)
-    .map((m) => ({ name: m.name, reason: 'Chưa đặt giới tính' }));
+  const skipped = [];
 
-  for (const member of shuffle(pending.filter((m) => m.gender))) {
+  pending.forEach((m) => {
+    if (!m.joinRoom) skipped.push({ name: m.name, reason: 'Không tham gia vòng ghép phòng' });
+    else if (!m.gender) skipped.push({ name: m.name, reason: 'Chưa đặt giới tính' });
+  });
+
+  for (const member of shuffle(pending.filter((m) => m.joinRoom && m.gender))) {
     const room = pickRoom(slots, member.gender);
     if (!room) {
       skipped.push({ name: member.name, reason: `Hết phòng trống cho ${genderLabel(member.gender)}` });
@@ -82,7 +97,7 @@ async function assignAllPending(tx) {
     }
     room.occupancy += 1;
     await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
-    assigned.push({ name: member.name, roomName: room.name });
+    assigned.push({ name: member.name, roomName: room.name, roomId: room.id });
   }
 
   // Co nguoi tu quay xen vao giua luc admin ghep hang loat -> so cho da doc
@@ -101,6 +116,7 @@ function serializeRoom(room) {
     name: m.name,
     gender: m.gender,
     isLeader: m.isLeader,
+    pinnedRoom: m.pinnedRoom,
   }));
   return {
     id: room.id,
@@ -108,38 +124,49 @@ function serializeRoom(room) {
     gender: room.gender,
     capacity: room.capacity,
     note: room.note,
+    locked: room.locked,
+    sortOrder: room.sortOrder,
     members,
     occupancy: members.length,
     freeSlots: Math.max(0, room.capacity - members.length),
+    isFull: members.length >= room.capacity,
   };
 }
 
 async function loadRoomsPayload(client) {
   const [rooms, members] = await Promise.all([
     client.room.findMany({
-      orderBy: [{ gender: 'asc' }, { name: 'asc' }],
+      orderBy: [{ gender: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
       include: {
         members: {
           orderBy: { name: 'asc' },
-          select: { id: true, name: true, gender: true, isLeader: true },
+          select: { id: true, name: true, gender: true, isLeader: true, pinnedRoom: true },
         },
       },
     }),
-    client.member.findMany({ select: { id: true, gender: true, roomId: true } }),
+    client.member.findMany({ select: { id: true, gender: true, roomId: true, joinRoom: true } }),
   ]);
 
   const serialized = rooms.map(serializeRoom);
+  const eligible = members.filter((m) => m.joinRoom);
+
   const stats = {
     totalMembers: members.length,
-    assigned: members.filter((m) => m.roomId).length,
-    noGender: members.filter((m) => !m.gender).length,
+    eligible: eligible.length,
+    excluded: members.length - eligible.length,
+    assigned: eligible.filter((m) => m.roomId).length,
+    pending: eligible.filter((m) => !m.roomId && m.gender).length,
+    noGender: eligible.filter((m) => !m.gender).length,
     totalCapacity: serialized.reduce((sum, r) => sum + r.capacity, 0),
+    lockedRooms: serialized.filter((r) => r.locked).length,
     byGender: GENDERS.reduce((acc, gender) => {
+      const ofGender = eligible.filter((m) => m.gender === gender);
+      const roomsOfGender = serialized.filter((r) => r.gender === gender);
       acc[gender] = {
-        members: members.filter((m) => m.gender === gender).length,
-        assigned: members.filter((m) => m.gender === gender && m.roomId).length,
-        rooms: serialized.filter((r) => r.gender === gender).length,
-        capacity: serialized.filter((r) => r.gender === gender).reduce((sum, r) => sum + r.capacity, 0),
+        members: ofGender.length,
+        assigned: ofGender.filter((m) => m.roomId).length,
+        rooms: roomsOfGender.length,
+        capacity: roomsOfGender.reduce((sum, r) => sum + r.capacity, 0),
       };
       return acc;
     }, {}),

@@ -2,8 +2,24 @@ const express = require('express');
 const prisma = require('../prisma');
 const requireAdmin = require('../adminAuth');
 const quizLobby = require('../quizLobby');
-const { getSetting, setSetting, getLeaderCount, getRoomCapacity, isRoomsLocked, DEFAULTS } = require('../settings');
+const activity = require('../activity');
+const {
+  getSetting,
+  setSetting,
+  getSettingMap,
+  getLeaderCount,
+  getRoomCapacity,
+  getGroupCapacity,
+  isRoomsLocked,
+  isRandomLocked,
+  parseBool,
+  getPublicUi,
+  DEFAULTS,
+  TEXT_SETTINGS,
+  BOOL_SETTINGS,
+} = require('../settings');
 const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
+const { loadGroupsPayload, assignAllPendingGroups } = require('../groups');
 
 const router = express.Router();
 
@@ -24,6 +40,16 @@ function emitMembers(req) {
 function emitGroups(req) {
   req.io.emit('groups:updated', {});
 }
+
+// Mau hex 3 hoac 6 ky tu, vd #fff hoac #2563eb
+function parseColor(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const text = String(value).trim();
+  return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(text) ? text : undefined;
+}
+
+// Cac co bat/tat tren tung thanh vien, dung chung cho PUT 1 nguoi va bulk nhieu nguoi
+const MEMBER_FLAGS = ['joinRandom', 'joinRoom', 'joinQuiz', 'pinnedGroup', 'pinnedRoom'];
 
 async function emitRooms(req) {
   req.io.emit('rooms:updated', await loadRoomsPayload(prisma));
@@ -51,7 +77,7 @@ router.get('/admin/members', requireAdmin, async (req, res) => {
 
 // POST /api/admin/members - them thanh vien moi
 router.post('/admin/members', requireAdmin, async (req, res) => {
-  const { name, gender, groupId } = req.body || {};
+  const { name, gender, groupId, note } = req.body || {};
 
   const cleanName = typeof name === 'string' ? name.trim() : '';
   if (!cleanName) {
@@ -72,12 +98,24 @@ router.post('/admin/members', requireAdmin, async (req, res) => {
   }
 
   try {
+    const flags = {};
+    MEMBER_FLAGS.forEach((flag) => {
+      if (req.body[flag] !== undefined) flags[flag] = !!req.body[flag];
+    });
+
     const member = await prisma.member.create({
-      data: { name: cleanName, gender: parsedGender, groupId: parsedGroupId },
+      data: {
+        name: cleanName,
+        gender: parsedGender,
+        groupId: parsedGroupId,
+        note: typeof note === 'string' && note.trim() ? note.trim() : null,
+        ...flags,
+      },
     });
 
     emitMembers(req);
     if (parsedGroupId) emitGroups(req);
+    await activity.log({ type: 'admin', icon: 'user-plus', message: `Thêm thành viên ${member.name}` }, req.io);
     res.json({ ok: true, member });
   } catch (err) {
     if (err.code === 'P2002') {
@@ -95,7 +133,7 @@ router.put('/admin/members/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Thành viên không hợp lệ' });
   }
 
-  const { name, gender, groupId, roomId, isLeader } = req.body || {};
+  const { name, gender, groupId, roomId, isLeader, note } = req.body || {};
 
   try {
     const member = await prisma.member.findUnique({ where: { id }, include: { room: true } });
@@ -121,6 +159,20 @@ router.put('/admin/members/:id', requireAdmin, async (req, res) => {
     if (isLeader !== undefined) {
       data.isLeader = !!isLeader;
     }
+
+    if (note !== undefined) {
+      data.note = typeof note === 'string' && note.trim() ? note.trim() : null;
+    }
+
+    // joinRandom / joinRoom / joinQuiz / pinnedGroup / pinnedRoom
+    MEMBER_FLAGS.forEach((flag) => {
+      if (req.body[flag] !== undefined) data[flag] = !!req.body[flag];
+    });
+
+    // Tat quyen tham gia 1 vong thi bo luon ket qua cu cua vong do, neu khong
+    // nguoi bi loai van con hien trong the nhom / phong ngu.
+    if (data.joinRandom === false) data.groupId = null;
+    if (data.joinRoom === false) data.roomId = null;
 
     if (groupId !== undefined) {
       if (groupId === null || groupId === '') {
@@ -227,7 +279,7 @@ router.delete('/admin/members/:id', requireAdmin, async (req, res) => {
 
 // POST /api/admin/members/bulk - sua/xoa nhieu thanh vien cung luc
 router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
-  const { ids, action, gender, groupId, isLeader } = req.body || {};
+  const { ids, action, gender, groupId, isLeader, flag, value, roomId } = req.body || {};
 
   const memberIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
   if (!memberIds.length) {
@@ -309,6 +361,78 @@ router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
       return res.json({ ok: true, action, affected: members.length });
     }
 
+    if (action === 'clear-group') {
+      const { count } = await prisma.member.updateMany({
+        where: { id: { in: memberIds }, groupId: { not: null } },
+        data: { groupId: null },
+      });
+      emitMembers(req);
+      emitGroups(req);
+      return res.json({ ok: true, action, affected: count });
+    }
+
+    // Xep nhieu nguoi vao cung 1 phong (kiem tra gioi tinh + suc chua truoc khi ghi)
+    if (action === 'room') {
+      if (roomId === null || roomId === '' || roomId === undefined) {
+        const { count } = await prisma.member.updateMany({
+          where: { id: { in: memberIds }, roomId: { not: null } },
+          data: { roomId: null },
+        });
+        emitMembers(req);
+        await emitRooms(req);
+        return res.json({ ok: true, action, affected: count });
+      }
+
+      const targetRoomId = parseId(roomId);
+      if (!targetRoomId) return res.status(400).json({ error: 'Phòng không hợp lệ' });
+
+      const room = await prisma.room.findUnique({
+        where: { id: targetRoomId },
+        include: { _count: { select: { members: true } } },
+      });
+      if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
+
+      const wrongGender = members.filter((m) => m.gender !== room.gender);
+      if (wrongGender.length) {
+        return res.status(400).json({
+          error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)} — ${wrongGender.length} người đã chọn không hợp giới tính`,
+        });
+      }
+
+      const alreadyInside = members.filter((m) => m.roomId === room.id).length;
+      const free = room.capacity - (room._count.members - alreadyInside);
+      if (members.length > free) {
+        return res.status(400).json({
+          error: `Phòng "${room.name}" chỉ còn ${Math.max(0, free)} chỗ, không đủ cho ${members.length} người`,
+        });
+      }
+
+      await prisma.member.updateMany({ where: { id: { in: memberIds } }, data: { roomId: room.id } });
+      emitMembers(req);
+      await emitRooms(req);
+      return res.json({ ok: true, action, affected: members.length, roomName: room.name });
+    }
+
+    // Bat/tat quyen tham gia tung vong hoac ghim ket qua cho nhieu nguoi
+    if (action === 'flag') {
+      if (!MEMBER_FLAGS.includes(flag)) {
+        return res.status(400).json({ error: 'Loại quyền không hợp lệ' });
+      }
+      const flagValue = !!value;
+      const data = { [flag]: flagValue };
+      // Loai khoi vong nao thi bo ket qua cu cua vong do
+      if (flag === 'joinRandom' && !flagValue) data.groupId = null;
+      if (flag === 'joinRoom' && !flagValue) data.roomId = null;
+
+      await prisma.member.updateMany({ where: { id: { in: memberIds } }, data });
+
+      emitMembers(req);
+      if (flag === 'joinRandom') emitGroups(req);
+      if (flag === 'joinRoom') await emitRooms(req);
+
+      return res.json({ ok: true, action, flag, value: flagValue, affected: members.length });
+    }
+
     return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
   } catch (err) {
     console.error(err);
@@ -331,6 +455,10 @@ router.post('/admin/members/import', requireAdmin, async (req, res) => {
   const skipped = [];
 
   try {
+    // Cot thu 3 co the ghi ten nhom - khop khong phan biet hoa thuong
+    const groups = await prisma.group.findMany({ select: { id: true, name: true } });
+    const groupByName = new Map(groups.map((g) => [g.name.trim().toLowerCase(), g.id]));
+
     for (const item of items) {
       const name = item && typeof item.name === 'string' ? item.name.trim() : '';
       if (!name) {
@@ -344,8 +472,25 @@ router.post('/admin/members/import', requireAdmin, async (req, res) => {
         continue;
       }
 
+      let groupId = null;
+      const rawGroup = typeof item.group === 'string' ? item.group.trim() : '';
+      if (rawGroup) {
+        groupId = groupByName.get(rawGroup.toLowerCase()) || null;
+        if (!groupId) {
+          skipped.push({ name, reason: `Không có nhóm tên "${rawGroup}"` });
+          continue;
+        }
+      }
+
+      const flags = {};
+      MEMBER_FLAGS.forEach((flag) => {
+        if (item[flag] !== undefined) flags[flag] = !!item[flag];
+      });
+
       try {
-        const member = await prisma.member.create({ data: { name, gender: parsedGender } });
+        const member = await prisma.member.create({
+          data: { name, gender: parsedGender, groupId, ...flags },
+        });
         created.push({ id: member.id, name: member.name, gender: member.gender });
       } catch (err) {
         if (err.code === 'P2002') {
@@ -356,7 +501,14 @@ router.post('/admin/members/import', requireAdmin, async (req, res) => {
       }
     }
 
-    if (created.length) emitMembers(req);
+    if (created.length) {
+      emitMembers(req);
+      emitGroups(req);
+      await activity.log(
+        { type: 'admin', icon: 'file-up', message: `Nhập danh sách: thêm ${created.length} thành viên` },
+        req.io
+      );
+    }
     res.json({ ok: true, created, skipped });
   } catch (err) {
     console.error(err);
@@ -366,24 +518,57 @@ router.post('/admin/members/import', requireAdmin, async (req, res) => {
 
 /* ---------- nhom ---------- */
 
+// GET /api/admin/groups - danh sach nhom kem thong ke (cho tab Nhom)
+router.get('/admin/groups', requireAdmin, async (req, res) => {
+  try {
+    const globalCapacity = await getGroupCapacity();
+    const payload = await loadGroupsPayload(prisma, globalCapacity);
+    res.json({ ...payload, globalCapacity });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải danh sách nhóm' });
+  }
+});
+
 // POST /api/admin/groups - them nhom moi
 router.post('/admin/groups', requireAdmin, async (req, res) => {
-  const { name, description } = req.body || {};
+  const { name, description, color, capacity, locked } = req.body || {};
 
   const cleanName = typeof name === 'string' ? name.trim() : '';
   if (!cleanName) {
     return res.status(400).json({ error: 'Thiếu tên nhóm' });
   }
 
+  const parsedColor = parseColor(color);
+  if (parsedColor === undefined) {
+    return res.status(400).json({ error: 'Mã màu không hợp lệ (dạng #2563eb)' });
+  }
+
+  let parsedCapacity = null;
+  if (capacity !== undefined && capacity !== null && capacity !== '') {
+    const n = Number.parseInt(capacity, 10);
+    if (!Number.isInteger(n) || n < 1) {
+      return res.status(400).json({ error: 'Giới hạn số người phải lớn hơn 0 (để trống = không giới hạn)' });
+    }
+    parsedCapacity = n;
+  }
+
   try {
+    const last = await prisma.group.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
+
     const group = await prisma.group.create({
       data: {
         name: cleanName,
         description: typeof description === 'string' && description.trim() ? description.trim() : null,
+        color: parsedColor,
+        capacity: parsedCapacity,
+        locked: !!locked,
+        sortOrder: (last ? last.sortOrder : 0) + 1,
       },
     });
 
     emitGroups(req);
+    await activity.log({ type: 'admin', icon: 'folder-plus', message: `Tạo nhóm ${group.name}` }, req.io);
     res.json({ ok: true, group });
   } catch (err) {
     if (err.code === 'P2002') {
@@ -401,7 +586,7 @@ router.put('/admin/groups/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Nhóm không hợp lệ' });
   }
 
-  const { name, description } = req.body || {};
+  const { name, description, color, capacity, locked } = req.body || {};
   const data = {};
 
   if (name !== undefined) {
@@ -411,6 +596,31 @@ router.put('/admin/groups/:id', requireAdmin, async (req, res) => {
   }
   if (description !== undefined) {
     data.description = typeof description === 'string' && description.trim() ? description.trim() : null;
+  }
+  if (color !== undefined) {
+    const parsedColor = parseColor(color);
+    if (parsedColor === undefined) return res.status(400).json({ error: 'Mã màu không hợp lệ (dạng #2563eb)' });
+    data.color = parsedColor;
+  }
+  if (locked !== undefined) {
+    data.locked = !!locked;
+  }
+  if (capacity !== undefined) {
+    if (capacity === null || capacity === '') {
+      data.capacity = null;
+    } else {
+      const n = Number.parseInt(capacity, 10);
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ error: 'Giới hạn số người phải lớn hơn 0 (để trống = không giới hạn)' });
+      }
+      const current = await prisma.member.count({ where: { groupId: id } });
+      if (n < current) {
+        return res.status(400).json({
+          error: `Nhóm đang có ${current} người, không thể hạ giới hạn xuống ${n} — chuyển bớt người ra trước`,
+        });
+      }
+      data.capacity = n;
+    }
   }
 
   if (!Object.keys(data).length) {
@@ -468,11 +678,28 @@ router.post('/admin/groups/bulk', requireAdmin, async (req, res) => {
   if (!groupIds.length) {
     return res.status(400).json({ error: 'Chưa chọn nhóm nào' });
   }
-  if (action !== 'delete') {
+  if (!['delete', 'clear', 'lock', 'unlock'].includes(action)) {
     return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
   }
 
   try {
+    if (action === 'clear') {
+      const { count } = await prisma.member.updateMany({
+        where: { groupId: { in: groupIds }, pinnedGroup: false },
+        data: { groupId: null },
+      });
+      emitGroups(req);
+      emitMembers(req);
+      return res.json({ ok: true, action, affected: count });
+    }
+
+    if (action === 'lock' || action === 'unlock') {
+      const locked = action === 'lock';
+      const { count } = await prisma.group.updateMany({ where: { id: { in: groupIds } }, data: { locked } });
+      emitGroups(req);
+      return res.json({ ok: true, action, affected: count });
+    }
+
     const released = await prisma.member.count({ where: { groupId: { in: groupIds } } });
 
     await prisma.$transaction([
@@ -482,14 +709,147 @@ router.post('/admin/groups/bulk', requireAdmin, async (req, res) => {
 
     emitGroups(req);
     emitMembers(req);
-    res.json({ ok: true, affected: groupIds.length, releasedMembers: released });
+    await activity.log({ type: 'admin', icon: 'trash-2', message: `Xóa ${groupIds.length} nhóm` }, req.io);
+    res.json({ ok: true, action, affected: groupIds.length, releasedMembers: released });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi xóa nhóm' });
   }
 });
 
+// POST /api/admin/groups/random-all - chia nhom ngay cho tat ca nguoi du dieu kien.
+// reshuffle=true -> boc het ra chia lai tu dau (tru nguoi da ghim pinnedGroup).
+router.post('/admin/groups/random-all', requireAdmin, async (req, res) => {
+  const { reshuffle } = req.body || {};
+
+  try {
+    const globalCapacity = await getGroupCapacity();
+    const result = await prisma.$transaction(
+      (tx) => assignAllPendingGroups(tx, globalCapacity, { includeAssigned: !!reshuffle }),
+      { timeout: 20000 }
+    );
+
+    emitGroups(req);
+    emitMembers(req);
+    req.io.emit('groups:bulk-randomized', { assigned: result.assigned.length });
+
+    await activity.log(
+      {
+        type: 'admin',
+        icon: 'shuffle',
+        message: `${reshuffle ? 'Chia lại nhóm từ đầu' : 'Chia nhóm hàng loạt'}: ${result.assigned.length} người`,
+      },
+      req.io
+    );
+
+    const payload = await loadGroupsPayload(prisma, globalCapacity);
+    res.json({ ok: true, ...result, stats: payload.stats });
+  } catch (err) {
+    if (err.message === 'NO_GROUPS') {
+      return res.status(400).json({ error: 'Chưa có nhóm nào — tạo nhóm trước đã' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi chia nhóm hàng loạt' });
+  }
+});
+
+// POST /api/admin/groups/reset - bo ket qua chia nhom (van giu danh sach nhom)
+router.post('/admin/groups/reset', requireAdmin, async (req, res) => {
+  const { keepPinned } = req.body || {};
+
+  try {
+    const { count } = await prisma.member.updateMany({
+      where: { groupId: { not: null }, ...(keepPinned ? { pinnedGroup: false } : {}) },
+      data: { groupId: null },
+    });
+
+    emitGroups(req);
+    emitMembers(req);
+    req.io.emit('groups:reset', {});
+    await activity.log({ type: 'admin', icon: 'rotate-ccw', message: `Reset chia nhóm (${count} người)` }, req.io);
+    res.json({ ok: true, cleared: count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi reset chia nhóm' });
+  }
+});
+
+// POST /api/admin/groups/reorder - luu thu tu hien thi cac nhom
+router.post('/admin/groups/reorder', requireAdmin, async (req, res) => {
+  const ids = (Array.isArray((req.body || {}).ids) ? req.body.ids : []).map(parseId).filter(Boolean);
+  if (!ids.length) {
+    return res.status(400).json({ error: 'Thiếu thứ tự nhóm' });
+  }
+
+  try {
+    await prisma.$transaction(
+      ids.map((id, index) => prisma.group.update({ where: { id }, data: { sortOrder: index + 1 } }))
+    );
+    emitGroups(req);
+    res.json({ ok: true, affected: ids.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lưu thứ tự nhóm' });
+  }
+});
+
+// POST /api/admin/groups/move - chuyen 1 nguoi sang nhom khac (hoac bo ra khoi nhom)
+router.post('/admin/groups/move', requireAdmin, async (req, res) => {
+  const memberId = parseId((req.body || {}).memberId);
+  const rawGroupId = (req.body || {}).groupId;
+  const groupId = rawGroupId === null || rawGroupId === '' ? null : parseId(rawGroupId);
+
+  if (!memberId) {
+    return res.status(400).json({ error: 'Thành viên không hợp lệ' });
+  }
+  if (rawGroupId !== null && rawGroupId !== '' && !groupId) {
+    return res.status(400).json({ error: 'Nhóm không hợp lệ' });
+  }
+
+  try {
+    const member = await prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) return res.status(404).json({ error: 'Không tìm thấy thành viên' });
+
+    if (groupId) {
+      const globalCapacity = await getGroupCapacity();
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        include: { _count: { select: { members: true } } },
+      });
+      if (!group) return res.status(404).json({ error: 'Không tìm thấy nhóm' });
+
+      const limit = group.capacity || globalCapacity || 0;
+      const occupancy = group._count.members - (member.groupId === group.id ? 1 : 0);
+      if (limit && occupancy >= limit) {
+        return res.status(400).json({ error: `Nhóm "${group.name}" đã đủ ${limit} người` });
+      }
+    }
+
+    await prisma.member.update({ where: { id: memberId }, data: { groupId } });
+    emitGroups(req);
+    emitMembers(req);
+    res.json({ ok: true, memberId, groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi chuyển nhóm' });
+  }
+});
+
 /* ---------- cau hoi quiz ---------- */
+
+// points: diem cong khi tra loi dung (1..100). timeLimitSec: null = khong gioi han.
+function parsePoints(value) {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isInteger(n) || n < 1 || n > 100) return undefined;
+  return n;
+}
+
+function parseTimeLimit(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number.parseInt(value, 10);
+  if (!Number.isInteger(n) || n < 3 || n > 600) return undefined;
+  return n;
+}
 
 function parseOptions(options) {
   if (!Array.isArray(options)) return null;
@@ -514,7 +874,7 @@ router.get('/admin/questions', requireAdmin, async (req, res) => {
 
 // POST /api/admin/questions - them cau hoi moi (tu xep xuong cuoi danh sach)
 router.post('/admin/questions', requireAdmin, async (req, res) => {
-  const { text, options, correctIndex } = req.body || {};
+  const { text, options, correctIndex, points, timeLimitSec } = req.body || {};
 
   const cleanText = typeof text === 'string' ? text.trim() : '';
   if (!cleanText) {
@@ -532,6 +892,15 @@ router.post('/admin/questions', requireAdmin, async (req, res) => {
   }
 
   try {
+    const parsedPoints = points === undefined || points === '' ? 1 : parsePoints(points);
+    if (parsedPoints === undefined) {
+      return res.status(400).json({ error: 'Điểm mỗi câu phải là số từ 1 đến 100' });
+    }
+    const parsedLimit = parseTimeLimit(timeLimitSec);
+    if (parsedLimit === undefined) {
+      return res.status(400).json({ error: 'Giới hạn thời gian phải từ 3 đến 600 giây (để trống = không giới hạn)' });
+    }
+
     const last = await prisma.question.findFirst({ orderBy: { order: 'desc' } });
     const question = await prisma.question.create({
       data: {
@@ -539,6 +908,8 @@ router.post('/admin/questions', requireAdmin, async (req, res) => {
         text: cleanText,
         options: cleanOptions,
         correctIndex: parsedCorrect,
+        points: parsedPoints,
+        timeLimitSec: parsedLimit,
       },
     });
 
@@ -557,7 +928,7 @@ router.put('/admin/questions/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Câu hỏi không hợp lệ' });
   }
 
-  const { text, options, correctIndex, order } = req.body || {};
+  const { text, options, correctIndex, order, points, timeLimitSec } = req.body || {};
 
   try {
     const question = await prisma.question.findUnique({ where: { id } });
@@ -590,6 +961,22 @@ router.put('/admin/questions/:id', requireAdmin, async (req, res) => {
       data.correctIndex = parsedCorrect;
     } else if (data.options && question.correctIndex >= finalOptions.length) {
       return res.status(400).json({ error: 'Số phương án mới ít hơn vị trí đáp án đúng — hãy chọn lại đáp án đúng' });
+    }
+
+    if (points !== undefined) {
+      const parsedPoints = parsePoints(points);
+      if (parsedPoints === undefined) {
+        return res.status(400).json({ error: 'Điểm mỗi câu phải là số từ 1 đến 100' });
+      }
+      data.points = parsedPoints;
+    }
+
+    if (timeLimitSec !== undefined) {
+      const parsedLimit = parseTimeLimit(timeLimitSec);
+      if (parsedLimit === undefined) {
+        return res.status(400).json({ error: 'Giới hạn thời gian phải từ 3 đến 600 giây (để trống = không giới hạn)' });
+      }
+      data.timeLimitSec = parsedLimit;
     }
 
     let swappedWith = null;
@@ -698,6 +1085,8 @@ router.post('/admin/questions/:id/duplicate', requireAdmin, async (req, res) => 
         text: `${question.text} (bản sao)`,
         options: question.options,
         correctIndex: question.correctIndex,
+        points: question.points,
+        timeLimitSec: question.timeLimitSec,
       },
     });
 
@@ -757,23 +1146,35 @@ router.post('/admin/questions/:id/move', requireAdmin, async (req, res) => {
 // GET /api/admin/settings - toan bo cau hinh dang ap dung
 router.get('/admin/settings', requireAdmin, async (req, res) => {
   try {
-    const [leaderCount, roomCapacity, roomsLocked, eventStartAt, phase, quizStatus, counts] = await Promise.all([
-      getLeaderCount(),
-      getRoomCapacity(),
-      isRoomsLocked(),
-      getSetting('eventStartAt'),
-      getSetting('phase'),
-      quizLobby.getQuizStatus(),
-      Promise.all([prisma.member.count(), prisma.group.count(), prisma.room.count(), prisma.question.count()]),
-    ]);
+    const [leaderCount, roomCapacity, groupCapacity, roomsLocked, randomLocked, eventStartAt, phase, quizStatus, ui, counts] =
+      await Promise.all([
+        getLeaderCount(),
+        getRoomCapacity(),
+        getGroupCapacity(),
+        isRoomsLocked(),
+        isRandomLocked(),
+        getSetting('eventStartAt'),
+        getSetting('phase'),
+        quizLobby.getQuizStatus(),
+        getPublicUi(),
+        Promise.all([prisma.member.count(), prisma.group.count(), prisma.room.count(), prisma.question.count()]),
+      ]);
 
     res.json({
       leaderCount,
       roomCapacity,
+      groupCapacity,
       roomsLocked,
+      randomLocked,
       eventStartAt: eventStartAt || null,
       phase: phase || 'quiz',
       quizStatus,
+      ui,
+      // Mo ta cac o nhap de trang admin tu dung form, them key moi khong phai sua HTML
+      schema: {
+        text: Object.entries(TEXT_SETTINGS).map(([key, def]) => ({ key, label: def.label, fallback: def.fallback })),
+        flags: Object.entries(BOOL_SETTINGS).map(([key, def]) => ({ key, label: def.label, fallback: def.fallback })),
+      },
       defaults: DEFAULTS,
       counts: { members: counts[0], groups: counts[1], rooms: counts[2], questions: counts[3] },
     });
@@ -783,9 +1184,9 @@ router.get('/admin/settings', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/settings - sua so nhom truong / suc chua phong mac dinh / phase
+// POST /api/admin/settings - luu cac thong so luat choi + noi dung hien thi
 router.post('/admin/settings', requireAdmin, async (req, res) => {
-  const { leaderCount, roomCapacity, phase } = req.body || {};
+  const { leaderCount, roomCapacity, groupCapacity, phase, ui } = req.body || {};
   const changes = [];
 
   try {
@@ -808,7 +1209,17 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
         return res.status(400).json({ error: `Sức chứa mặc định phải là số từ 1 đến ${MAX_ROOM_CAPACITY}` });
       }
       await setSetting('roomCapacity', String(parsed));
-      changes.push(`sức chứa mặc định = ${parsed}`);
+      changes.push(`sức chứa phòng mặc định = ${parsed}`);
+    }
+
+    // 0 = khong gioi han so nguoi moi nhom (chia deu nhu truoc)
+    if (groupCapacity !== undefined && groupCapacity !== '') {
+      const parsed = Number.parseInt(groupCapacity, 10);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return res.status(400).json({ error: 'Giới hạn người mỗi nhóm phải là số từ 0 trở lên (0 = không giới hạn)' });
+      }
+      await setSetting('groupCapacity', String(parsed));
+      changes.push(`giới hạn mỗi nhóm = ${parsed === 0 ? 'không giới hạn' : parsed}`);
     }
 
     if (phase !== undefined && phase !== '') {
@@ -816,7 +1227,7 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Phase chỉ nhận giá trị quiz hoặc random' });
       }
       await setSetting('phase', phase);
-      changes.push(`phase = ${phase}`);
+      changes.push(`giai đoạn = ${phase}`);
       const leaders =
         phase === 'random'
           ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
@@ -824,17 +1235,321 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
       req.io.emit('phase:updated', { phase, leaders });
     }
 
+    // Noi dung + cong tac hien thi cua 2 trang cong khai
+    if (ui && typeof ui === 'object') {
+      for (const [key, value] of Object.entries(ui)) {
+        if (TEXT_SETTINGS[key]) {
+          const text = value === null || value === undefined ? '' : String(value).trim();
+          if (text.length > 400) {
+            return res.status(400).json({ error: `"${TEXT_SETTINGS[key].label}" quá dài (tối đa 400 ký tự)` });
+          }
+          await setSetting(key, text);
+          changes.push(TEXT_SETTINGS[key].label);
+        } else if (BOOL_SETTINGS[key]) {
+          await setSetting(key, value ? '1' : '0');
+          changes.push(`${BOOL_SETTINGS[key].label}: ${value ? 'bật' : 'tắt'}`);
+        }
+      }
+    }
+
     if (!changes.length) {
       return res.status(400).json({ error: 'Không có thay đổi nào' });
     }
 
-    const [newLeaderCount, newRoomCapacity] = await Promise.all([getLeaderCount(), getRoomCapacity()]);
-    req.io.emit('settings:updated', { leaderCount: newLeaderCount, roomCapacity: newRoomCapacity });
+    const [newLeaderCount, newRoomCapacity, newUi] = await Promise.all([
+      getLeaderCount(),
+      getRoomCapacity(),
+      getPublicUi(),
+    ]);
+    req.io.emit('settings:updated', { leaderCount: newLeaderCount, roomCapacity: newRoomCapacity, ui: newUi });
 
-    res.json({ ok: true, changes, leaderCount: newLeaderCount, roomCapacity: newRoomCapacity });
+    await activity.log({ type: 'admin', icon: 'settings', message: `Lưu cấu hình: ${changes.join(', ')}` }, req.io);
+    res.json({ ok: true, changes, leaderCount: newLeaderCount, roomCapacity: newRoomCapacity, ui: newUi });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi lưu cấu hình' });
+  }
+});
+
+// POST /api/admin/settings/lock - khoa/mo nhanh vong random chia nhom
+router.post('/admin/settings/lock', requireAdmin, async (req, res) => {
+  const { locked } = req.body || {};
+  const value = locked ? '1' : '0';
+
+  try {
+    await setSetting('randomLocked', value);
+    req.io.emit('random:config', { locked: value === '1' });
+    await activity.log(
+      {
+        type: 'admin',
+        icon: value === '1' ? 'lock' : 'lock-open',
+        message: `${value === '1' ? 'Khóa' : 'Mở'} vòng random chia nhóm`,
+      },
+      req.io
+    );
+    res.json({ ok: true, locked: value === '1' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đổi trạng thái vòng random' });
+  }
+});
+
+/* ---------- tong quan & nhat ky ---------- */
+
+// GET /api/admin/overview - so lieu tong hop cho tab Tong quan
+router.get('/admin/overview', requireAdmin, async (req, res) => {
+  try {
+    const globalCapacity = await getGroupCapacity();
+
+    const [members, groupsPayload, roomsPayload, questionCount, answerCount, phase, quizStatus, leaderCount, locks] =
+      await Promise.all([
+        prisma.member.findMany({
+          select: {
+            id: true,
+            gender: true,
+            groupId: true,
+            roomId: true,
+            isLeader: true,
+            quizScore: true,
+            joinRandom: true,
+            joinRoom: true,
+            joinQuiz: true,
+          },
+        }),
+        loadGroupsPayload(prisma, globalCapacity),
+        loadRoomsPayload(prisma),
+        prisma.question.count(),
+        prisma.answer.count(),
+        getSetting('phase'),
+        quizLobby.getQuizStatus(),
+        getLeaderCount(),
+        Promise.all([isRoomsLocked(), isRandomLocked()]),
+      ]);
+
+    const count = (fn) => members.filter(fn).length;
+
+    res.json({
+      members: {
+        total: members.length,
+        male: count((m) => m.gender === 'MALE'),
+        female: count((m) => m.gender === 'FEMALE'),
+        noGender: count((m) => !m.gender),
+        leaders: count((m) => m.isLeader),
+        joinRandom: count((m) => m.joinRandom),
+        joinRoom: count((m) => m.joinRoom),
+        joinQuiz: count((m) => m.joinQuiz),
+        excludedRandom: count((m) => !m.joinRandom),
+        excludedRoom: count((m) => !m.joinRoom),
+        excludedQuiz: count((m) => !m.joinQuiz),
+      },
+      groups: groupsPayload.stats,
+      rooms: roomsPayload.stats,
+      quiz: {
+        questions: questionCount,
+        answers: answerCount,
+        status: quizStatus,
+        lobby: quizLobby.getLobbyMembers().length,
+        leaderCount,
+        finished: count((m) => m.quizScore > 0),
+      },
+      flow: {
+        phase: phase || 'quiz',
+        roomsLocked: locks[0],
+        randomLocked: locks[1],
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải tổng quan' });
+  }
+});
+
+// GET /api/admin/activity - nhat ky day du (loc theo loai)
+router.get('/admin/activity', requireAdmin, async (req, res) => {
+  try {
+    res.json(await activity.list({ limit: req.query.limit || 100, type: req.query.type }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải nhật ký' });
+  }
+});
+
+// POST /api/admin/activity/clear - xoa nhat ky (toan bo hoac 1 loai)
+router.post('/admin/activity/clear', requireAdmin, async (req, res) => {
+  try {
+    const cleared = await activity.clear((req.body || {}).type);
+    req.io.emit('activity:cleared', {});
+    res.json({ ok: true, cleared });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xóa nhật ký' });
+  }
+});
+
+/* ---------- sao luu & phuc hoi ---------- */
+
+// GET /api/admin/export - tai toan bo du lieu ra 1 file JSON de sao luu
+router.get('/admin/export', requireAdmin, async (req, res) => {
+  try {
+    const [members, groups, rooms, questions, settings] = await Promise.all([
+      prisma.member.findMany({ orderBy: { id: 'asc' } }),
+      prisma.group.findMany({ orderBy: { id: 'asc' } }),
+      prisma.room.findMany({ orderBy: { id: 'asc' } }),
+      prisma.question.findMany({ orderBy: { order: 'asc' } }),
+      prisma.setting.findMany(),
+    ]);
+
+    res.json({
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      counts: {
+        members: members.length,
+        groups: groups.length,
+        rooms: rooms.length,
+        questions: questions.length,
+      },
+      groups,
+      rooms,
+      members,
+      questions,
+      settings,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xuất dữ liệu' });
+  }
+});
+
+// POST /api/admin/import - phuc hoi tu file JSON da xuat.
+// GHI DE toan bo du lieu hien tai nen bat buoc gui confirm: 'GHI DE'.
+router.post('/admin/import', requireAdmin, async (req, res) => {
+  const { data, confirm } = req.body || {};
+
+  if (confirm !== 'GHI DE') {
+    return res.status(400).json({ error: 'Cần xác nhận ghi đè trước khi phục hồi dữ liệu' });
+  }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.members)) {
+    return res.status(400).json({ error: 'File sao lưu không đúng định dạng' });
+  }
+
+  try {
+    const report = await prisma.$transaction(
+      async (tx) => {
+        // Xoa theo dung thu tu khoa ngoai: answer -> member -> room/group/question
+        await tx.answer.deleteMany({});
+        await tx.member.deleteMany({});
+        await tx.question.deleteMany({});
+        await tx.room.deleteMany({});
+        await tx.group.deleteMany({});
+
+        const groupIdMap = new Map();
+        for (const g of data.groups || []) {
+          const created = await tx.group.create({
+            data: {
+              name: String(g.name),
+              description: g.description || null,
+              color: g.color || null,
+              capacity: Number.isInteger(g.capacity) ? g.capacity : null,
+              locked: !!g.locked,
+              sortOrder: Number.isInteger(g.sortOrder) ? g.sortOrder : 0,
+            },
+          });
+          groupIdMap.set(g.id, created.id);
+        }
+
+        const roomIdMap = new Map();
+        for (const r of data.rooms || []) {
+          const created = await tx.room.create({
+            data: {
+              name: String(r.name),
+              gender: r.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+              capacity: Number.isInteger(r.capacity) && r.capacity > 0 ? r.capacity : 2,
+              note: r.note || null,
+              locked: !!r.locked,
+              sortOrder: Number.isInteger(r.sortOrder) ? r.sortOrder : 0,
+            },
+          });
+          roomIdMap.set(r.id, created.id);
+        }
+
+        let memberCount = 0;
+        for (const m of data.members) {
+          if (!m || !m.name) continue;
+          await tx.member.create({
+            data: {
+              name: String(m.name),
+              gender: m.gender === 'MALE' || m.gender === 'FEMALE' ? m.gender : null,
+              groupId: groupIdMap.get(m.groupId) || null,
+              roomId: roomIdMap.get(m.roomId) || null,
+              isLeader: !!m.isLeader,
+              quizScore: Number.isInteger(m.quizScore) ? m.quizScore : 0,
+              quizTimeMs: Number.isInteger(m.quizTimeMs) ? m.quizTimeMs : 0,
+              joinRandom: m.joinRandom === undefined ? true : !!m.joinRandom,
+              joinRoom: m.joinRoom === undefined ? true : !!m.joinRoom,
+              joinQuiz: m.joinQuiz === undefined ? true : !!m.joinQuiz,
+              pinnedGroup: !!m.pinnedGroup,
+              pinnedRoom: !!m.pinnedRoom,
+              note: m.note || null,
+            },
+          });
+          memberCount += 1;
+        }
+
+        let questionCount = 0;
+        for (const q of data.questions || []) {
+          if (!q || !q.text || !Array.isArray(q.options)) continue;
+          questionCount += 1;
+          await tx.question.create({
+            data: {
+              order: questionCount,
+              text: String(q.text),
+              options: q.options,
+              correctIndex: Number.isInteger(q.correctIndex) ? q.correctIndex : 0,
+              points: Number.isInteger(q.points) && q.points > 0 ? q.points : 1,
+              timeLimitSec: Number.isInteger(q.timeLimitSec) ? q.timeLimitSec : null,
+            },
+          });
+        }
+
+        for (const st of data.settings || []) {
+          if (!st || !st.key) continue;
+          await tx.setting.upsert({
+            where: { key: st.key },
+            update: { value: st.value ?? null },
+            create: { key: st.key, value: st.value ?? null },
+          });
+        }
+
+        return {
+          groups: groupIdMap.size,
+          rooms: roomIdMap.size,
+          members: memberCount,
+          questions: questionCount,
+        };
+      },
+      { timeout: 60000 }
+    );
+
+    quizLobby.clearLobby();
+    emitMembers(req);
+    emitGroups(req);
+    await emitRooms(req);
+    req.io.emit('questions:updated', {});
+    req.io.emit('groups:reset', {});
+
+    await activity.log(
+      {
+        type: 'admin',
+        icon: 'database-backup',
+        message: `Phục hồi dữ liệu: ${report.members} thành viên, ${report.groups} nhóm, ${report.rooms} phòng, ${report.questions} câu hỏi`,
+      },
+      req.io
+    );
+
+    res.json({ ok: true, ...report });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi phục hồi dữ liệu — dữ liệu cũ được giữ nguyên' });
   }
 });
 

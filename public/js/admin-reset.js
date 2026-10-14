@@ -1,378 +1,312 @@
-const secretInput = document.getElementById('secretInput');
-const resetBtn = document.getElementById('resetBtn');
-const resetIncludeRooms = document.getElementById('resetIncludeRooms');
-const msg = document.getElementById('msg');
-const eventTimeInput = document.getElementById('eventTimeInput');
-const saveTimeBtn = document.getElementById('saveTimeBtn');
-const clearTimeBtn = document.getElementById('clearTimeBtn');
-const timeMsg = document.getElementById('timeMsg');
-const lobbyStatusText = document.getElementById('lobbyStatusText');
-const lobbyMembersList = document.getElementById('lobbyMembersList');
-const startQuizBtn = document.getElementById('startQuizBtn');
-const lobbyMsg = document.getElementById('lobbyMsg');
-const refreshQuizBtn = document.getElementById('refreshQuizBtn');
-const finishQuizBtn = document.getElementById('finishQuizBtn');
-const forceFinishCheckbox = document.getElementById('forceFinishCheckbox');
-const resetLeadersBtn = document.getElementById('resetLeadersBtn');
-const quizAdminLeaderboard = document.getElementById('quizAdminLeaderboard');
-const quizMsg = document.getElementById('quizMsg');
+// Ba viec dung chung mot file vi cung xoay quanh "dieu hanh buoi choi":
+//  - tab "Su kien": hen gio mo boc tham + dem nguoc
+//  - tab "Vong Quiz": phong cho, bat dau lam bai, chot Nhom Truong
+//  - khoi "Reset toan bo" trong tab Cau hinh
+//
+// Chua nhap ma bi mat thi 2 tab tren van xem duoc (phong cho, bang diem, gio mo),
+// chi cac nut thao tac bi khoa lai.
+(function () {
+  const A = window.AdminCommon;
 
-function isoToLocalInputValue(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+  const eventPanel = document.querySelector('.admin-panel[data-panel="event"]');
+  const quizPanel = document.querySelector('.admin-panel[data-panel="quiz"]');
+  const eventLockNote = document.getElementById('eventLockNote');
+  const quizLockNote = document.getElementById('quizLockNote');
 
-async function loadCurrentEventTime() {
-  try {
-    const res = await fetch('/api/config');
-    const data = await res.json();
-    if (data.eventStartAt) {
-      eventTimeInput.value = isoToLocalInputValue(data.eventStartAt);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-loadCurrentEventTime();
+  const eventTimeInput = document.getElementById('eventTimeInput');
+  const eventCountdownChip = document.getElementById('eventCountdownChip');
+  const saveTimeBtn = document.getElementById('saveTimeBtn');
+  const clearTimeBtn = document.getElementById('clearTimeBtn');
+  const timeMsg = document.getElementById('timeMsg');
 
-async function saveEventTime(eventStartAt) {
-  const secret = secretInput.value.trim();
-  if (!secret) {
-    timeMsg.textContent = 'Vui lòng nhập mã bí mật';
-    timeMsg.className = 'admin-msg err';
-    return;
+  const lobbyStatusText = document.getElementById('lobbyStatusText');
+  const lobbyMembersList = document.getElementById('lobbyMembersList');
+  const startQuizBtn = document.getElementById('startQuizBtn');
+  const lobbyMsg = document.getElementById('lobbyMsg');
+  const refreshQuizBtn = document.getElementById('refreshQuizBtn');
+  const finishQuizBtn = document.getElementById('finishQuizBtn');
+  const forceFinishCheckbox = document.getElementById('forceFinishCheckbox');
+  const resetLeadersBtn = document.getElementById('resetLeadersBtn');
+  const quizAdminLeaderboard = document.getElementById('quizAdminLeaderboard');
+  const quizMsg = document.getElementById('quizMsg');
+
+  const resetBtn = document.getElementById('resetBtn');
+  const resetIncludeRooms = document.getElementById('resetIncludeRooms');
+  const resetKeepPinned = document.getElementById('resetKeepPinned');
+  const resetIncludeActivity = document.getElementById('resetIncludeActivity');
+  const msg = document.getElementById('msg');
+
+  function applyLocks() {
+    A.applyEditLock(eventPanel, eventLockNote);
+    A.applyEditLock(quizPanel, quizLockNote);
   }
 
-  saveTimeBtn.disabled = true;
-  clearTimeBtn.disabled = true;
-  timeMsg.textContent = 'Đang lưu...';
-  timeMsg.className = 'admin-msg';
+  /* ================= su kien: gio mo boc tham ================= */
 
-  try {
-    const res = await fetch('/api/admin/event-time', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret, eventStartAt }),
-    });
-    const data = await res.json();
+  let eventStartAt = null;
+  let countdownTimer = null;
 
-    if (!res.ok) {
-      timeMsg.textContent = data.error || 'Có lỗi xảy ra';
-      timeMsg.className = 'admin-msg err';
+  function isoToLocalInputValue(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderCountdown() {
+    if (!eventStartAt) {
+      eventCountdownChip.innerHTML = `${A.icon('zap')} Đang mở ngay, không hẹn giờ`;
+      eventCountdownChip.className = 'admin-chip is-ok';
       return;
     }
 
-    timeMsg.textContent = eventStartAt ? 'Đã lưu giờ mở bốc thăm!' : 'Đã mở bốc thăm ngay lập tức!';
-    timeMsg.className = 'admin-msg ok';
-  } catch (err) {
-    timeMsg.textContent = 'Không thể kết nối máy chủ';
-    timeMsg.className = 'admin-msg err';
-  } finally {
-    saveTimeBtn.disabled = false;
-    clearTimeBtn.disabled = false;
+    const left = new Date(eventStartAt).getTime() - Date.now();
+    if (left <= 0) {
+      eventCountdownChip.innerHTML = `${A.icon('circle-check')} Đã tới giờ mở`;
+      eventCountdownChip.className = 'admin-chip is-ok';
+      return;
+    }
+
+    const s = Math.floor(left / 1000);
+    const parts = [];
+    if (s >= 86400) parts.push(`${Math.floor(s / 86400)} ngày`);
+    if (s >= 3600) parts.push(`${Math.floor((s % 86400) / 3600)} giờ`);
+    parts.push(`${Math.floor((s % 3600) / 60)} phút`);
+    if (s < 3600) parts.push(`${s % 60} giây`);
+
+    eventCountdownChip.innerHTML = `${A.icon('hourglass')} Còn ${parts.join(' ')}`;
+    eventCountdownChip.className = 'admin-chip is-warn';
   }
-}
 
-saveTimeBtn.addEventListener('click', () => {
-  if (!eventTimeInput.value) {
-    timeMsg.textContent = 'Vui lòng chọn ngày giờ';
-    timeMsg.className = 'admin-msg err';
-    return;
+  async function loadEventTime() {
+    try {
+      const data = await fetch('/api/config').then((r) => r.json());
+      eventStartAt = data.eventStartAt || null;
+      eventTimeInput.value = eventStartAt ? isoToLocalInputValue(eventStartAt) : '';
+
+      renderCountdown();
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(renderCountdown, 1000);
+    } catch (err) {
+      console.error(err);
+    }
+    applyLocks();
   }
-  saveEventTime(new Date(eventTimeInput.value).toISOString());
-});
 
-clearTimeBtn.addEventListener('click', () => {
-  eventTimeInput.value = '';
-  saveEventTime(null);
-});
+  async function saveEventTime(value) {
+    const data = await A.run(saveTimeBtn, timeMsg, 'Đang lưu...', () =>
+      A.request('POST', '/api/admin/event-time', { eventStartAt: value })
+    );
+    if (!data) return;
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+    A.done(timeMsg, value ? 'Đã lưu giờ mở bốc thăm!' : 'Đã mở bốc thăm ngay lập tức!');
+    loadEventTime();
+  }
 
-// Chua nhap ma bi mat: 2 tab nay van xem duoc (phong cho, bang diem, gio mo)
-// nhung cac nut thao tac bi khoa lai.
-const eventPanel = document.querySelector('.admin-panel[data-panel="event"]');
-const quizPanel = document.querySelector('.admin-panel[data-panel="quiz"]');
-const eventLockNote = document.getElementById('eventLockNote');
-const quizLockNote = document.getElementById('quizLockNote');
+  saveTimeBtn.addEventListener('click', () => {
+    if (!eventTimeInput.value) {
+      A.setMsg(timeMsg, 'Vui lòng chọn ngày giờ', 'err');
+      return;
+    }
+    saveEventTime(new Date(eventTimeInput.value).toISOString());
+  });
 
-function canEditNow() {
-  return window.AdminCommon ? window.AdminCommon.canEdit() : true;
-}
+  clearTimeBtn.addEventListener('click', () => {
+    eventTimeInput.value = '';
+    saveEventTime(null);
+  });
 
-function applyLocks() {
-  if (!window.AdminCommon) return;
-  window.AdminCommon.applyEditLock(eventPanel, eventLockNote);
-  window.AdminCommon.applyEditLock(quizPanel, quizLockNote);
-}
+  /* ================= quiz: phong cho ================= */
 
-function renderLobby(status, members) {
-  const list = Array.isArray(members) ? members : [];
-  lobbyStatusText.textContent =
-    status === 'active' ? '✅ Quiz đã bắt đầu' : `⏳ ${list.length} người đã sẵn sàng`;
-  lobbyStatusText.className = `admin-chip ${status === 'active' ? 'is-ok' : ''}`;
-  lobbyMembersList.innerHTML = list.length
-    ? list
+  function renderLobby(status, members) {
+    const list = Array.isArray(members) ? members : [];
+
+    lobbyStatusText.innerHTML =
+      status === 'active'
+        ? `${A.icon('circle-check')} Quiz đã bắt đầu`
+        : `${A.icon('hourglass')} ${list.length} người đã sẵn sàng`;
+    lobbyStatusText.className = `admin-chip ${status === 'active' ? 'is-ok' : ''}`;
+
+    lobbyMembersList.innerHTML = list.length
+      ? list
+          .map(
+            (name, i) =>
+              `<li><span class="admin-list-rank">${i + 1}</span><span>${A.escapeHtml(
+                name
+              )}</span><span class="admin-list-value">sẵn sàng</span></li>`
+          )
+          .join('')
+      : `<li class="admin-empty">Chưa có ai vào phòng chờ</li>`;
+
+    applyLocks();
+    startQuizBtn.disabled = status === 'active' || !A.canEdit();
+  }
+
+  async function loadLobby() {
+    try {
+      const data = await fetch('/api/quiz/lobby').then((r) => r.json());
+      renderLobby(data.status, data.members);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  startQuizBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Bắt đầu làm bài',
+      message: 'Bắt đầu làm bài Quiz cho tất cả mọi người đang chờ trong phòng chờ?',
+      okText: 'Bắt đầu',
+      danger: false,
+    });
+    if (!ok) return;
+
+    const data = await A.run(startQuizBtn, lobbyMsg, 'Đang bắt đầu...', () =>
+      A.request('POST', '/api/admin/quiz/start', {})
+    );
+    if (!data) return;
+
+    A.done(
+      lobbyMsg,
+      data.alreadyStarted
+        ? 'Quiz đã được bắt đầu từ trước.'
+        : 'Đã bắt đầu! Mọi người trong phòng chờ sẽ thấy đếm ngược 3 giây.'
+    );
+    loadLobby();
+  });
+
+  /* ================= quiz: bang xep hang & chot ================= */
+
+  async function loadQuizLeaderboard() {
+    try {
+      const rows = await fetch('/api/quiz/leaderboard').then((r) => r.json());
+      if (!rows.length) {
+        quizAdminLeaderboard.innerHTML = '<li class="admin-empty">Chưa có ai làm quiz</li>';
+        return;
+      }
+
+      quizAdminLeaderboard.innerHTML = rows
         .map(
-          (name, i) =>
-            `<li><span class="admin-list-rank">${i + 1}</span><span>${escapeHtml(name)}</span><span class="admin-list-value">✅ sẵn sàng</span></li>`
+          (r, i) => `
+          <li class="${i < 3 ? 'is-winner' : ''}">
+            <span class="admin-list-rank">${i + 1}</span>
+            <span>${A.escapeHtml(r.name)}${r.finished ? '' : ' <em class="muted">(chưa xong)</em>'}</span>
+            <span class="admin-list-value">${r.score} điểm · ${(r.timeMs / 1000).toFixed(1)}s</span>
+          </li>`
         )
-        .join('')
-    : '<li class="admin-empty">Chưa có ai vào phòng chờ</li>';
-
-  applyLocks();
-  startQuizBtn.disabled = status === 'active' || !canEditNow();
-}
-
-async function loadLobby() {
-  try {
-    const res = await fetch('/api/quiz/lobby');
-    const data = await res.json();
-    renderLobby(data.status, data.members);
-  } catch (err) {
-    console.error(err);
-  }
-}
-loadLobby();
-
-startQuizBtn.addEventListener('click', async () => {
-  const secret = secretInput.value.trim();
-  if (!secret) {
-    lobbyMsg.textContent = 'Vui lòng nhập mã bí mật';
-    lobbyMsg.className = 'admin-msg err';
-    return;
+        .join('');
+      A.setMsg(quizMsg, '');
+    } catch (err) {
+      quizAdminLeaderboard.innerHTML = '';
+      A.setMsg(quizMsg, 'Không thể tải bảng xếp hạng quiz', 'err');
+    }
   }
 
-  const confirmed = confirm('Bắt đầu làm bài Quiz cho tất cả mọi người đang chờ trong phòng chờ?');
-  if (!confirmed) return;
+  refreshQuizBtn.addEventListener('click', loadQuizLeaderboard);
 
-  startQuizBtn.disabled = true;
-  lobbyMsg.textContent = 'Đang bắt đầu...';
-  lobbyMsg.className = 'admin-msg';
-
-  try {
-    const res = await fetch('/api/admin/quiz/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret }),
+  finishQuizBtn.addEventListener('click', async () => {
+    const force = forceFinishCheckbox.checked;
+    const ok = await A.confirmAction({
+      title: 'Chốt Nhóm Trưởng',
+      message: force
+        ? 'Chốt Nhóm Trưởng dựa trên điểm quiz hiện tại (<strong>kể cả khi chưa đủ người hoàn thành</strong>) và mở khóa vòng Random cho mọi người?'
+        : 'Chốt Nhóm Trưởng dựa trên điểm quiz hiện tại và mở khóa vòng Random cho mọi người?',
+      okText: 'Chốt ngay',
+      danger: false,
     });
-    const data = await res.json();
+    if (!ok) return;
 
-    if (!res.ok) {
-      lobbyMsg.textContent = data.error || 'Có lỗi xảy ra';
-      lobbyMsg.className = 'admin-msg err';
-      startQuizBtn.disabled = false;
-      return;
-    }
-
-    lobbyMsg.textContent = data.alreadyStarted
-      ? 'Quiz đã được bắt đầu từ trước.'
-      : 'Đã bắt đầu! Mọi người trong phòng chờ sẽ thấy đếm ngược 3 giây.';
-    lobbyMsg.className = 'admin-msg ok';
-    loadLobby();
-  } catch (err) {
-    lobbyMsg.textContent = 'Không thể kết nối máy chủ';
-    lobbyMsg.className = 'admin-msg err';
-    startQuizBtn.disabled = false;
-  }
-});
-
-// Dung chung socket cua AdminCommon: moi ket noi socket deu bi tinh vao so nguoi
-// dang online nen khong mo them socket rieng cho trang admin.
-const adminSocket = window.AdminCommon ? window.AdminCommon.socket : null;
-if (adminSocket) {
-  adminSocket.on('quiz:lobby', (payload) => {
-    if (payload && Array.isArray(payload.members)) {
-      renderLobby('waiting', payload.members);
-    }
-  });
-  adminSocket.on('quiz:started', () => {
-    loadLobby();
-  });
-}
-
-async function loadQuizLeaderboard() {
-  quizMsg.textContent = '';
-  quizMsg.className = 'admin-msg';
-  try {
-    const res = await fetch('/api/quiz/leaderboard');
-    const rows = await res.json();
-    if (!rows.length) {
-      quizAdminLeaderboard.innerHTML = '<li class="admin-empty">Chưa có ai làm quiz</li>';
-      return;
-    }
-    const medals = ['🥇', '🥈', '🥉'];
-    quizAdminLeaderboard.innerHTML = rows
-      .map(
-        (r, i) =>
-          `<li><span class="admin-list-rank">${medals[i] || i + 1}</span><span>${escapeHtml(r.name)}${r.finished ? ' ✅' : ' <em>(chưa xong)</em>'}</span><span class="admin-list-value">${r.score} điểm</span></li>`
-      )
-      .join('');
-  } catch (err) {
-    quizAdminLeaderboard.innerHTML = '';
-    quizMsg.textContent = 'Không thể tải bảng xếp hạng quiz';
-    quizMsg.className = 'admin-msg err';
-  }
-}
-loadQuizLeaderboard();
-
-refreshQuizBtn.addEventListener('click', loadQuizLeaderboard);
-
-finishQuizBtn.addEventListener('click', async () => {
-  const secret = secretInput.value.trim();
-  if (!secret) {
-    quizMsg.textContent = 'Vui lòng nhập mã bí mật';
-    quizMsg.className = 'admin-msg err';
-    return;
-  }
-
-  const force = forceFinishCheckbox.checked;
-  const confirmMessage = force
-    ? 'Chốt 4 Nhóm Trưởng dựa trên điểm quiz hiện tại (kể cả khi chưa đủ 4 người hoàn thành) và mở khóa vòng Random cho mọi người?'
-    : 'Chốt 4 Nhóm Trưởng dựa trên điểm quiz hiện tại và mở khóa vòng Random cho mọi người?';
-  const confirmed = confirm(confirmMessage);
-  if (!confirmed) return;
-
-  finishQuizBtn.disabled = true;
-  quizMsg.textContent = 'Đang chốt...';
-  quizMsg.className = 'admin-msg';
-
-  try {
-    const res = await fetch('/api/admin/quiz/finish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret, force }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      quizMsg.textContent = data.error || 'Có lỗi xảy ra';
-      quizMsg.className = 'admin-msg err';
-      return;
-    }
+    const data = await A.run(finishQuizBtn, quizMsg, 'Đang chốt...', () =>
+      A.request('POST', '/api/admin/quiz/finish', { force })
+    );
+    if (!data) return;
 
     const names = (data.leaders || []).map((l) => l.name).join(', ');
-    quizMsg.textContent = data.alreadyFinished
-      ? `Đã chốt từ trước: ${names}`
-      : `Đã chốt 4 Nhóm Trưởng: ${names}. Vòng Random đã mở!`;
-    quizMsg.className = 'admin-msg ok';
+    A.done(
+      quizMsg,
+      data.alreadyFinished ? `Đã chốt từ trước: ${names}` : `Đã chốt Nhóm Trưởng: ${names}. Vòng Random đã mở!`
+    );
     loadQuizLeaderboard();
-  } catch (err) {
-    quizMsg.textContent = 'Không thể kết nối máy chủ';
-    quizMsg.className = 'admin-msg err';
-  } finally {
-    finishQuizBtn.disabled = false;
-  }
-});
-
-resetLeadersBtn.addEventListener('click', async () => {
-  const secret = secretInput.value.trim();
-  if (!secret) {
-    quizMsg.textContent = 'Vui lòng nhập mã bí mật';
-    quizMsg.className = 'admin-msg err';
-    return;
-  }
-
-  const confirmed = confirm(
-    'Reset lại vòng chọn Nhóm Trưởng: xóa điểm quiz, câu trả lời và bỏ chốt 4 Nhóm Trưởng hiện tại để mọi người làm lại quiz từ đầu. Không thể hoàn tác.'
-  );
-  if (!confirmed) return;
-
-  resetLeadersBtn.disabled = true;
-  quizMsg.textContent = 'Đang reset vòng chọn Nhóm Trưởng...';
-  quizMsg.className = 'admin-msg';
-
-  try {
-    const res = await fetch('/api/admin/quiz/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      quizMsg.textContent = data.error || 'Có lỗi xảy ra';
-      quizMsg.className = 'admin-msg err';
-      return;
-    }
-
-    quizMsg.textContent = 'Đã reset vòng chọn Nhóm Trưởng! Mọi người sẽ làm lại quiz từ đầu.';
-    quizMsg.className = 'admin-msg ok';
-    loadQuizLeaderboard();
-    loadLobby();
-  } catch (err) {
-    quizMsg.textContent = 'Không thể kết nối máy chủ';
-    quizMsg.className = 'admin-msg err';
-  } finally {
-    resetLeadersBtn.disabled = false;
-  }
-});
-
-resetBtn.addEventListener('click', async () => {
-  const secret = secretInput.value.trim();
-  if (!secret) {
-    msg.textContent = 'Vui lòng nhập mã bí mật';
-    msg.className = 'admin-msg err';
-    return;
-  }
-
-  const includeRooms = resetIncludeRooms.checked;
-  const confirmed = confirm(
-    includeRooms
-      ? 'Bạn chắc chắn muốn xóa toàn bộ kết quả random, tiến độ quiz VÀ kết quả ghép phòng ngủ? Không thể hoàn tác.'
-      : 'Bạn chắc chắn muốn xóa toàn bộ kết quả random? Không thể hoàn tác.'
-  );
-  if (!confirmed) return;
-
-  resetBtn.disabled = true;
-  msg.textContent = 'Đang reset...';
-  msg.className = 'admin-msg';
-
-  try {
-    const res = await fetch('/api/admin/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret, includeRooms }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      msg.textContent = data.error || 'Có lỗi xảy ra';
-      msg.className = 'admin-msg err';
-      return;
-    }
-
-    msg.textContent = data.roomsCleared
-      ? 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz và kết quả ghép phòng)'
-      : 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)';
-    msg.className = 'admin-msg ok';
-    loadQuizLeaderboard();
-    loadLobby();
-  } catch (err) {
-    msg.textContent = 'Không thể kết nối máy chủ';
-    msg.className = 'admin-msg err';
-  } finally {
-    resetBtn.disabled = false;
-  }
-});
-
-// Mo lai tab thi tai lai du lieu moi nhat cua tab do
-if (window.AdminCommon) {
-  window.AdminCommon.onTab('event', () => {
-    loadCurrentEventTime();
-    applyLocks();
   });
-  window.AdminCommon.onTab('quiz', () => {
+
+  resetLeadersBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Làm lại vòng Quiz',
+      message:
+        'Xóa điểm quiz, câu trả lời và bỏ chốt Nhóm Trưởng hiện tại để mọi người làm lại quiz từ đầu?<br />Kết quả chia nhóm không bị ảnh hưởng. Không thể hoàn tác.',
+      okText: 'Làm lại từ đầu',
+    });
+    if (!ok) return;
+
+    const data = await A.run(resetLeadersBtn, quizMsg, 'Đang reset vòng Quiz...', () =>
+      A.request('POST', '/api/admin/quiz/reset', {})
+    );
+    if (!data) return;
+
+    A.done(quizMsg, 'Đã reset vòng chọn Nhóm Trưởng! Mọi người sẽ làm lại quiz từ đầu.');
+    loadQuizLeaderboard();
+    loadLobby();
+  });
+
+  /* ================= reset toan bo ================= */
+
+  resetBtn.addEventListener('click', async () => {
+    const includeRooms = resetIncludeRooms.checked;
+    const keepPinned = resetKeepPinned.checked;
+    const includeActivity = resetIncludeActivity.checked;
+
+    const lines = [
+      'Xóa kết quả chia nhóm và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của tất cả thành viên.',
+      includeRooms ? 'Xóa luôn kết quả ghép phòng ngủ.' : 'Giữ nguyên kết quả ghép phòng ngủ.',
+      keepPinned ? 'Người đã ghim vẫn giữ nguyên nhóm và phòng.' : 'Kể cả người đã ghim cũng bị xóa kết quả.',
+      includeActivity ? 'Xóa luôn nhật ký thao tác.' : '',
+    ].filter(Boolean);
+
+    const ok = await A.confirmAction({
+      title: 'Reset toàn bộ',
+      message: `${lines.map((l) => `• ${l}`).join('<br />')}<br /><br /><strong>Không thể hoàn tác.</strong>`,
+      okText: 'Reset toàn bộ',
+    });
+    if (!ok) return;
+
+    const data = await A.run(resetBtn, msg, 'Đang reset...', () =>
+      A.request('POST', '/api/admin/reset', { includeRooms, keepPinned, includeActivity })
+    );
+    if (!data) return;
+
+    A.done(
+      msg,
+      data.roomsCleared
+        ? 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz và kết quả ghép phòng)'
+        : 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)'
+    );
+    loadQuizLeaderboard();
+    loadLobby();
+  });
+
+  /* ================= realtime & khoi dong ================= */
+
+  if (A.socket) {
+    A.socket.on('quiz:lobby', (payload) => {
+      if (payload && Array.isArray(payload.members)) renderLobby('waiting', payload.members);
+    });
+    A.socket.on('quiz:started', loadLobby);
+    A.socket.on('quiz:progress', () => {
+      if (A.activeTab() === 'quiz') loadQuizLeaderboard();
+    });
+    A.socket.on('config:updated', () => {
+      if (A.activeTab() === 'event') loadEventTime();
+    });
+  }
+
+  A.onTab('event', loadEventTime);
+  A.onTab('quiz', () => {
     loadLobby();
     loadQuizLeaderboard();
     applyLocks();
   });
-  window.AdminCommon.onSecretChange(applyLocks);
-  applyLocks();
-}
+  A.onSecretChange(applyLocks);
+
+  loadEventTime();
+  loadLobby();
+  loadQuizLeaderboard();
+})();

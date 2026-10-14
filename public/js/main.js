@@ -125,7 +125,9 @@ function themeForIndex(idx) {
 
 function themeForGroup(group) {
   const idx = groups.findIndex((g) => g.id === group.id);
-  return themeForIndex(idx === -1 ? 0 : idx);
+  const base = themeForIndex(idx === -1 ? 0 : idx);
+  // Admin dat mau rieng cho nhom thi uu tien mau do
+  return group && group.color ? { ...base, color: group.color } : base;
 }
 
 const TEAM_MOTTOS = [
@@ -220,7 +222,7 @@ function playError() {
 }
 
 function updateSoundBtn() {
-  soundToggleBtn.textContent = soundMuted ? '🔇' : '🔊';
+  soundToggleBtn.innerHTML = `<i data-lucide="${soundMuted ? 'volume-x' : 'volume-2'}"></i>`;
   soundToggleBtn.classList.toggle('is-off', soundMuted);
 }
 
@@ -277,7 +279,7 @@ document.addEventListener('pointermove', (e) => {
 /* ---------- online viewer count ---------- */
 
 socket.on('online:count', (count) => {
-  onlineBadge.textContent = `🟢 ${count} đang xem`;
+  onlineBadge.innerHTML = `<span class="dot is-live"></span> ${count} đang xem`;
 });
 
 /* ---------- back to top ---------- */
@@ -335,11 +337,13 @@ function setupIntroParticles() {
 
 function updateStartBtnState() {
   startBtn.disabled = !(dataReady && countdownReady);
+  // San sang roi thi hien dung chu admin dat trong tab Giao dien & noi dung
+  const ui = window.UiConfig ? window.UiConfig.current : null;
   startBtnText.textContent = !countdownReady
     ? 'Sắp bắt đầu...'
     : !dataReady
       ? 'Đang tải...'
-      : 'Bắt đầu bốc thăm';
+      : (ui && ui.startButtonText) || 'Bắt đầu bốc thăm';
 }
 
 function startCountdown(targetIso) {
@@ -789,15 +793,22 @@ function renderActivity() {
       (a) => `
         <li class="activity-item">
           <span class="activity-time">${formatTime(a.at)}</span>
-          <span>${escapeHtml(a.member.name)}${a.member.isLeader ? ' 👑' : ''} vào <strong>${escapeHtml(a.group.name)}</strong></span>
+          <span>${escapeHtml(a.message)}</span>
         </li>`
     )
     .join('');
 }
 
+// Socket van gui dang {member, group, at} cho goi nhe; doi sang dang cua
+// nhat ky trong DB ({message, at}) de renderActivity dung chung 1 khuon.
 function addActivity(entry) {
   if (!entry || !entry.member || !entry.group) return;
-  activityData.unshift(entry);
+  activityData.unshift({
+    type: 'random',
+    icon: 'dices',
+    at: entry.at,
+    message: `${entry.member.name}${entry.member.isLeader ? ' 👑' : ''} vào ${entry.group.name}`,
+  });
   if (activityData.length > MAX_ACTIVITY) {
     activityData.length = MAX_ACTIVITY;
   }
@@ -955,7 +966,8 @@ async function loadGroups() {
 }
 
 async function loadMembers() {
-  const res = await fetch('/api/members');
+  // scope=random: server loc san, ai bi admin tat quyen se khong thay ten minh o day
+  const res = await fetch('/api/members?scope=random');
   const members = await res.json();
   totalMembersCount = members.length;
 
@@ -1192,8 +1204,9 @@ socket.on('groups:reset', (payload) => {
   });
 
   try {
-    const res = await fetch('/api/config');
-    const config = await res.json();
+    // UiConfig da goi /api/config va ap dung noi dung admin dat; dung lai ket qua do
+    const config = await window.UiConfig.ready;
+    window.UiConfig.bind(socket);
     currentPhase = config.phase || 'quiz';
     if (config.eventStartAt) {
       startCountdown(config.eventStartAt);

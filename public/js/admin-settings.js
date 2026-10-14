@@ -1,123 +1,258 @@
-// Tab "He thong": cau hinh luat choi (so nhom truong, suc chua phong mac dinh, giai doan).
+// Hai tab he thong:
+//  - "Cau hinh & Reset": luat choi (so nhom truong, suc chua, giai doan) + sao luu/phuc hoi
+//  - "Giao dien & noi dung": sua chu hien tren trang chu / trang ghep phong va
+//    bat/tat tung khoi giao dien. Danh sach o nhap duoc server mo ta trong
+//    settings.schema nen them key moi ben server la tu co o nhap, khong phai sua HTML.
 (function () {
   const A = window.AdminCommon;
 
-  const panel = document.querySelector('.admin-panel[data-panel="system"]');
-  const lockNote = document.getElementById('systemLockNote');
+  const systemPanel = document.querySelector('.admin-panel[data-panel="system"]');
+  const appearancePanel = document.querySelector('.admin-panel[data-panel="appearance"]');
+
   const systemStats = document.getElementById('systemStats');
+  const systemLockNote = document.getElementById('systemLockNote');
   const leaderCountInput = document.getElementById('leaderCountInput');
   const roomCapacityInput = document.getElementById('roomCapacityInput');
+  const groupCapacityInput = document.getElementById('groupCapacityInput');
   const phaseSelect = document.getElementById('phaseSelect');
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
   const settingsMsg = document.getElementById('settingsMsg');
 
-  const PHASE_LABEL = { quiz: 'Quiz (chọn nhóm trưởng)', random: 'Random chia nhóm' };
+  const appearanceLockNote = document.getElementById('appearanceLockNote');
+  const uiTextFields = document.getElementById('uiTextFields');
+  const uiFlagFields = document.getElementById('uiFlagFields');
+  const saveUiBtn = document.getElementById('saveUiBtn');
+  const previewUiBtn = document.getElementById('previewUiBtn');
+  const uiMsg = document.getElementById('uiMsg');
 
-  function statTile({ label, value, sub, variant }) {
-    return `
-      <div class="admin-stat ${variant ? `is-${variant}` : ''}">
-        <span class="admin-stat-label">${label}</span>
-        <span class="admin-stat-value">${value}</span>
-        ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
-      </div>`;
-  }
+  const backupExportBtn = document.getElementById('backupExportBtn');
+  const backupImportBtn = document.getElementById('backupImportBtn');
+  const backupFileInput = document.getElementById('backupFileInput');
+  const backupMsg = document.getElementById('backupMsg');
 
-  function renderStats(settings) {
-    const c = settings.counts;
+  let settings = null;
+
+  /* ================= cau hinh chung ================= */
+
+  function renderSystem() {
+    if (!settings) return;
+
     systemStats.innerHTML = [
-      statTile({ label: '👥 Thành viên', value: c.members }),
-      statTile({ label: '🏷️ Nhóm', value: c.groups }),
-      statTile({ label: '🛏️ Phòng ngủ', value: c.rooms }),
-      statTile({ label: '❓ Câu hỏi', value: c.questions }),
-      statTile({
-        label: '🎬 Giai đoạn',
-        value: PHASE_LABEL[settings.phase] || settings.phase,
+      A.statTile({ icon: 'users', label: 'Thành viên', value: settings.counts.members, variant: 'accent' }),
+      A.statTile({ icon: 'users-round', label: 'Nhóm', value: settings.counts.groups }),
+      A.statTile({ icon: 'bed-double', label: 'Phòng ngủ', value: settings.counts.rooms }),
+      A.statTile({ icon: 'circle-help', label: 'Câu hỏi', value: settings.counts.questions }),
+      A.statTile({
+        icon: 'git-branch',
+        label: 'Giai đoạn',
+        value: settings.phase === 'random' ? 'Random' : 'Quiz',
         sub: settings.quizStatus === 'active' ? 'Quiz đang chạy' : 'Quiz đang chờ',
+        variant: settings.phase === 'random' ? 'ok' : 'warn',
       }),
-      statTile({
-        label: '🛏️ Vòng ghép phòng',
-        value: settings.roomsLocked ? '🔒 Đang khóa' : '🔓 Đang mở',
-        variant: settings.roomsLocked ? 'warn' : 'ok',
-      }),
-    ].join('');
+      settings.randomLocked || settings.roomsLocked
+        ? A.statTile({
+            icon: 'lock',
+            label: 'Đang khóa',
+            value: [settings.randomLocked ? 'Chia nhóm' : '', settings.roomsLocked ? 'Ghép phòng' : '']
+              .filter(Boolean)
+              .join(' · '),
+            variant: 'danger',
+          })
+        : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    leaderCountInput.value = settings.leaderCount;
+    roomCapacityInput.value = settings.roomCapacity;
+    groupCapacityInput.value = settings.groupCapacity;
+    phaseSelect.value = settings.phase;
+
+    A.applyEditLock(systemPanel, systemLockNote);
   }
 
-  // Chua co ma bi mat: van dung duoc API cong khai de hien day du so lieu,
-  // chi khong doc duoc cac cau hinh rieng (so nhom truong, suc chua mac dinh).
-  async function loadPublicOverview() {
-    const [config, roomPayload, groups, members] = await Promise.all([
-      fetch('/api/config').then((r) => r.json()),
-      fetch('/api/rooms').then((r) => r.json()),
-      fetch('/api/groups').then((r) => r.json()),
-      fetch('/api/members').then((r) => r.json()),
-    ]);
-    const questions = await fetch('/api/quiz/questions').then((r) => r.json());
+  /* ================= giao dien & noi dung ================= */
 
-    return {
-      leaderCount: '',
-      roomCapacity: roomPayload.defaultCapacity,
-      roomsLocked: !!roomPayload.locked,
-      phase: config.phase,
-      quizStatus: 'waiting',
-      counts: {
-        members: members.length,
-        groups: groups.length,
-        rooms: (roomPayload.rooms || []).length,
-        questions: questions.length,
-      },
-    };
+  function renderAppearance() {
+    if (!settings || !settings.schema) {
+      uiTextFields.innerHTML = `<div class="admin-empty-rich">${A.icon('key-round')}
+        <strong>Cần mã bí mật admin</strong>
+        <p>Nhập mã bí mật ở đầu trang để sửa nội dung hiển thị trên các trang công khai.</p></div>`;
+      uiFlagFields.innerHTML = '';
+      return;
+    }
+
+    uiTextFields.innerHTML = settings.schema.text
+      .map((field) => {
+        const value = settings.ui[field.key] || '';
+        const isColor = field.key.toLowerCase().includes('color');
+        const long = value.length > 60 && !isColor;
+
+        return `
+          <div class="admin-field" ${long ? 'style="grid-column:1/-1"' : ''}>
+            <label for="ui_${field.key}">${A.escapeHtml(field.label)}</label>
+            ${
+              isColor
+                ? `<input id="ui_${field.key}" type="color" data-ui-text="${field.key}" value="${A.escapeHtml(value)}" />`
+                : long
+                ? `<textarea id="ui_${field.key}" data-ui-text="${field.key}" rows="2">${A.escapeHtml(value)}</textarea>`
+                : `<input id="ui_${field.key}" type="text" data-ui-text="${field.key}" value="${A.escapeHtml(value)}" />`
+            }
+            <span class="admin-field-hint">Mặc định: ${A.escapeHtml(
+              field.fallback.length > 70 ? `${field.fallback.slice(0, 70)}...` : field.fallback
+            )}</span>
+          </div>`;
+      })
+      .join('');
+
+    uiFlagFields.innerHTML = settings.schema.flags
+      .map(
+        (field) => `
+        <label class="admin-switch" for="ui_${field.key}">
+          <span>${A.escapeHtml(field.label)}</span>
+          <input id="ui_${field.key}" type="checkbox" data-ui-flag="${field.key}" ${settings.ui[field.key] ? 'checked' : ''} />
+          <span class="admin-switch-track"></span>
+        </label>`
+      )
+      .join('');
+
+    A.applyEditLock(appearancePanel, appearanceLockNote);
   }
 
-  async function loadSettings() {
-    try {
-      const settings = A.canEdit() ? await A.request('GET', '/api/admin/settings') : await loadPublicOverview();
+  /* ================= tai du lieu ================= */
 
-      leaderCountInput.value = settings.leaderCount;
-      roomCapacityInput.value = settings.roomCapacity;
-      phaseSelect.value = settings.phase === 'random' ? 'random' : 'quiz';
-      renderStats(settings);
-      A.applyEditLock(panel, lockNote);
-      if (A.canEdit()) A.setMsg(settingsMsg, '');
-    } catch (err) {
+  async function load() {
+    if (!A.canEdit()) {
+      settings = null;
       systemStats.innerHTML = '';
+      A.applyEditLock(systemPanel, systemLockNote);
+      renderAppearance();
+      A.applyEditLock(appearancePanel, appearanceLockNote);
+      return;
+    }
+
+    try {
+      settings = await A.request('GET', '/api/admin/settings');
+      renderSystem();
+      renderAppearance();
+      A.setMsg(settingsMsg, '');
+    } catch (err) {
       A.setMsg(settingsMsg, err.message, 'err');
     }
   }
 
   saveSettingsBtn.addEventListener('click', async () => {
-    if (
-      phaseSelect.value === 'random' &&
-      !confirm('Chuyển sang giai đoạn Random sẽ mở vòng random chia nhóm cho tất cả mọi người ngay bây giờ. Tiếp tục?')
-    ) {
-      return;
-    }
-
-    const data = await A.run(saveSettingsBtn, settingsMsg, 'Đang lưu cấu hình...', () =>
+    const data = await A.run(saveSettingsBtn, settingsMsg, 'Đang lưu...', () =>
       A.request('POST', '/api/admin/settings', {
         leaderCount: leaderCountInput.value,
         roomCapacity: roomCapacityInput.value,
+        groupCapacity: groupCapacityInput.value,
         phase: phaseSelect.value,
       })
     );
     if (!data) return;
 
-    A.setMsg(settingsMsg, `Đã lưu: ${data.changes.join(', ')}.`, 'ok');
-    loadSettings();
+    A.done(settingsMsg, `Đã lưu: ${data.changes.join(', ')}.`);
+    load();
   });
+
+  saveUiBtn.addEventListener('click', async () => {
+    const ui = {};
+    appearancePanel.querySelectorAll('[data-ui-text]').forEach((el) => {
+      ui[el.dataset.uiText] = el.value;
+    });
+    appearancePanel.querySelectorAll('[data-ui-flag]').forEach((el) => {
+      ui[el.dataset.uiFlag] = el.checked;
+    });
+
+    const data = await A.run(saveUiBtn, uiMsg, 'Đang lưu...', () => A.request('POST', '/api/admin/settings', { ui }));
+    if (!data) return;
+
+    A.done(uiMsg, 'Đã lưu — mọi người đang mở trang sẽ thấy ngay.');
+    load();
+  });
+
+  previewUiBtn.addEventListener('click', () => {
+    window.open('/', '_blank', 'noopener');
+  });
+
+  /* ================= sao luu & phuc hoi ================= */
+
+  backupExportBtn.addEventListener('click', async () => {
+    const data = await A.run(backupExportBtn, backupMsg, 'Đang chuẩn bị file...', () =>
+      A.request('GET', '/api/admin/export')
+    );
+    if (!data) return;
+
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    A.downloadBlob(
+      `sao-luu-su-kien-${stamp}.json`,
+      new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    );
+    A.done(
+      backupMsg,
+      `Đã tải file sao lưu: ${data.counts.members} thành viên, ${data.counts.groups} nhóm, ${data.counts.rooms} phòng, ${data.counts.questions} câu hỏi.`
+    );
+  });
+
+  backupImportBtn.addEventListener('click', () => backupFileInput.click());
+
+  backupFileInput.addEventListener('change', async () => {
+    const file = backupFileInput.files && backupFileInput.files[0];
+    backupFileInput.value = '';
+    if (!file) return;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch (err) {
+      A.setMsg(backupMsg, 'File không phải JSON hợp lệ', 'err');
+      A.toast('File không phải JSON hợp lệ', 'err');
+      return;
+    }
+
+    if (!parsed || !Array.isArray(parsed.members)) {
+      A.setMsg(backupMsg, 'File không đúng định dạng sao lưu của hệ thống', 'err');
+      return;
+    }
+
+    const counts = parsed.counts || {};
+    const ok = await A.confirmAction({
+      title: 'Phục hồi dữ liệu',
+      message: `Ghi đè toàn bộ dữ liệu hiện tại bằng file <strong>${A.escapeHtml(file.name)}</strong>?<br /><br />
+        File chứa ${counts.members ?? parsed.members.length} thành viên, ${counts.groups ?? 0} nhóm,
+        ${counts.rooms ?? 0} phòng, ${counts.questions ?? 0} câu hỏi.<br /><br />
+        <strong>Toàn bộ dữ liệu đang có sẽ bị xóa.</strong> Không thể hoàn tác.`,
+      okText: 'Ghi đè ngay',
+    });
+    if (!ok) return;
+
+    const data = await A.run(backupImportBtn, backupMsg, 'Đang phục hồi, vui lòng chờ...', () =>
+      A.request('POST', '/api/admin/import', { data: parsed, confirm: 'GHI DE' })
+    );
+    if (!data) return;
+
+    A.done(
+      backupMsg,
+      `Đã phục hồi: ${data.members} thành viên, ${data.groups} nhóm, ${data.rooms} phòng, ${data.questions} câu hỏi.`
+    );
+    load();
+  });
+
+  /* ================= realtime ================= */
 
   if (A.socket) {
     const refreshIfVisible = () => {
-      if (A.activeTab() === 'system') loadSettings();
+      if (A.activeTab() === 'system' || A.activeTab() === 'appearance') load();
     };
-    A.socket.on('settings:updated', refreshIfVisible);
-    A.socket.on('rooms:config', refreshIfVisible);
-    A.socket.on('phase:updated', refreshIfVisible);
-    A.socket.on('groups:reset', refreshIfVisible);
+    ['settings:updated', 'phase:updated', 'groups:reset', 'members:updated', 'rooms:updated', 'questions:updated',
+      'rooms:config', 'random:config'].forEach((evt) => A.socket.on(evt, refreshIfVisible));
   }
 
   A.onSecretChange(() => {
-    if (A.activeTab() === 'system') loadSettings();
+    if (A.activeTab() === 'system' || A.activeTab() === 'appearance') load();
   });
 
-  A.onTab('system', loadSettings);
+  A.onTab('system', load);
+  A.onTab('appearance', load);
 })();

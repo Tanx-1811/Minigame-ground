@@ -1,557 +1,696 @@
-// Tab "Phong ngu": tao/sua/xoa phong, ghep phong hang loat, xep tay tung nguoi,
-// danh sach nguoi chua co phong, loc/tim phong, xuat CSV.
+// Tab "Phong ngu": tao phong, ghep nguoi, sua/khoa/xoa tung phong, doi cho 2 nguoi.
+//
+// Nguyen tac: nam o voi nam, nu o voi nu - moi o chon phong chi liet ke phong
+// dung gioi tinh va con cho. Phong bi KHOA van giu nguoi dang o nhung khong
+// nhan them ai khi random.
 (function () {
   const A = window.AdminCommon;
 
   const panel = document.querySelector('.admin-panel[data-panel="rooms"]');
-  const roomStats = document.getElementById('roomStats');
-  const roomList = document.getElementById('roomList');
-  const roomListMsg = document.getElementById('roomListMsg');
-  const roomActionMsg = document.getElementById('roomActionMsg');
-  const roomLockNote = document.getElementById('roomLockNote');
-  const roomFilter = document.getElementById('roomFilter');
-  const roomFilterChips = document.getElementById('roomFilterChips');
-  const roomDeleteEmptyBtn = document.getElementById('roomDeleteEmptyBtn');
-  const roomExportBtn = document.getElementById('roomExportBtn');
+  const statsBox = document.getElementById('roomStats');
 
-  const pendingList = document.getElementById('pendingList');
+  const autoCapacity = document.getElementById('roomAutoCapacity');
+  const autoPrefix = document.getElementById('roomAutoPrefix');
+  const autoCreateBtn = document.getElementById('roomAutoCreateBtn');
+  const randomAllBtn = document.getElementById('roomRandomAllBtn');
+  const reshuffleBtn = document.getElementById('roomReshuffleBtn');
+  const lockBtn = document.getElementById('roomLockBtn');
+  const resetBtn = document.getElementById('roomResetBtn');
+  const keepPinned = document.getElementById('roomKeepPinned');
+  const actionMsg = document.getElementById('roomActionMsg');
+
+  const newName = document.getElementById('newRoomName');
+  const newGender = document.getElementById('newRoomGender');
+  const newCapacity = document.getElementById('newRoomCapacity');
+  const newNote = document.getElementById('newRoomNote');
+  const addBtn = document.getElementById('addRoomBtn');
+  const addMsg = document.getElementById('addRoomMsg');
+
   const pendingCount = document.getElementById('pendingCount');
+  const pendingList = document.getElementById('pendingList');
   const pendingMsg = document.getElementById('pendingMsg');
 
-  const roomAutoCapacity = document.getElementById('roomAutoCapacity');
-  const roomAutoPrefix = document.getElementById('roomAutoPrefix');
-  const roomAutoCreateBtn = document.getElementById('roomAutoCreateBtn');
-  const roomRandomAllBtn = document.getElementById('roomRandomAllBtn');
-  const roomLockBtn = document.getElementById('roomLockBtn');
-  const roomResetBtn = document.getElementById('roomResetBtn');
+  const swapA = document.getElementById('swapMemberA');
+  const swapB = document.getElementById('swapMemberB');
+  const swapBtn = document.getElementById('swapBtn');
+  const swapMsg = document.getElementById('swapMsg');
 
-  const newRoomName = document.getElementById('newRoomName');
-  const newRoomGender = document.getElementById('newRoomGender');
-  const newRoomCapacity = document.getElementById('newRoomCapacity');
-  const newRoomNote = document.getElementById('newRoomNote');
-  const addRoomBtn = document.getElementById('addRoomBtn');
-  const addRoomMsg = document.getElementById('addRoomMsg');
+  const roomFilter = document.getElementById('roomFilter');
+  const filterChips = document.getElementById('roomFilterChips');
+  const deleteEmptyBtn = document.getElementById('roomDeleteEmptyBtn');
+  const lockFullBtn = document.getElementById('roomLockEmptyBtn');
+  const roomList = document.getElementById('roomList');
+  const roomListMsg = document.getElementById('roomListMsg');
+  const lockNote = document.getElementById('roomLockNote');
+  const exportBtn = document.getElementById('roomExportBtn');
 
-  const GENDER_ORDER = ['FEMALE', 'MALE'];
-
-  const ROOM_FILTERS = [
-    { key: 'all', label: 'Tất cả', test: () => true },
-    { key: 'female', label: '👩 Phòng nữ', test: (r) => r.gender === 'FEMALE' },
-    { key: 'male', label: '👨 Phòng nam', test: (r) => r.gender === 'MALE' },
-    { key: 'free', label: '🟢 Còn chỗ', test: (r) => r.occupancy < r.capacity },
-    { key: 'full', label: '✅ Đã kín', test: (r) => r.occupancy >= r.capacity },
-    { key: 'empty', label: '⚪ Đang trống', test: (r) => r.occupancy === 0 },
+  const FILTERS = [
+    { key: 'all', label: 'Tất cả', icon: 'layers', test: () => true },
+    { key: 'female', label: 'Phòng nữ', icon: 'venus', test: (r) => r.gender === 'FEMALE' },
+    { key: 'male', label: 'Phòng nam', icon: 'mars', test: (r) => r.gender === 'MALE' },
+    { key: 'free', label: 'Còn chỗ', icon: 'door-open', test: (r) => r.occupancy < r.capacity },
+    { key: 'full', label: 'Đã kín', icon: 'door-closed', test: (r) => r.occupancy >= r.capacity },
+    { key: 'empty', label: 'Đang trống', icon: 'ghost', test: (r) => r.occupancy === 0 },
+    { key: 'locked', label: 'Đang khóa', icon: 'lock', test: (r) => r.locked },
   ];
 
-  let locked = false;
   let rooms = [];
   let stats = null;
   let members = [];
-  let activeFilter = 'all';
+  let roundLocked = false;
+  const expanded = new Set();
 
-  /* ---------- thong ke ---------- */
-
-  function statTile({ label, value, sub, variant }) {
-    return `
-      <div class="admin-stat ${variant ? `is-${variant}` : ''}">
-        <span class="admin-stat-label">${label}</span>
-        <span class="admin-stat-value">${value}</span>
-        ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
-      </div>`;
-  }
+  /* ---------- hien thi ---------- */
 
   function renderStats() {
-    if (!stats) return;
-    const female = stats.byGender.FEMALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
-    const male = stats.byGender.MALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
-
-    const tiles = [
-      statTile({
-        label: 'Đã ghép phòng',
-        value: `${stats.assigned}/${stats.totalMembers}`,
-        sub: `${stats.totalCapacity} chỗ trong ${rooms.length} phòng`,
-        variant: stats.totalMembers > 0 && stats.assigned === stats.totalMembers ? 'ok' : '',
-      }),
-      statTile({
-        label: '👩 Nữ',
-        value: `${female.assigned}/${female.members}`,
-        sub: `${female.rooms} phòng · ${female.capacity} chỗ`,
-        variant: 'female',
-      }),
-      statTile({
-        label: '👨 Nam',
-        value: `${male.assigned}/${male.members}`,
-        sub: `${male.rooms} phòng · ${male.capacity} chỗ`,
-        variant: 'male',
-      }),
-    ];
-
-    if (stats.noGender > 0) {
-      tiles.push(
-        statTile({
-          label: '⚠️ Chưa đặt giới tính',
-          value: stats.noGender,
-          sub: 'Chưa ghép phòng được',
-          variant: 'warn',
-        })
-      );
-    }
-
-    tiles.push(
-      statTile({
-        label: 'Vòng tự ghép',
-        value: locked ? '🔒 Đang khóa' : '🔓 Đang mở',
-        sub: locked ? 'Mọi người không tự quay được' : 'Mọi người tự quay ở /rooms.html',
-        variant: locked ? 'warn' : 'ok',
-      })
-    );
-
-    roomStats.innerHTML = tiles.join('');
-    roomLockBtn.textContent = locked ? '🔓 Mở vòng ghép phòng' : '🔒 Khóa vòng ghép phòng';
-  }
-
-  /* ---------- nguoi chua co phong ---------- */
-
-  function freeRoomOptions(gender) {
-    const free = rooms.filter((r) => r.gender === gender && r.occupancy < r.capacity);
-    if (!free.length) return '<option value="">Hết phòng trống</option>';
-    return (
-      '<option value="">Xếp vào phòng...</option>' +
-      free
-        .map((r) => `<option value="${r.id}">${A.escapeHtml(r.name)} (${r.occupancy}/${r.capacity})</option>`)
-        .join('')
-    );
-  }
-
-  function renderPending() {
-    const pending = members.filter((m) => !m.roomId);
-    pendingCount.textContent = `${pending.length} người`;
-    pendingCount.className = `admin-chip ${pending.length ? 'is-warn' : 'is-ok'}`;
-
-    if (!pending.length) {
-      pendingList.innerHTML = '<p class="admin-empty">🎉 Tất cả mọi người đều đã có phòng.</p>';
+    if (!stats) {
+      statsBox.innerHTML = '';
       return;
     }
+    const f = stats.byGender.FEMALE;
+    const m = stats.byGender.MALE;
 
-    pendingList.innerHTML = `<div class="admin-pending-list">${pending
-      .map((m) => {
-        if (!m.gender) {
-          return `
-            <div class="admin-pending is-warn" data-member-id="${m.id}">
-              <span class="admin-pending-name">${A.escapeHtml(m.name)}</span>
-              <span class="admin-tag is-warn">Chưa đặt giới tính</span>
-              <button type="button" class="admin-row-btn" data-action="go-members" data-always-enabled="1">Đặt ngay</button>
-            </div>`;
-        }
-        return `
-          <div class="admin-pending" data-member-id="${m.id}">
-            <span class="admin-pending-name">${A.escapeHtml(m.name)}</span>
-            <span class="admin-tag ${m.gender === 'FEMALE' ? 'is-female' : 'is-male'}">${A.genderIcon(m.gender)} ${A.genderLabel(m.gender)}</span>
-            <select data-action="assign-room">${freeRoomOptions(m.gender)}</select>
-          </div>`;
-      })
-      .join('')}</div>`;
+    statsBox.innerHTML = [
+      A.statTile({
+        icon: 'bed-double',
+        label: 'Đã có phòng',
+        value: `${stats.assigned}/${stats.eligible}`,
+        variant: stats.pending ? 'warn' : 'ok',
+        meter: { value: stats.assigned, total: stats.eligible, variant: stats.pending ? 'warn' : 'ok' },
+      }),
+      A.statTile({
+        icon: 'venus',
+        label: 'Phòng nữ',
+        value: f.rooms,
+        sub: `${f.assigned}/${f.members} người · ${f.capacity} chỗ`,
+        variant: 'female',
+      }),
+      A.statTile({
+        icon: 'mars',
+        label: 'Phòng nam',
+        value: m.rooms,
+        sub: `${m.assigned}/${m.members} người · ${m.capacity} chỗ`,
+        variant: 'male',
+      }),
+      A.statTile({
+        icon: 'door-open',
+        label: 'Tổng sức chứa',
+        value: stats.totalCapacity,
+        sub:
+          stats.totalCapacity < stats.eligible
+            ? `Thiếu ${stats.eligible - stats.totalCapacity} chỗ`
+            : 'Đủ chỗ cho mọi người',
+        variant: stats.totalCapacity < stats.eligible ? 'danger' : 'ok',
+      }),
+      stats.noGender
+        ? A.statTile({
+            icon: 'circle-alert',
+            label: 'Chưa đặt giới tính',
+            value: stats.noGender,
+            sub: 'Không ghép phòng được',
+            variant: 'warn',
+          })
+        : '',
+      stats.excluded
+        ? A.statTile({ icon: 'user-round-x', label: 'Không tham gia', value: stats.excluded, variant: 'danger' })
+        : '',
+      stats.lockedRooms ? A.statTile({ icon: 'lock', label: 'Phòng đang khóa', value: stats.lockedRooms, variant: 'warn' }) : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    A.setBadge('rooms', rooms.length);
   }
 
-  /* ---------- danh sach phong ---------- */
-
   function renderFilterChips() {
-    roomFilterChips.innerHTML = ROOM_FILTERS.map((f) => {
+    filterChips.innerHTML = FILTERS.map((f) => {
       const count = rooms.filter(f.test).length;
       return `
         <button type="button" class="admin-filter-chip ${f.key === activeFilter ? 'is-active' : ''}"
           data-filter="${f.key}" data-always-enabled="1">
-          ${f.label}<span class="admin-filter-count">${count}</span>
+          ${A.icon(f.icon)} ${f.label}<span class="admin-filter-count">${count}</span>
         </button>`;
     }).join('');
   }
 
+  let activeFilter = 'all';
+
   function visibleRooms() {
     const keyword = roomFilter.value.trim().toLowerCase();
-    const filter = ROOM_FILTERS.find((f) => f.key === activeFilter) || ROOM_FILTERS[0];
-
-    return rooms.filter(filter.test).filter((room) => {
-      if (!keyword) return true;
-      return (
-        room.name.toLowerCase().includes(keyword) ||
-        (room.note || '').toLowerCase().includes(keyword) ||
-        room.members.some((m) => m.name.toLowerCase().includes(keyword))
+    const filter = FILTERS.find((f) => f.key === activeFilter) || FILTERS[0];
+    return rooms
+      .filter(filter.test)
+      .filter(
+        (r) =>
+          !keyword ||
+          r.name.toLowerCase().includes(keyword) ||
+          (r.note || '').toLowerCase().includes(keyword) ||
+          r.members.some((m) => m.name.toLowerCase().includes(keyword))
       );
-    });
   }
 
-  function roomCardHtml(room) {
-    const isFull = room.occupancy >= room.capacity;
-    const fillPct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
-
-    const occupants = room.members.length
-      ? room.members
-          .map(
-            (m) => `
-            <li class="admin-occupant">
-              <span>${A.escapeHtml(m.name)}</span>
-              <button type="button" data-action="remove-member" data-member-id="${m.id}" title="Đưa ra khỏi phòng">✕</button>
-            </li>`
-          )
-          .join('')
-      : '<li class="admin-occupants-empty">Phòng đang trống</li>';
-
+  function occupantHtml(member, room) {
     return `
-      <div class="admin-room ${room.gender === 'MALE' ? 'is-male' : 'is-female'} ${isFull ? 'is-full' : ''}" data-room-id="${room.id}">
-        <div class="admin-room-top">
-          <span class="admin-room-name">${A.genderIcon(room.gender)} ${A.escapeHtml(room.name)}</span>
-          <span class="admin-room-count">${room.occupancy}/${room.capacity}</span>
-        </div>
-        <div class="admin-room-meter"><span style="width:${fillPct}%"></span></div>
-        <div class="admin-room-body">
-          ${room.note ? `<p class="admin-room-note">${A.escapeHtml(room.note)}</p>` : ''}
-          <ul class="admin-occupants">${occupants}</ul>
-        </div>
-        <details class="admin-room-edit">
-          <summary>⚙️ Sửa phòng</summary>
-          <div class="admin-room-fields">
-            <div class="span-2">
-              <label>Tên phòng</label>
-              <input type="text" data-field="name" value="${A.escapeHtml(room.name)}" />
-            </div>
-            <div>
-              <label>Dành cho</label>
-              <select data-field="gender">
-                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>👩 Nữ</option>
-                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>👨 Nam</option>
-              </select>
-            </div>
-            <div>
-              <label>Sức chứa</label>
-              <input type="number" min="1" max="50" data-field="capacity" value="${room.capacity}" />
-            </div>
-            <div class="span-2">
-              <label>Ghi chú</label>
-              <input type="text" data-field="note" value="${A.escapeHtml(room.note || '')}" placeholder="Không có" />
-            </div>
-          </div>
-          <div class="admin-room-actions admin-btn-row">
-            <button type="button" class="admin-row-btn" data-action="clear-room" ${room.occupancy ? '' : 'disabled data-keep-disabled="1"'}>🧍 Làm trống phòng</button>
-            <button type="button" class="admin-row-btn danger" data-action="delete-room">🗑️ Xóa phòng</button>
-          </div>
-        </details>
+      <div class="admin-occupant">
+        ${A.icon(member.isLeader ? 'crown' : A.genderIcon(member.gender), 'ic-sm')}
+        <span class="admin-occupant-name">${A.escapeHtml(member.name)}</span>
+        ${member.pinnedRoom ? A.icon('pin', 'ic-sm') : ''}
+        <button type="button" data-action="remove-member" data-member-id="${member.id}" title="Đưa ra khỏi ${A.escapeHtml(
+          room.name
+        )}">${A.icon('x', 'ic-sm')}</button>
       </div>`;
   }
 
+  function roomCardHtml(room) {
+    const pct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
+    const classes = [
+      A.genderClass(room.gender),
+      room.isFull ? 'is-full' : '',
+      room.locked ? 'is-locked' : '',
+      room.occupancy === 0 ? 'is-empty' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return `
+      <div class="admin-room ${classes}" data-room-id="${room.id}">
+        <div class="admin-room-top">
+          <div class="admin-room-name">
+            <span>${A.icon(A.genderIcon(room.gender))} ${A.escapeHtml(room.name)}</span>
+            ${room.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : ''}
+          </div>
+          <span class="admin-room-count">${room.occupancy}/${room.capacity}</span>
+        </div>
+
+        <div class="admin-room-meter"><span style="width:${pct}%"></span></div>
+
+        <div class="admin-room-body">
+          ${room.note ? `<p class="admin-room-note">${A.icon('sticky-note', 'ic-sm')} ${A.escapeHtml(room.note)}</p>` : ''}
+          <div class="admin-occupants">
+            ${
+              room.members.length
+                ? room.members.map((m) => occupantHtml(m, room)).join('')
+                : `<div class="admin-occupants-empty">${A.icon('ghost', 'ic-sm')} Chưa có ai ở phòng này</div>`
+            }
+          </div>
+        </div>
+
+        <div class="admin-room-actions">
+          <button type="button" class="admin-row-btn" data-action="toggle-edit">${A.icon('pencil')} Sửa phòng</button>
+          <button type="button" class="admin-row-btn ${room.locked ? 'is-on' : ''}" data-action="toggle-lock">
+            ${A.icon(room.locked ? 'lock-open' : 'lock')} ${room.locked ? 'Mở khóa' : 'Khóa'}
+          </button>
+          <button type="button" class="admin-row-btn" data-action="clear">${A.icon('user-round-minus')} Dọn phòng</button>
+        </div>
+
+        <div class="admin-room-edit" ${expanded.has(room.id) ? '' : 'hidden'}>
+          <div class="admin-room-fields">
+            <div class="admin-field">
+              <label>Tên phòng</label>
+              <input type="text" data-edit="name" value="${A.escapeHtml(room.name)}" />
+            </div>
+            <div class="admin-field">
+              <label>Dành cho</label>
+              <select data-edit="gender">
+                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>Nữ</option>
+                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>Nam</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label>Sức chứa</label>
+              <input type="number" min="1" max="50" data-edit="capacity" value="${room.capacity}" />
+            </div>
+            <div class="admin-field">
+              <label>Ghi chú</label>
+              <input type="text" data-edit="note" value="${A.escapeHtml(room.note || '')}" />
+            </div>
+          </div>
+          <div class="admin-btn-row">
+            <button type="button" class="admin-row-btn" data-action="save">${A.icon('save')} Lưu phòng</button>
+            <button type="button" class="admin-row-btn danger" data-action="delete">${A.icon('trash-2')} Xóa phòng</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderRooms() {
+    const list = visibleRooms();
+
+    if (!list.length) {
+      roomList.innerHTML = `<div class="admin-empty-rich">${A.icon(rooms.length ? 'search-x' : 'door-closed')}
+        <strong>${rooms.length ? 'Không có phòng nào khớp bộ lọc' : 'Chưa có phòng nào'}</strong>
+        <p>${
+          rooms.length
+            ? 'Thử đổi bộ lọc hoặc xóa từ khóa tìm kiếm.'
+            : 'Dùng "Tạo phòng tự động" ở trên để hệ thống tạo đủ phòng cho cả nam và nữ.'
+        }</p></div>`;
+      return;
+    }
+
+    // Tach 2 cot nam / nu cho de nhin
+    const sections = [
+      { gender: 'FEMALE', label: 'Phòng nữ', icon: 'venus' },
+      { gender: 'MALE', label: 'Phòng nam', icon: 'mars' },
+    ]
+      .map((section) => {
+        const ofGender = list.filter((r) => r.gender === section.gender);
+        if (!ofGender.length) return '';
+        const people = ofGender.reduce((sum, r) => sum + r.occupancy, 0);
+        const slots = ofGender.reduce((sum, r) => sum + r.capacity, 0);
+
+        return `
+          <div>
+            <div class="admin-room-group-head ${A.genderClass(section.gender)}">
+              ${A.icon(section.icon)} ${section.label}
+              <span class="admin-chip">${ofGender.length} phòng · ${people}/${slots} chỗ</span>
+            </div>
+            <div class="admin-room-group">${ofGender.map(roomCardHtml).join('')}</div>
+          </div>`;
+      })
+      .join('');
+
+    roomList.innerHTML = `<div class="admin-room-list">${sections}</div>`;
+  }
+
+  function renderPending() {
+    const pending = members.filter((m) => m.joinRoom !== false && !m.roomId);
+    pendingCount.innerHTML = `${A.icon('user-round-search')} ${pending.length} người`;
+
+    pendingList.innerHTML = pending.length
+      ? `<div class="admin-pending-list">${pending
+          .map((member) => {
+            const options = member.gender
+              ? '<option value="">-- Chọn phòng --</option>' +
+                rooms
+                  .filter((r) => r.gender === member.gender)
+                  .map((r) => {
+                    const full = r.occupancy >= r.capacity;
+                    return `<option value="${r.id}" ${full ? 'disabled' : ''}>${A.escapeHtml(r.name)} (${r.occupancy}/${
+                      r.capacity
+                    })${full ? ' - kín' : ''}${r.locked ? ' 🔒' : ''}</option>`;
+                  })
+                  .join('')
+              : '<option value="">-- Cần đặt giới tính --</option>';
+
+            return `
+              <div class="admin-pending" data-member-id="${member.id}">
+                <span class="admin-pending-name">
+                  ${A.icon(A.genderIcon(member.gender), 'ic-sm')} ${A.escapeHtml(member.name)}
+                </span>
+                <select data-action="assign" ${member.gender ? '' : 'disabled data-keep-disabled="1"'}>${options}</select>
+              </div>`;
+          })
+          .join('')}</div>`
+      : `<div class="admin-empty-rich">${A.icon('party-popper')}<strong>Mọi người đều đã có phòng</strong>
+          <p>Không còn ai chờ ghép phòng nữa.</p></div>`;
+  }
+
+  function renderSwapSelects() {
+    const inRoom = members.filter((m) => m.roomId);
+    const byId = new Map(rooms.map((r) => [r.id, r.name]));
+
+    const options = (current) =>
+      '<option value="">-- Chọn người --</option>' +
+      inRoom
+        .map(
+          (m) =>
+            `<option value="${m.id}" ${String(m.id) === current ? 'selected' : ''}>${A.escapeHtml(m.name)} · ${A.escapeHtml(
+              byId.get(m.roomId) || ''
+            )}</option>`
+        )
+        .join('');
+
+    swapA.innerHTML = options(swapA.value);
+    swapB.innerHTML = options(swapB.value);
+  }
+
+  function syncLockBtn() {
+    lockBtn.innerHTML = `${A.icon(roundLocked ? 'lock-open' : 'lock')} ${
+      roundLocked ? 'Mở vòng ghép phòng' : 'Khóa vòng ghép phòng'
+    }`;
+    lockBtn.classList.toggle('admin-btn-danger', !roundLocked);
+    lockBtn.classList.toggle('admin-btn-secondary', roundLocked);
+  }
+
   function render() {
-    // Dang sua do giua danh sach thi hoan render lai (tranh mat chu dang nhap)
     if (roomList.contains(document.activeElement) || pendingList.contains(document.activeElement)) return;
 
     renderStats();
     renderFilterChips();
+    renderRooms();
     renderPending();
+    renderSwapSelects();
+    syncLockBtn();
 
-    const list = visibleRooms();
-
-    if (!rooms.length) {
-      roomList.innerHTML =
-        '<p class="admin-empty">Chưa có phòng nào. Dùng "Tạo phòng tự động" hoặc thêm phòng thủ công ở trên.</p>';
-    } else if (!list.length) {
-      roomList.innerHTML = '<p class="admin-empty">Không có phòng nào khớp bộ lọc hiện tại.</p>';
-    } else {
-      roomList.innerHTML = GENDER_ORDER.map((gender) => {
-        const group = list.filter((r) => r.gender === gender);
-        if (!group.length) return '';
-        const capacity = group.reduce((sum, r) => sum + r.capacity, 0);
-        const people = group.reduce((sum, r) => sum + r.occupancy, 0);
-        return `
-          <div class="admin-room-group">
-            <div class="admin-room-group-head">
-              <h4>${A.genderIcon(gender)} Phòng ${A.genderLabel(gender)}</h4>
-              <span>${group.length} phòng · ${people}/${capacity} chỗ đã có người</span>
-            </div>
-            <div class="admin-room-list">${group.map(roomCardHtml).join('')}</div>
-          </div>`;
-      }).join('');
-    }
-
-    A.applyEditLock(panel, roomLockNote);
+    A.applyEditLock(panel, lockNote);
   }
 
-  async function loadRooms() {
+  /* ---------- tai du lieu ---------- */
+
+  async function load() {
     try {
-      const [payload, memberList] = await Promise.all([
+      const [roomRes, memberRes] = await Promise.all([
         fetch('/api/rooms').then((r) => r.json()),
         fetch('/api/members').then((r) => r.json()),
       ]);
+      rooms = roomRes.rooms || [];
+      stats = roomRes.stats || null;
+      roundLocked = !!roomRes.locked;
+      members = memberRes;
 
-      rooms = payload.rooms || [];
-      stats = payload.stats;
-      locked = !!payload.locked;
-      members = memberList;
-
-      if (payload.defaultCapacity && !roomAutoCapacity.dataset.touched) {
-        roomAutoCapacity.value = payload.defaultCapacity;
-        newRoomCapacity.value = payload.defaultCapacity;
+      if (roomRes.defaultCapacity && !autoCapacity.dataset.touched) {
+        autoCapacity.value = roomRes.defaultCapacity;
+        newCapacity.value = roomRes.defaultCapacity;
       }
 
       render();
+      A.setMsg(roomListMsg, '');
     } catch (err) {
-      A.setMsg(roomListMsg, 'Không thể tải danh sách phòng', 'err');
+      A.setMsg(roomListMsg, err.message, 'err');
     }
   }
 
-  roomAutoCapacity.addEventListener('input', () => {
-    roomAutoCapacity.dataset.touched = '1';
+  autoCapacity.addEventListener('input', () => {
+    autoCapacity.dataset.touched = '1';
   });
+
+  /* ---------- loc ---------- */
 
   roomFilter.addEventListener('input', render);
 
-  roomFilterChips.addEventListener('click', (e) => {
-    const chip = e.target.closest('[data-filter]');
-    if (!chip) return;
-    activeFilter = chip.dataset.filter;
+  filterChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
     render();
   });
 
-  [roomList, pendingList].forEach((el) => {
-    el.addEventListener('focusout', () => {
-      setTimeout(() => {
-        if (!roomList.contains(document.activeElement) && !pendingList.contains(document.activeElement)) render();
-      }, 0);
-    });
-  });
+  /* ---------- thao tac tren tung phong ---------- */
 
-  /* ---------- thao tac hang loat ---------- */
+  roomList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
 
-  roomAutoCreateBtn.addEventListener('click', async () => {
-    const data = await A.run(roomAutoCreateBtn, roomActionMsg, 'Đang tạo phòng...', () =>
-      A.request('POST', '/api/admin/rooms/auto-create', {
-        capacity: roomAutoCapacity.value,
-        prefix: roomAutoPrefix.value,
-      })
-    );
-    if (!data) return;
+    const card = btn.closest('.admin-room');
+    const roomId = Number(card.dataset.roomId);
+    const room = rooms.find((r) => r.id === roomId);
+    if (!room) return;
 
-    A.setMsg(
-      roomActionMsg,
-      data.created.length
-        ? `Đã tạo ${data.created.length} phòng mới: ${data.created.map((r) => r.name).join(', ')}`
-        : 'Số phòng hiện tại đã đủ chỗ cho tất cả mọi người, không cần tạo thêm.',
-      'ok'
-    );
-    loadRooms();
-  });
+    const action = btn.dataset.action;
 
-  roomRandomAllBtn.addEventListener('click', async () => {
-    if (!confirm('Ghép phòng ngay cho tất cả những người chưa có phòng? Người đã có phòng sẽ được giữ nguyên.')) return;
+    if (action === 'toggle-edit') {
+      const box = card.querySelector('.admin-room-edit');
+      box.hidden = !box.hidden;
+      if (box.hidden) expanded.delete(roomId);
+      else expanded.add(roomId);
+      return;
+    }
 
-    const data = await A.run(roomRandomAllBtn, roomActionMsg, 'Đang ghép phòng...', () =>
-      A.request('POST', '/api/admin/rooms/random-all')
-    );
-    if (!data) return;
-
-    const parts = [`Đã ghép phòng cho ${data.assigned.length} người.`];
-    if (data.skipped.length) {
-      parts.push(
-        `Chưa ghép được ${data.skipped.length} người: ${data.skipped.map((s) => `${s.name} (${s.reason})`).join(', ')}`
+    if (action === 'remove-member') {
+      const memberId = Number(btn.dataset.memberId);
+      const data = await A.run(null, roomListMsg, 'Đang cập nhật...', () =>
+        A.request('POST', '/api/admin/rooms/move', { memberId, roomId: '' })
       );
-    }
-    A.setMsg(roomActionMsg, parts.join(' '), data.skipped.length ? 'err' : 'ok');
-    loadRooms();
-  });
-
-  roomLockBtn.addEventListener('click', async () => {
-    const data = await A.run(roomLockBtn, roomActionMsg, 'Đang cập nhật...', () =>
-      A.request('POST', '/api/admin/rooms/lock', { locked: !locked })
-    );
-    if (!data) return;
-
-    locked = data.locked;
-    A.setMsg(
-      roomActionMsg,
-      locked ? 'Đã khóa — mọi người không tự ghép phòng được nữa.' : 'Đã mở — mọi người có thể tự quay ghép phòng.',
-      'ok'
-    );
-    loadRooms();
-  });
-
-  roomResetBtn.addEventListener('click', async () => {
-    if (!confirm('Xóa toàn bộ kết quả ghép phòng để ghép lại từ đầu? Danh sách phòng vẫn được giữ. Không thể hoàn tác.')) {
+      if (!data) return;
+      A.setMsg(roomListMsg, 'Đã đưa ra khỏi phòng.', 'ok');
+      load();
       return;
     }
 
-    const data = await A.run(roomResetBtn, roomActionMsg, 'Đang reset...', () =>
-      A.request('POST', '/api/admin/rooms/reset')
-    );
-    if (!data) return;
-
-    A.setMsg(roomActionMsg, `Đã bỏ ghép phòng của ${data.cleared} người.`, 'ok');
-    loadRooms();
-  });
-
-  roomDeleteEmptyBtn.addEventListener('click', async () => {
-    const emptyIds = rooms.filter((r) => r.occupancy === 0).map((r) => r.id);
-    if (!emptyIds.length) {
-      A.setMsg(roomListMsg, 'Không có phòng nào đang trống.', 'err');
+    if (action === 'toggle-lock') {
+      const data = await A.run(btn, roomListMsg, 'Đang cập nhật...', () =>
+        A.request('PUT', `/api/admin/rooms/${roomId}`, { locked: !room.locked })
+      );
+      if (!data) return;
+      A.done(roomListMsg, room.locked ? `Đã mở khóa ${room.name}.` : `Đã khóa ${room.name}.`);
+      load();
       return;
     }
-    if (!confirm(`Xóa ${emptyIds.length} phòng đang trống?`)) return;
 
-    const data = await A.run(roomDeleteEmptyBtn, roomListMsg, 'Đang xóa phòng trống...', () =>
-      A.request('POST', '/api/admin/rooms/bulk', { ids: emptyIds, action: 'delete' })
+    if (action === 'clear') {
+      if (!room.members.length) {
+        A.setMsg(roomListMsg, 'Phòng này đang trống', 'warn');
+        return;
+      }
+      const ok = await A.confirmAction({
+        title: 'Dọn phòng',
+        message: `Đưa <strong>${room.members.length} người</strong> ra khỏi ${A.escapeHtml(
+          room.name
+        )}?<br />Người đã ghim vẫn được giữ lại.`,
+        okText: 'Dọn phòng',
+      });
+      if (!ok) return;
+
+      const data = await A.run(btn, roomListMsg, 'Đang dọn...', () =>
+        A.request('POST', '/api/admin/rooms/bulk', { ids: [roomId], action: 'clear' })
+      );
+      if (!data) return;
+      A.done(roomListMsg, `Đã đưa ${data.affected} người ra khỏi phòng.`);
+      load();
+      return;
+    }
+
+    if (action === 'save') {
+      const read = (field) => card.querySelector(`[data-edit="${field}"]`).value;
+      const data = await A.run(btn, roomListMsg, 'Đang lưu...', () =>
+        A.request('PUT', `/api/admin/rooms/${roomId}`, {
+          name: read('name'),
+          gender: read('gender'),
+          capacity: read('capacity'),
+          note: read('note'),
+        })
+      );
+      if (!data) return;
+      A.done(roomListMsg, `Đã lưu ${data.room.name}.`);
+      load();
+      return;
+    }
+
+    if (action === 'delete') {
+      const ok = await A.confirmAction({
+        title: 'Xóa phòng',
+        message: `Xóa phòng <strong>${A.escapeHtml(room.name)}</strong>?<br />${
+          room.members.length ? `${room.members.length} người đang ở sẽ quay về trạng thái chưa có phòng.` : 'Phòng đang trống.'
+        }`,
+        okText: 'Xóa phòng',
+      });
+      if (!ok) return;
+
+      const data = await A.run(btn, roomListMsg, 'Đang xóa...', () => A.request('DELETE', `/api/admin/rooms/${roomId}`));
+      if (!data) return;
+      expanded.delete(roomId);
+      A.done(roomListMsg, `Đã xóa phòng (${data.releasedMembers} người quay về chưa có phòng).`);
+      load();
+    }
+  });
+
+  /* ---------- xep tay nguoi chua co phong ---------- */
+
+  pendingList.addEventListener('change', async (e) => {
+    const select = e.target.closest('[data-action="assign"]');
+    if (!select || !select.value) return;
+
+    const memberId = Number(select.closest('.admin-pending').dataset.memberId);
+    const data = await A.run(null, pendingMsg, 'Đang xếp phòng...', () =>
+      A.request('POST', '/api/admin/rooms/move', { memberId, roomId: select.value })
+    );
+    if (!data) {
+      load();
+      return;
+    }
+    A.setMsg(pendingMsg, 'Đã xếp phòng.', 'ok');
+    load();
+  });
+
+  /* ---------- doi cho 2 nguoi ---------- */
+
+  swapBtn.addEventListener('click', async () => {
+    if (!swapA.value || !swapB.value) {
+      A.setMsg(swapMsg, 'Cần chọn đủ 2 người', 'err');
+      return;
+    }
+
+    const data = await A.run(swapBtn, swapMsg, 'Đang đổi chỗ...', () =>
+      A.request('POST', '/api/admin/rooms/swap', { memberAId: swapA.value, memberBId: swapB.value })
     );
     if (!data) return;
 
-    A.setMsg(roomListMsg, `Đã xóa ${data.affected} phòng trống.`, 'ok');
-    loadRooms();
+    A.done(swapMsg, 'Đã đổi chỗ hai người.');
+    swapA.value = '';
+    swapB.value = '';
+    load();
   });
 
   /* ---------- them phong ---------- */
 
-  addRoomBtn.addEventListener('click', async () => {
-    const data = await A.run(addRoomBtn, addRoomMsg, 'Đang thêm phòng...', () =>
+  addBtn.addEventListener('click', async () => {
+    const data = await A.run(addBtn, addMsg, 'Đang thêm...', () =>
       A.request('POST', '/api/admin/rooms', {
-        name: newRoomName.value,
-        gender: newRoomGender.value,
-        capacity: newRoomCapacity.value,
-        note: newRoomNote.value,
+        name: newName.value,
+        gender: newGender.value,
+        capacity: newCapacity.value,
+        note: newNote.value,
       })
     );
     if (!data) return;
 
-    A.setMsg(addRoomMsg, `Đã thêm phòng "${data.room.name}".`, 'ok');
-    newRoomName.value = '';
-    newRoomNote.value = '';
-    loadRooms();
+    A.done(addMsg, `Đã thêm phòng "${data.room.name}".`);
+    newName.value = '';
+    newNote.value = '';
+    load();
   });
 
-  /* ---------- xep tay tung nguoi ---------- */
+  /* ---------- thao tac hang loat ---------- */
 
-  pendingList.addEventListener('change', async (e) => {
-    if (e.target.dataset.action !== 'assign-room' || !e.target.value) return;
-
-    const memberId = Number(e.target.closest('[data-member-id]').dataset.memberId);
-    const data = await A.run(null, pendingMsg, 'Đang xếp phòng...', () =>
-      A.request('PUT', `/api/admin/members/${memberId}`, { roomId: e.target.value })
+  autoCreateBtn.addEventListener('click', async () => {
+    const data = await A.run(autoCreateBtn, actionMsg, 'Đang tạo phòng...', () =>
+      A.request('POST', '/api/admin/rooms/auto-create', {
+        capacity: autoCapacity.value,
+        prefix: autoPrefix.value,
+      })
     );
-    if (!data) {
-      loadRooms();
-      return;
-    }
+    if (!data) return;
 
-    A.setMsg(pendingMsg, `Đã xếp ${data.member.name} vào ${data.member.room.name}.`, 'ok');
-    loadRooms();
-  });
-
-  pendingList.addEventListener('click', (e) => {
-    if (e.target.dataset.action === 'go-members') A.showTab('members');
-  });
-
-  /* ---------- sua / xoa tung phong ---------- */
-
-  roomList.addEventListener('change', async (e) => {
-    const field = e.target.dataset.field;
-    if (!field) return;
-
-    const roomId = Number(e.target.closest('.admin-room').dataset.roomId);
-    const data = await A.run(null, roomListMsg, 'Đang lưu...', () =>
-      A.request('PUT', `/api/admin/rooms/${roomId}`, { [field]: e.target.value })
+    A.done(
+      actionMsg,
+      data.created.length ? `Đã tạo thêm ${data.created.length} phòng.` : 'Số phòng hiện tại đã đủ chỗ cho mọi người.'
     );
-    if (!data) {
-      loadRooms(); // server tu choi -> tra ve gia tri cu
-      return;
-    }
-
-    A.setMsg(roomListMsg, `Đã cập nhật phòng "${data.room.name}".`, 'ok');
-    loadRooms();
+    load();
   });
 
-  roomList.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
-    if (!action) return;
+  function reportAssign(data, verb) {
+    const parts = [`${verb} cho ${data.assigned.length} người.`];
+    if (data.skipped.length) {
+      parts.push(`Bỏ qua ${data.skipped.length}: ${data.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}`);
+    }
+    A.setMsg(actionMsg, parts.join(' '), data.skipped.length ? 'warn' : 'ok');
+    A.toast(`${verb} cho ${data.assigned.length} người.`, data.skipped.length ? 'warn' : 'ok');
+  }
 
-    const card = e.target.closest('.admin-room');
-    const roomId = Number(card.dataset.roomId);
-    const roomName = card.querySelector('[data-field="name"]').value;
+  randomAllBtn.addEventListener('click', async () => {
+    const data = await A.run(randomAllBtn, actionMsg, 'Đang ghép phòng...', () =>
+      A.request('POST', '/api/admin/rooms/random-all', {})
+    );
+    if (!data) return;
+    reportAssign(data, 'Đã ghép phòng');
+    load();
+  });
 
-    if (action === 'remove-member') {
-      const memberId = Number(e.target.dataset.memberId);
-      const data = await A.run(null, roomListMsg, 'Đang chuyển người ra...', () =>
-        A.request('PUT', `/api/admin/members/${memberId}`, { roomId: null })
-      );
-      if (!data) return;
-      A.setMsg(roomListMsg, `Đã đưa ${data.member.name} ra khỏi phòng.`, 'ok');
-      loadRooms();
+  reshuffleBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Xáo lại toàn bộ',
+      message: `Bốc tất cả mọi người ra khỏi phòng rồi ghép lại từ đầu?<br />${
+        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên phòng.' : '<strong>Kể cả người đã ghim</strong> cũng bị xáo lại.'
+      }`,
+      okText: 'Xáo lại',
+    });
+    if (!ok) return;
+
+    const data = await A.run(reshuffleBtn, actionMsg, 'Đang xáo lại...', () =>
+      A.request('POST', '/api/admin/rooms/random-all', { reshuffle: true })
+    );
+    if (!data) return;
+    reportAssign(data, 'Đã xáo lại');
+    load();
+  });
+
+  lockBtn.addEventListener('click', async () => {
+    const data = await A.run(lockBtn, actionMsg, 'Đang cập nhật...', () =>
+      A.request('POST', '/api/admin/rooms/lock', { locked: !roundLocked })
+    );
+    if (!data) return;
+    roundLocked = data.locked;
+    A.done(actionMsg, roundLocked ? 'Đã khóa vòng ghép phòng.' : 'Đã mở vòng ghép phòng.');
+    render();
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Reset ghép phòng',
+      message: `Đưa tất cả mọi người ra khỏi phòng?<br />${
+        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên phòng.' : 'Kể cả người đã ghim.'
+      } Danh sách phòng vẫn được giữ.`,
+      okText: 'Reset',
+    });
+    if (!ok) return;
+
+    const data = await A.run(resetBtn, actionMsg, 'Đang reset...', () =>
+      A.request('POST', '/api/admin/rooms/reset', { keepPinned: keepPinned.checked })
+    );
+    if (!data) return;
+    A.done(actionMsg, `Đã bỏ phòng của ${data.cleared} người.`);
+    load();
+  });
+
+  deleteEmptyBtn.addEventListener('click', async () => {
+    const empty = rooms.filter((r) => r.occupancy === 0);
+    if (!empty.length) {
+      A.setMsg(roomListMsg, 'Không có phòng nào đang trống', 'warn');
       return;
     }
 
-    if (action === 'clear-room') {
-      const room = rooms.find((r) => r.id === roomId);
-      if (!room || !room.members.length) return;
-      if (!confirm(`Đưa toàn bộ ${room.members.length} người ra khỏi phòng "${roomName}"?`)) return;
+    const ok = await A.confirmAction({
+      title: 'Xóa phòng trống',
+      message: `Xóa <strong>${empty.length} phòng</strong> đang không có ai ở?`,
+      okText: 'Xóa phòng trống',
+    });
+    if (!ok) return;
 
-      const data = await A.run(null, roomListMsg, 'Đang làm trống phòng...', () =>
-        A.request('POST', '/api/admin/members/bulk', {
-          ids: room.members.map((m) => m.id),
-          action: 'clear-room',
-        })
-      );
-      if (!data) return;
-      A.setMsg(roomListMsg, `Đã đưa ${data.affected} người ra khỏi "${roomName}".`, 'ok');
-      loadRooms();
+    const data = await A.run(deleteEmptyBtn, roomListMsg, 'Đang xóa...', () =>
+      A.request('POST', '/api/admin/rooms/bulk', { ids: empty.map((r) => r.id), action: 'delete' })
+    );
+    if (!data) return;
+    A.done(roomListMsg, `Đã xóa ${data.affected} phòng trống.`);
+    load();
+  });
+
+  lockFullBtn.addEventListener('click', async () => {
+    const full = rooms.filter((r) => r.isFull && !r.locked);
+    if (!full.length) {
+      A.setMsg(roomListMsg, 'Không có phòng nào đã đầy mà chưa khóa', 'warn');
       return;
     }
 
-    if (action === 'delete-room') {
-      if (!confirm(`Xóa phòng "${roomName}"? Người đang ở trong phòng sẽ trở về trạng thái chưa có phòng.`)) return;
-
-      const data = await A.run(null, roomListMsg, 'Đang xóa phòng...', () =>
-        A.request('DELETE', `/api/admin/rooms/${roomId}`)
-      );
-      if (!data) return;
-      A.setMsg(
-        roomListMsg,
-        data.releasedMembers ? `Đã xóa phòng và đưa ${data.releasedMembers} người ra ngoài.` : 'Đã xóa phòng.',
-        'ok'
-      );
-      loadRooms();
-    }
+    const data = await A.run(lockFullBtn, roomListMsg, 'Đang khóa...', () =>
+      A.request('POST', '/api/admin/rooms/bulk', { ids: full.map((r) => r.id), action: 'lock' })
+    );
+    if (!data) return;
+    A.done(roomListMsg, `Đã khóa ${data.affected} phòng đã đầy.`);
+    load();
   });
 
   /* ---------- xuat CSV ---------- */
 
-  roomExportBtn.addEventListener('click', () => {
-    const rows = [['Phòng', 'Dành cho', 'Sức chứa', 'Số người', 'Ghi chú', 'Người ở']];
-    visibleRooms().forEach((room) => {
+  exportBtn.addEventListener('click', () => {
+    const rows = [['Phòng', 'Dành cho', 'Sức chứa', 'Số người', 'Trạng thái', 'Ghi chú', 'Thành viên']];
+    visibleRooms().forEach((r) => {
       rows.push([
-        room.name,
-        A.genderLabel(room.gender),
-        room.capacity,
-        room.occupancy,
-        room.note || '',
-        room.members.map((m) => m.name).join(' | '),
+        r.name,
+        A.genderLabel(r.gender),
+        r.capacity,
+        r.occupancy,
+        r.locked ? 'Đang khóa' : r.isFull ? 'Đã kín' : 'Còn chỗ',
+        r.note || '',
+        r.members.map((m) => m.name).join(' | '),
       ]);
     });
-
-    const pending = members.filter((m) => !m.roomId);
-    pending.forEach((m) => {
-      rows.push(['(chưa có phòng)', A.genderLabel(m.gender), '', '', '', m.name]);
-    });
-
-    A.downloadCsv('ghep-phong-ngu.csv', rows);
-    A.setMsg(roomListMsg, `Đã xuất ${rows.length - 1} dòng ra file CSV.`, 'ok');
+    A.downloadCsv('danh-sach-phong-ngu.csv', rows);
+    A.done(roomListMsg, `Đã xuất ${rows.length - 1} phòng ra file CSV.`);
   });
 
   /* ---------- realtime ---------- */
 
   if (A.socket) {
-    A.socket.on('rooms:updated', loadRooms);
-    A.socket.on('member:room-randomized', loadRooms);
-    A.socket.on('rooms:reset', loadRooms);
-    A.socket.on('members:updated', loadRooms);
-    A.socket.on('rooms:config', (payload) => {
-      if (payload) locked = !!payload.locked;
-      loadRooms();
-    });
+    const refreshIfVisible = () => {
+      if (A.activeTab() === 'rooms') load();
+    };
+    ['rooms:updated', 'rooms:reset', 'rooms:config', 'members:updated', 'member:room-randomized',
+      'rooms:bulk-randomized'].forEach((evt) => A.socket.on(evt, refreshIfVisible));
   }
 
-  A.onSecretChange(render);
+  A.onSecretChange(() => {
+    if (A.activeTab() === 'rooms') load();
+  });
 
-  A.onTab('rooms', loadRooms);
+  A.onTab('rooms', load);
 })();

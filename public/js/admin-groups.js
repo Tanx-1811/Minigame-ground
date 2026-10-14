@@ -1,276 +1,451 @@
-// Tab "Nhom": them/sua/xoa nhom, xem va go thanh vien khoi nhom, xoa nhieu
-// nhom cung luc, xuat CSV. Chua nhap ma bi mat van xem duoc danh sach.
+// Tab "Chia nhom": moi nhom la 1 the - doi ten/slogan/mau/gioi han, khoa nhom,
+// keo nguoi ra, va cac nut chia nhom hang loat thay cho viec tung nguoi tu bam.
+//
+// Khoa nhom = nhom do khong nhan them ai khi random, nhung nguoi dang o trong van giu nguyen.
+// Gioi han so nguoi de trong = khong gioi han (van chia deu giua cac nhom).
 (function () {
   const A = window.AdminCommon;
 
   const panel = document.querySelector('.admin-panel[data-panel="groups"]');
-  const groupTableBody = document.getElementById('groupTableBody');
+  const statsBox = document.getElementById('groupStats');
+  const grid = document.getElementById('groupGrid');
+  const filterInput = document.getElementById('groupFilter');
   const groupMsg = document.getElementById('groupMsg');
   const lockNote = document.getElementById('groupLockNote');
+  const actionMsg = document.getElementById('groupActionMsg');
 
-  const selectAll = document.getElementById('groupSelectAll');
-  const bulkBar = document.getElementById('groupBulkBar');
-  const bulkCount = document.getElementById('groupBulkCount');
+  const randomAllBtn = document.getElementById('groupRandomAllBtn');
+  const reshuffleBtn = document.getElementById('groupReshuffleBtn');
+  const lockRoundBtn = document.getElementById('groupLockRoundBtn');
+  const resetBtn = document.getElementById('groupResetBtn');
+  const keepPinned = document.getElementById('groupKeepPinned');
 
-  const newGroupName = document.getElementById('newGroupName');
-  const newGroupDesc = document.getElementById('newGroupDesc');
-  const addGroupBtn = document.getElementById('addGroupBtn');
-  const addGroupMsg = document.getElementById('addGroupMsg');
+  const newName = document.getElementById('newGroupName');
+  const newDesc = document.getElementById('newGroupDesc');
+  const newCapacity = document.getElementById('newGroupCapacity');
+  const newColor = document.getElementById('newGroupColor');
+  const addBtn = document.getElementById('addGroupBtn');
+  const addMsg = document.getElementById('addGroupMsg');
   const exportBtn = document.getElementById('groupExportBtn');
 
   let groups = [];
-  let sortKey = 'name';
-  let sortDir = 'asc';
-  const selected = new Set();
+  let stats = null;
+  let globalCapacity = 0;
+  let randomLocked = false;
+  const expanded = new Set();
 
-  function memberCount(group) {
-    return (group.members || []).length;
+  /* ---------- hien thi ---------- */
+
+  function renderStats() {
+    if (!stats) {
+      statsBox.innerHTML = '';
+      return;
+    }
+
+    statsBox.innerHTML = [
+      A.statTile({
+        icon: 'user-round-check',
+        label: 'Đã có nhóm',
+        value: `${stats.assigned}/${stats.eligible}`,
+        variant: stats.pending ? 'warn' : 'ok',
+        meter: { value: stats.assigned, total: stats.eligible, variant: stats.pending ? 'warn' : 'ok' },
+      }),
+      A.statTile({ icon: 'users-round', label: 'Số nhóm', value: stats.totalGroups, variant: 'accent' }),
+      A.statTile({
+        icon: 'hourglass',
+        label: 'Chưa chia',
+        value: stats.pending,
+        variant: stats.pending ? 'warn' : '',
+      }),
+      stats.excluded
+        ? A.statTile({
+            icon: 'user-round-x',
+            label: 'Không tham gia',
+            value: stats.excluded,
+            sub: 'Đã tắt quyền chia nhóm',
+            variant: 'danger',
+          })
+        : '',
+      stats.lockedGroups ? A.statTile({ icon: 'lock', label: 'Nhóm đang khóa', value: stats.lockedGroups, variant: 'warn' }) : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    A.setBadge('groups', stats.totalGroups);
   }
 
-  function sortedGroups() {
-    const list = [...groups];
-    list.sort((a, b) => {
-      const cmp =
-        sortKey === 'count' ? memberCount(a) - memberCount(b) : String(a.name).localeCompare(String(b.name), 'vi');
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-    return list;
+  function visibleGroups() {
+    const keyword = filterInput.value.trim().toLowerCase();
+    if (!keyword) return groups;
+    return groups.filter(
+      (g) =>
+        g.name.toLowerCase().includes(keyword) ||
+        (g.description || '').toLowerCase().includes(keyword) ||
+        g.members.some((m) => m.name.toLowerCase().includes(keyword))
+    );
   }
 
-  function memberChips(group) {
-    const list = group.members || [];
-    if (!list.length) return '<span class="admin-member-chips-empty">Chưa có ai</span>';
-
-    return `<div class="admin-member-chips">${list
-      .map(
-        (m) => `
-        <span class="admin-member-chip">
-          ${m.isLeader ? '👑 ' : ''}${A.escapeHtml(m.name)}
-          <button type="button" data-action="remove-member" data-member-id="${m.id}" title="Đưa ra khỏi nhóm">✕</button>
-        </span>`
-      )
-      .join('')}</div>`;
-  }
-
-  function rowHtml(group) {
+  function memberChip(member) {
     return `
-      <tr data-group-id="${group.id}" class="${selected.has(group.id) ? 'is-selected' : ''}">
-        <td class="admin-cell-check">
-          <input type="checkbox" data-select="${group.id}" ${selected.has(group.id) ? 'checked' : ''} data-always-enabled="1" />
-        </td>
-        <td class="admin-cell-name"><input type="text" data-field="name" value="${A.escapeHtml(group.name)}" /></td>
-        <td><input type="text" data-field="description" value="${A.escapeHtml(group.description || '')}" placeholder="Không có" /></td>
-        <td class="admin-cell-muted">${memberCount(group)} người</td>
-        <td>${memberChips(group)}</td>
-        <td class="admin-cell-actions">
-          <button type="button" class="admin-row-btn danger" data-action="delete-group">🗑️</button>
-        </td>
-      </tr>`;
+      <span class="admin-member-chip ${member.isLeader ? 'is-leader' : ''}">
+        ${member.isLeader ? A.icon('crown', 'ic-sm') : A.icon(A.genderIcon(member.gender), 'ic-sm')}
+        <span>${A.escapeHtml(member.name)}</span>
+        ${member.pinnedGroup ? A.icon('pin', 'ic-sm') : ''}
+        <button type="button" data-action="remove-member" data-member-id="${member.id}" title="Đưa ra khỏi nhóm">
+          ${A.icon('x', 'ic-sm')}
+        </button>
+      </span>`;
   }
 
-  function renderBulkBar() {
-    bulkBar.hidden = selected.size === 0;
-    bulkCount.textContent = `Đã chọn ${selected.size} nhóm`;
+  function cardHtml(group) {
+    const color = group.color || 'var(--accent)';
+    const limit = group.effectiveCapacity;
+    const countText = limit ? `${group.occupancy}/${limit}` : `${group.occupancy}`;
+    const isOpen = expanded.has(group.id);
+
+    const tags = [
+      group.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : '',
+      limit && group.isFull ? `<span class="admin-tag">${A.icon('check', 'ic-sm')} Đã đầy</span>` : '',
+      group.capacity ? `<span class="admin-tag">${A.icon('user-round-check', 'ic-sm')} Giới hạn riêng ${group.capacity}</span>` : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    return `
+      <div class="admin-group-card ${group.locked ? 'is-locked' : ''}" data-group-id="${group.id}" style="--g-color:${A.escapeHtml(
+        color
+      )}">
+        <div class="admin-group-head">
+          <div class="admin-group-title">
+            <strong>${A.escapeHtml(group.name)}</strong>
+            ${group.description ? `<p>${A.escapeHtml(group.description)}</p>` : ''}
+          </div>
+          <span class="admin-room-count">${countText}</span>
+        </div>
+
+        <div class="admin-group-body">
+          ${tags ? `<div class="row-tight" style="flex-wrap:wrap;gap:5px">${tags}</div>` : ''}
+          ${
+            group.members.length
+              ? `<div class="admin-member-chips">${group.members.map(memberChip).join('')}</div>`
+              : '<p class="admin-member-chips-empty">Chưa có ai trong nhóm này</p>'
+          }
+        </div>
+
+        <div class="admin-group-foot">
+          <button type="button" class="admin-row-btn" data-action="toggle-edit">${A.icon('pencil')} Sửa nhóm</button>
+          <button type="button" class="admin-row-btn ${group.locked ? 'is-on' : ''}" data-action="toggle-lock">
+            ${A.icon(group.locked ? 'lock-open' : 'lock')} ${group.locked ? 'Mở khóa' : 'Khóa'}
+          </button>
+          <button type="button" class="admin-row-btn" data-action="clear-members">${A.icon('user-round-minus')} Bỏ hết người</button>
+        </div>
+
+        <div class="admin-group-edit" ${isOpen ? '' : 'hidden'}>
+          <div class="admin-form-grid is-tight">
+            <div class="admin-field">
+              <label>Tên nhóm</label>
+              <input type="text" data-edit="name" value="${A.escapeHtml(group.name)}" />
+            </div>
+            <div class="admin-field">
+              <label>Slogan / mô tả</label>
+              <input type="text" data-edit="description" value="${A.escapeHtml(group.description || '')}" />
+            </div>
+            <div class="admin-field">
+              <label>Giới hạn số người</label>
+              <input type="number" min="1" max="500" data-edit="capacity" value="${group.capacity || ''}" placeholder="Trống = không giới hạn" />
+            </div>
+            <div class="admin-field">
+              <label>Màu nhận diện</label>
+              <input type="color" data-edit="color" value="${A.escapeHtml(group.color || '#4f46e5')}" />
+            </div>
+          </div>
+          <div class="admin-btn-row">
+            <button type="button" class="admin-row-btn" data-action="save">${A.icon('save')} Lưu nhóm</button>
+            <button type="button" class="admin-row-btn" data-action="clear-color">${A.icon('paint-bucket')} Dùng màu mặc định</button>
+            <button type="button" class="admin-row-btn danger" data-action="delete">${A.icon('trash-2')} Xóa nhóm</button>
+          </div>
+        </div>
+      </div>`;
   }
 
-  function syncSortHeaders() {
-    panel.querySelectorAll('th[data-sort]').forEach((th) => {
-      th.classList.toggle('is-asc', th.dataset.sort === sortKey && sortDir === 'asc');
-      th.classList.toggle('is-desc', th.dataset.sort === sortKey && sortDir === 'desc');
-    });
+  function syncLockRoundBtn() {
+    lockRoundBtn.innerHTML = `${A.icon(randomLocked ? 'lock-open' : 'lock')} ${
+      randomLocked ? 'Mở vòng chia nhóm' : 'Khóa vòng chia nhóm'
+    }`;
+    lockRoundBtn.classList.toggle('admin-btn-danger', !randomLocked);
+    lockRoundBtn.classList.toggle('admin-btn-secondary', randomLocked);
   }
 
   function render() {
-    if (groupTableBody.contains(document.activeElement)) return;
+    if (grid.contains(document.activeElement)) return;
 
-    renderBulkBar();
-    syncSortHeaders();
+    renderStats();
+    syncLockRoundBtn();
 
-    const list = sortedGroups();
-    groupTableBody.innerHTML = list.length
-      ? list.map(rowHtml).join('')
-      : '<tr><td colspan="6" class="admin-empty">Chưa có nhóm nào</td></tr>';
+    const list = visibleGroups();
+    grid.innerHTML = list.length
+      ? list.map(cardHtml).join('')
+      : `<div class="admin-empty-rich">${A.icon(groups.length ? 'search-x' : 'folder-plus')}
+          <strong>${groups.length ? 'Không có nhóm nào khớp từ khóa' : 'Chưa có nhóm nào'}</strong>
+          <p>${
+            groups.length
+              ? 'Thử xóa bớt từ khóa tìm kiếm.'
+              : 'Thêm ít nhất một nhóm ở khối phía trên để vòng chia nhóm hoạt động.'
+          }</p></div>`;
 
-    selectAll.checked = list.length > 0 && list.every((g) => selected.has(g.id));
     A.applyEditLock(panel, lockNote);
   }
 
-  async function loadGroups() {
-    try {
-      groups = await fetch('/api/groups').then((r) => r.json());
+  /* ---------- tai du lieu ---------- */
 
-      const ids = new Set(groups.map((g) => g.id));
-      [...selected].forEach((id) => {
-        if (!ids.has(id)) selected.delete(id);
-      });
+  async function load() {
+    try {
+      const [groupRes, config] = await Promise.all([
+        fetch('/api/groups/full').then((r) => r.json()),
+        fetch('/api/config').then((r) => r.json()),
+      ]);
+      groups = groupRes.groups || [];
+      stats = groupRes.stats || null;
+      globalCapacity = groupRes.globalCapacity || 0;
+      randomLocked = !!config.randomLocked;
 
       render();
       A.setMsg(groupMsg, '');
     } catch (err) {
-      A.setMsg(groupMsg, 'Không thể tải danh sách nhóm', 'err');
+      A.setMsg(groupMsg, err.message, 'err');
     }
   }
 
-  panel.querySelectorAll('th[data-sort]').forEach((th) => {
-    th.addEventListener('click', () => {
-      if (sortKey === th.dataset.sort) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-      else {
-        sortKey = th.dataset.sort;
-        sortDir = 'asc';
-      }
-      render();
-    });
-  });
+  /* ---------- thao tac tren tung the ---------- */
 
-  selectAll.addEventListener('change', () => {
-    if (selectAll.checked) groups.forEach((g) => selected.add(g.id));
-    else selected.clear();
-    render();
-  });
+  filterInput.addEventListener('input', render);
 
-  groupTableBody.addEventListener('focusout', () => {
-    setTimeout(() => {
-      if (!groupTableBody.contains(document.activeElement)) render();
-    }, 0);
-  });
+  grid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
 
-  addGroupBtn.addEventListener('click', async () => {
-    const data = await A.run(addGroupBtn, addGroupMsg, 'Đang thêm nhóm...', () =>
-      A.request('POST', '/api/admin/groups', { name: newGroupName.value, description: newGroupDesc.value })
-    );
-    if (!data) return;
+    const card = btn.closest('.admin-group-card');
+    const groupId = Number(card.dataset.groupId);
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
 
-    A.setMsg(addGroupMsg, `Đã thêm nhóm "${data.group.name}".`, 'ok');
-    newGroupName.value = '';
-    newGroupDesc.value = '';
-    loadGroups();
-  });
+    const action = btn.dataset.action;
 
-  groupTableBody.addEventListener('change', async (e) => {
-    const selectId = e.target.dataset.select;
-    if (selectId) {
-      const id = Number(selectId);
-      if (e.target.checked) selected.add(id);
-      else selected.delete(id);
-      e.target.closest('tr').classList.toggle('is-selected', e.target.checked);
-      renderBulkBar();
+    if (action === 'toggle-edit') {
+      const box = card.querySelector('.admin-group-edit');
+      box.hidden = !box.hidden;
+      if (box.hidden) expanded.delete(groupId);
+      else expanded.add(groupId);
       return;
     }
-
-    const field = e.target.dataset.field;
-    if (!field) return;
-
-    const groupId = Number(e.target.closest('tr').dataset.groupId);
-    const data = await A.run(null, groupMsg, 'Đang lưu...', () =>
-      A.request('PUT', `/api/admin/groups/${groupId}`, { [field]: e.target.value })
-    );
-    if (!data) {
-      loadGroups();
-      return;
-    }
-
-    A.setMsg(groupMsg, `Đã cập nhật nhóm "${data.group.name}".`, 'ok');
-    loadGroups();
-  });
-
-  groupTableBody.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
-    if (!action) return;
-
-    const row = e.target.closest('tr');
-    const groupId = Number(row.dataset.groupId);
 
     if (action === 'remove-member') {
-      const memberId = Number(e.target.dataset.memberId);
-      const data = await A.run(null, groupMsg, 'Đang đưa ra khỏi nhóm...', () =>
-        A.request('PUT', `/api/admin/members/${memberId}`, { groupId: null })
+      const memberId = Number(btn.dataset.memberId);
+      const data = await A.run(null, groupMsg, 'Đang cập nhật...', () =>
+        A.request('POST', '/api/admin/groups/move', { memberId, groupId: '' })
       );
       if (!data) return;
-      A.setMsg(groupMsg, `Đã đưa ${data.member.name} ra khỏi nhóm.`, 'ok');
-      loadGroups();
+      A.setMsg(groupMsg, 'Đã đưa ra khỏi nhóm.', 'ok');
+      load();
       return;
     }
 
-    if (action === 'delete-group') {
-      const name = row.querySelector('[data-field="name"]').value;
-      if (!confirm(`Xóa nhóm "${name}"? Thành viên trong nhóm sẽ trở về trạng thái chưa random (không ai bị xóa).`)) return;
-
-      const data = await A.run(null, groupMsg, 'Đang xóa nhóm...', () =>
-        A.request('DELETE', `/api/admin/groups/${groupId}`)
+    if (action === 'toggle-lock') {
+      const data = await A.run(btn, groupMsg, 'Đang cập nhật...', () =>
+        A.request('PUT', `/api/admin/groups/${groupId}`, { locked: !group.locked })
       );
       if (!data) return;
-
-      selected.delete(groupId);
-      A.setMsg(
-        groupMsg,
-        data.releasedMembers ? `Đã xóa nhóm và bỏ random của ${data.releasedMembers} người.` : 'Đã xóa nhóm.',
-        'ok'
-      );
-      loadGroups();
+      A.done(groupMsg, group.locked ? `Đã mở khóa "${group.name}".` : `Đã khóa "${group.name}".`);
+      load();
+      return;
     }
-  });
 
-  bulkBar.addEventListener('click', async (e) => {
-    const action = e.target.dataset.bulk;
-    if (!action) return;
+    if (action === 'clear-members') {
+      if (!group.members.length) {
+        A.setMsg(groupMsg, 'Nhóm này đang trống', 'warn');
+        return;
+      }
+      const ok = await A.confirmAction({
+        title: 'Bỏ hết người khỏi nhóm',
+        message: `Đưa <strong>${group.members.length} người</strong> ra khỏi "${A.escapeHtml(
+          group.name
+        )}"?<br />Người đã ghim vẫn được giữ lại. Không ai bị xóa khỏi hệ thống.`,
+        okText: 'Bỏ hết người',
+      });
+      if (!ok) return;
 
-    if (action === 'clear-selection') {
-      selected.clear();
-      render();
+      const data = await A.run(btn, groupMsg, 'Đang cập nhật...', () =>
+        A.request('POST', '/api/admin/groups/bulk', { ids: [groupId], action: 'clear' })
+      );
+      if (!data) return;
+      A.done(groupMsg, `Đã đưa ${data.affected} người ra khỏi nhóm.`);
+      load();
+      return;
+    }
+
+    if (action === 'clear-color') {
+      const data = await A.run(btn, groupMsg, 'Đang cập nhật...', () =>
+        A.request('PUT', `/api/admin/groups/${groupId}`, { color: '' })
+      );
+      if (!data) return;
+      A.done(groupMsg, 'Đã trả về màu mặc định.');
+      load();
+      return;
+    }
+
+    if (action === 'save') {
+      const read = (field) => card.querySelector(`[data-edit="${field}"]`).value;
+      const data = await A.run(btn, groupMsg, 'Đang lưu...', () =>
+        A.request('PUT', `/api/admin/groups/${groupId}`, {
+          name: read('name'),
+          description: read('description'),
+          capacity: read('capacity'),
+          color: read('color'),
+        })
+      );
+      if (!data) return;
+      A.done(groupMsg, `Đã lưu "${data.group.name}".`);
+      load();
       return;
     }
 
     if (action === 'delete') {
-      if (!selected.size) {
-        A.setMsg(groupMsg, 'Chưa chọn nhóm nào', 'err');
-        return;
-      }
-      if (!confirm(`Xóa ${selected.size} nhóm đã chọn? Thành viên trong các nhóm đó sẽ trở về trạng thái chưa random.`)) {
-        return;
-      }
+      const ok = await A.confirmAction({
+        title: 'Xóa nhóm',
+        message: `Xóa nhóm <strong>${A.escapeHtml(group.name)}</strong>?<br />${
+          group.members.length
+            ? `${group.members.length} người trong nhóm sẽ quay về trạng thái chưa chia nhóm.`
+            : 'Nhóm này đang trống.'
+        }`,
+        okText: 'Xóa nhóm',
+      });
+      if (!ok) return;
 
-      const data = await A.run(null, groupMsg, 'Đang xóa...', () =>
-        A.request('POST', '/api/admin/groups/bulk', { ids: [...selected], action: 'delete' })
-      );
+      const data = await A.run(btn, groupMsg, 'Đang xóa...', () => A.request('DELETE', `/api/admin/groups/${groupId}`));
       if (!data) return;
-
-      selected.clear();
-      A.setMsg(
-        groupMsg,
-        `Đã xóa ${data.affected} nhóm${data.releasedMembers ? ` và bỏ random của ${data.releasedMembers} người` : ''}.`,
-        'ok'
-      );
-      loadGroups();
+      expanded.delete(groupId);
+      A.done(groupMsg, `Đã xóa nhóm (${data.releasedMembers} người quay về chưa chia).`);
+      load();
     }
   });
 
+  /* ---------- them nhom ---------- */
+
+  addBtn.addEventListener('click', async () => {
+    const data = await A.run(addBtn, addMsg, 'Đang thêm...', () =>
+      A.request('POST', '/api/admin/groups', {
+        name: newName.value,
+        description: newDesc.value,
+        capacity: newCapacity.value,
+        color: newColor.value,
+      })
+    );
+    if (!data) return;
+
+    A.done(addMsg, `Đã thêm nhóm "${data.group.name}".`);
+    newName.value = '';
+    newDesc.value = '';
+    newCapacity.value = '';
+    load();
+  });
+
+  /* ---------- chia nhom hang loat ---------- */
+
+  randomAllBtn.addEventListener('click', async () => {
+    const data = await A.run(randomAllBtn, actionMsg, 'Đang chia nhóm...', () =>
+      A.request('POST', '/api/admin/groups/random-all', {})
+    );
+    if (!data) return;
+    reportAssign(data, 'Đã chia nhóm');
+    load();
+  });
+
+  reshuffleBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Xáo lại toàn bộ',
+      message: `Bốc tất cả mọi người ra rồi chia lại từ đầu?<br />${
+        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên nhóm.' : '<strong>Kể cả người đã ghim</strong> cũng bị xáo lại.'
+      }`,
+      okText: 'Xáo lại',
+    });
+    if (!ok) return;
+
+    const data = await A.run(reshuffleBtn, actionMsg, 'Đang xáo lại...', () =>
+      A.request('POST', '/api/admin/groups/random-all', { reshuffle: true })
+    );
+    if (!data) return;
+    reportAssign(data, 'Đã xáo lại');
+    load();
+  });
+
+  function reportAssign(data, verb) {
+    const parts = [`${verb} cho ${data.assigned.length} người.`];
+    if (data.skipped.length) {
+      parts.push(`Bỏ qua ${data.skipped.length}: ${data.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}`);
+    }
+    A.setMsg(actionMsg, parts.join(' '), data.skipped.length ? 'warn' : 'ok');
+    A.toast(`${verb} cho ${data.assigned.length} người.`, data.skipped.length ? 'warn' : 'ok');
+  }
+
+  lockRoundBtn.addEventListener('click', async () => {
+    const data = await A.run(lockRoundBtn, actionMsg, 'Đang cập nhật...', () =>
+      A.request('POST', '/api/admin/settings/lock', { locked: !randomLocked })
+    );
+    if (!data) return;
+    randomLocked = data.locked;
+    A.done(actionMsg, randomLocked ? 'Đã khóa vòng chia nhóm.' : 'Đã mở vòng chia nhóm.');
+    render();
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    const ok = await A.confirmAction({
+      title: 'Xóa kết quả chia nhóm',
+      message: `Đưa tất cả mọi người về trạng thái chưa chia nhóm?<br />${
+        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên nhóm.' : 'Kể cả người đã ghim.'
+      } Danh sách nhóm vẫn được giữ.`,
+      okText: 'Xóa kết quả',
+    });
+    if (!ok) return;
+
+    const data = await A.run(resetBtn, actionMsg, 'Đang reset...', () =>
+      A.request('POST', '/api/admin/groups/reset', { keepPinned: keepPinned.checked })
+    );
+    if (!data) return;
+    A.done(actionMsg, `Đã xóa kết quả chia nhóm của ${data.cleared} người.`);
+    load();
+  });
+
+  /* ---------- xuat CSV ---------- */
+
   exportBtn.addEventListener('click', () => {
-    const rows = [['Nhóm', 'Slogan', 'Số người', 'Thành viên']];
-    sortedGroups().forEach((g) => {
+    const rows = [['Nhóm', 'Slogan', 'Giới hạn', 'Số người', 'Trạng thái', 'Thành viên']];
+    visibleGroups().forEach((g) => {
       rows.push([
         g.name,
         g.description || '',
-        memberCount(g),
-        (g.members || []).map((m) => m.name).join(' | '),
+        g.effectiveCapacity || 'Không giới hạn',
+        g.occupancy,
+        g.locked ? 'Đang khóa' : 'Đang mở',
+        g.members.map((m) => `${m.name}${m.isLeader ? ' (NT)' : ''}`).join(' | '),
       ]);
     });
     A.downloadCsv('danh-sach-nhom.csv', rows);
-    A.setMsg(groupMsg, `Đã xuất ${rows.length - 1} nhóm ra file CSV.`, 'ok');
+    A.done(groupMsg, `Đã xuất ${rows.length - 1} nhóm ra file CSV.`);
   });
+
+  /* ---------- realtime ---------- */
 
   if (A.socket) {
     const refreshIfVisible = () => {
-      if (A.activeTab() === 'groups') loadGroups();
+      if (A.activeTab() === 'groups') load();
     };
-    A.socket.on('groups:updated', refreshIfVisible);
-    A.socket.on('groups:reset', refreshIfVisible);
-    A.socket.on('members:updated', refreshIfVisible);
-    A.socket.on('member:randomized', refreshIfVisible);
+    ['groups:updated', 'groups:reset', 'members:updated', 'member:randomized', 'groups:bulk-randomized',
+      'random:config'].forEach((evt) => A.socket.on(evt, refreshIfVisible));
   }
 
   A.onSecretChange(() => {
-    if (A.activeTab() === 'groups') loadGroups();
+    if (A.activeTab() === 'groups') load();
   });
 
-  A.onTab('groups', loadGroups);
+  A.onTab('groups', load);
 })();

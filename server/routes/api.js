@@ -1,20 +1,18 @@
 const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
-const { getSetting, setSetting, isRoomsLocked } = require('../settings');
+const activity = require('../activity');
+const {
+  getSetting,
+  setSetting,
+  getGroupCapacity,
+  isRoomsLocked,
+  isRandomLocked,
+  getPublicUi,
+} = require('../settings');
+const { loadGroupSlots, pickGroup, loadGroupsPayload } = require('../groups');
 
 const router = express.Router();
-
-// Luu tam hoat dong gan day trong bo nho (mat khi restart server, du dung cho 1 su kien)
-const MAX_ACTIVITY = 20;
-let recentActivity = [];
-
-function pushActivity(entry) {
-  recentActivity.unshift(entry);
-  if (recentActivity.length > MAX_ACTIVITY) {
-    recentActivity.length = MAX_ACTIVITY;
-  }
-}
 
 async function resolvePhase() {
   const [phaseSetting, questionCount] = await Promise.all([getSetting('phase'), prisma.question.count()]);
@@ -26,20 +24,32 @@ async function resolvePhase() {
   return phase;
 }
 
-// GET /api/config - cau hinh cho man hinh intro (thoi diem mo bot tham, phase quiz/random)
+// GET /api/config - cau hinh cho man hinh intro (gio mo, phase, noi dung admin tu dat)
 router.get('/config', async (req, res) => {
   try {
-    const [eventStartAt, phase, roomsLocked, roomCount] = await Promise.all([
+    const [eventStartAt, phase, roomsLocked, randomLocked, roomCount, ui] = await Promise.all([
       getSetting('eventStartAt'),
       resolvePhase(),
       isRoomsLocked(),
+      isRandomLocked(),
       prisma.room.count(),
+      getPublicUi(),
     ]);
+
     const leaders =
       phase === 'random'
         ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
         : [];
-    res.json({ eventStartAt: eventStartAt || null, phase, leaders, roomsLocked, roomCount });
+
+    res.json({
+      eventStartAt: eventStartAt || null,
+      phase,
+      leaders,
+      roomsLocked,
+      randomLocked,
+      roomCount,
+      ui,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải cấu hình' });
@@ -62,6 +72,16 @@ router.post('/admin/event-time', async (req, res) => {
   try {
     await setSetting('eventStartAt', value);
     req.io.emit('config:updated', { eventStartAt: value });
+    await activity.log(
+      {
+        type: 'admin',
+        icon: 'clock',
+        message: value
+          ? `Đặt giờ mở bốc thăm: ${new Date(value).toLocaleString('vi-VN')}`
+          : 'Mở bốc thăm ngay (xóa giờ hẹn)',
+      },
+      req.io
+    );
     res.json({ ok: true, eventStartAt: value });
   } catch (err) {
     console.error(err);
@@ -69,23 +89,34 @@ router.post('/admin/event-time', async (req, res) => {
   }
 });
 
-// GET /api/activity - danh sach hoat dong random gan day (dung cho activity feed)
-router.get('/activity', (req, res) => {
-  res.json(recentActivity);
+// GET /api/activity - hoat dong gan day (dung cho activity feed tren trang chu)
+router.get('/activity', async (req, res) => {
+  try {
+    res.json(await activity.list({ limit: req.query.limit || activity.MAX_FEED, type: req.query.type }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải hoạt động' });
+  }
 });
 
-// GET /api/groups - danh sach 4 nhom kem thanh vien
+// GET /api/groups - danh sach nhom kem thanh vien (giu nguyen dang MANG nhu truoc)
 router.get('/groups', async (req, res) => {
   try {
-    const groups = await prisma.group.findMany({
-      orderBy: { id: 'asc' },
-      include: {
-        members: {
-          orderBy: { name: 'asc' },
-        },
-      },
-    });
-    res.json(groups);
+    const globalCapacity = await getGroupCapacity();
+    const payload = await loadGroupsPayload(prisma, globalCapacity);
+    res.json(payload.groups);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải danh sách nhóm' });
+  }
+});
+
+// GET /api/groups/full - kem thong ke tong hop (cho trang chu va admin)
+router.get('/groups/full', async (req, res) => {
+  try {
+    const globalCapacity = await getGroupCapacity();
+    const payload = await loadGroupsPayload(prisma, globalCapacity);
+    res.json({ ...payload, globalCapacity });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải danh sách nhóm' });
@@ -93,12 +124,30 @@ router.get('/groups', async (req, res) => {
 });
 
 // GET /api/members - danh sach thanh vien (dung cho dropdown)
+// ?scope=random|room|quiz -> chi tra nguoi duoc phep tham gia vong do, nho vay
+// o chon ten tren trang cong khai khong hien ten nguoi bi loai khoi vong.
 router.get('/members', async (req, res) => {
+  const scopeField = { random: 'joinRandom', room: 'joinRoom', quiz: 'joinQuiz' }[req.query.scope];
+
   try {
     const members = await prisma.member.findMany({
+      where: scopeField ? { [scopeField]: true } : undefined,
       orderBy: { name: 'asc' },
-      include: {
-        group: true,
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        groupId: true,
+        roomId: true,
+        isLeader: true,
+        quizScore: true,
+        quizTimeMs: true,
+        joinRandom: true,
+        joinRoom: true,
+        joinQuiz: true,
+        pinnedGroup: true,
+        pinnedRoom: true,
+        group: { select: { id: true, name: true, color: true } },
         room: { select: { id: true, name: true, gender: true, capacity: true } },
       },
     });
@@ -120,7 +169,10 @@ router.post('/random', async (req, res) => {
   try {
     const phase = await resolvePhase();
     if (phase !== 'random') {
-      return res.status(403).json({ error: 'Vòng random chưa mở — cần chốt xong 4 Nhóm Trưởng trước' });
+      return res.status(403).json({ error: 'Vòng random chưa mở — cần chốt xong Nhóm Trưởng trước' });
+    }
+    if (await isRandomLocked()) {
+      return res.status(403).json({ error: 'Vòng random đang tạm khóa — chờ admin mở lại' });
     }
 
     const member = await prisma.member.findUnique({
@@ -130,6 +182,9 @@ router.post('/random', async (req, res) => {
 
     if (!member) {
       return res.status(404).json({ error: 'Không tìm thấy thành viên' });
+    }
+    if (!member.joinRandom) {
+      return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng chia nhóm lần này' });
     }
 
     // Da random truoc do -> tra ve nhom cu
@@ -141,32 +196,21 @@ router.post('/random', async (req, res) => {
       });
     }
 
-    // Chua random -> random lon xon giua cac nhom dang it thanh vien nhat,
-    // nho do van chia deu (chenh lech toi da 1 nguoi giua cac nhom) nhung
-    // thu tu nhom nao duoc chon truoc thi hoan toan ngau nhien.
-    // Rieng 4 nhom truong: luon uu tien nhom chua co nhom truong nao,
-    // de dam bao khong bao gio 2 nhom truong roi vao chung 1 nhom.
+    const globalCapacity = await getGroupCapacity();
+
+    // Chua random -> chon nhom theo luat trong server/groups.js: bo qua nhom dang
+    // khoa / da day, uu tien nhom it nguoi nhat (chia deu), random giua cac nhom
+    // bang nhau nen thu tu nhom nao duoc chon van hoan toan ngau nhien.
     const { randomGroup, updatedMember } = await prisma.$transaction(async (tx) => {
-      const groups = await tx.group.findMany({
-        orderBy: { id: 'asc' },
-        include: {
-          _count: { select: { members: true } },
-          members: { where: { isLeader: true }, select: { id: true } },
-        },
-      });
-      if (groups.length === 0) {
+      const slots = await loadGroupSlots(tx, globalCapacity);
+      if (slots.length === 0) {
         throw new Error('NO_GROUPS');
       }
 
-      let pool = groups;
-      if (member.isLeader) {
-        const openForLeader = groups.filter((g) => g.members.length === 0);
-        pool = openForLeader.length ? openForLeader : groups;
+      const chosen = pickGroup(slots, { isLeader: member.isLeader });
+      if (!chosen) {
+        throw new Error('GROUPS_FULL');
       }
-
-      const minCount = Math.min(...pool.map((g) => g._count.members));
-      const candidates = pool.filter((g) => g._count.members === minCount);
-      const chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
       const updated = await tx.member.update({
         where: { id: member.id },
@@ -174,7 +218,7 @@ router.post('/random', async (req, res) => {
         include: { group: true },
       });
 
-      return { randomGroup: chosen, updatedMember: updated };
+      return { randomGroup: updated.group, updatedMember: updated };
     });
 
     const activityEntry = {
@@ -182,7 +226,14 @@ router.post('/random', async (req, res) => {
       group: { id: randomGroup.id, name: randomGroup.name },
       at: new Date().toISOString(),
     };
-    pushActivity(activityEntry);
+
+    await activity.log({
+      type: 'random',
+      icon: 'dices',
+      actor: updatedMember.name,
+      message: `${updatedMember.name} vào ${randomGroup.name}`,
+      meta: { groupId: randomGroup.id, memberId: updatedMember.id },
+    });
 
     // Emit realtime cho tat ca client
     req.io.emit('member:randomized', activityEntry);
@@ -196,6 +247,9 @@ router.post('/random', async (req, res) => {
     if (err.message === 'NO_GROUPS') {
       return res.status(500).json({ error: 'Chưa có nhóm nào trong hệ thống' });
     }
+    if (err.message === 'GROUPS_FULL') {
+      return res.status(409).json({ error: 'Tất cả nhóm đã đầy hoặc đang khóa — nhờ admin mở thêm chỗ' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi random nhóm' });
   }
@@ -205,40 +259,54 @@ router.post('/random', async (req, res) => {
 // Mac dinh KHONG dong den ket qua ghep phong ngu (tinh nang doc lap);
 // truyen includeRooms=true neu muon xoa luon.
 router.post('/admin/reset', async (req, res) => {
-  const { secret, includeRooms } = req.body || {};
+  const { secret, includeRooms, includeActivity, keepPinned } = req.body || {};
 
   if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
     return res.status(401).json({ error: 'Sai mã bí mật' });
   }
 
   try {
+    // Diem quiz / nhom truong luon reset cho tat ca. Rieng ket qua chia nhom va
+    // ghep phong thi keepPinned se bo qua nhung nguoi admin da ghim.
+    await prisma.member.updateMany({ data: { isLeader: false, quizScore: 0, quizTimeMs: 0 } });
     await prisma.member.updateMany({
-      data: {
-        groupId: null,
-        isLeader: false,
-        quizScore: 0,
-        quizTimeMs: 0,
-        ...(includeRooms ? { roomId: null } : {}),
-      },
+      where: keepPinned ? { pinnedGroup: false } : {},
+      data: { groupId: null },
     });
+    if (includeRooms) {
+      await prisma.member.updateMany({
+        where: keepPinned ? { pinnedRoom: false } : {},
+        data: { roomId: null },
+      });
+    }
     await prisma.answer.deleteMany({});
 
     const questionCount = await prisma.question.count();
     const newPhase = questionCount > 0 ? 'quiz' : 'random';
-    await prisma.setting.upsert({
-      where: { key: 'phase' },
-      update: { value: newPhase },
-      create: { key: 'phase', value: newPhase },
-    });
+    await setSetting('phase', newPhase);
 
     quizLobby.clearLobby();
     await quizLobby.setQuizStatus('waiting');
 
-    recentActivity = [];
+    if (includeActivity) await activity.clear();
+
     req.io.emit('groups:reset', { phase: newPhase });
+    req.io.emit('groups:updated', {});
     if (includeRooms) {
       req.io.emit('rooms:reset', {});
+      req.io.emit('rooms:updated', {});
     }
+
+    await activity.log(
+      {
+        type: 'admin',
+        icon: 'rotate-ccw',
+        message: `Reset toàn bộ${includeRooms ? ' (kể cả ghép phòng)' : ''}${
+          keepPinned ? ' — giữ người đã ghim' : ''
+        }`,
+      },
+      req.io
+    );
 
     res.json({ ok: true, phase: newPhase, roomsCleared: !!includeRooms });
   } catch (err) {

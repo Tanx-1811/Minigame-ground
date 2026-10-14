@@ -16,6 +16,13 @@ model Group {
   id          Int      @id @default(autoincrement())
   name        String   @unique
   description String?
+  // Mau nhan dien the nhom tren trang chu (hex, vd #2563eb). Null = dung mau mac dinh theo thu tu.
+  color       String?  @db.VarChar(16)
+  // Gioi han so nguoi cua nhom. Null = khong gioi han (chia deu nhu cu).
+  capacity    Int?
+  // Khoa nhom: khong nhan them nguoi moi khi random, nhung van giu nguoi dang co.
+  locked      Boolean  @default(false)
+  sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   members     Member[]
 }
@@ -32,7 +39,22 @@ model Member {
   isLeader    Boolean  @default(false)
   quizScore   Int      @default(0)
   quizTimeMs  Int      @default(0)
+
+  // Quyen tham gia tung vong - admin bat/tat cho tung nguoi.
+  // Ai bi tat se khong thay ten minh trong o chon cua vong do va bi chan o server.
+  joinRandom  Boolean  @default(true)
+  joinRoom    Boolean  @default(true)
+  joinQuiz    Boolean  @default(true)
+
+  // Ghim ket qua: khong bi doi nhom/phong khi admin bam ghep hang loat hoac reset mem.
+  pinnedGroup Boolean  @default(false)
+  pinnedRoom  Boolean  @default(false)
+
+  note        String?  @db.Text
   answers     Answer[]
+
+  @@index([groupId])
+  @@index([roomId])
 }
 
 // Phong ngu: moi phong chi danh cho 1 gioi tinh (nam o voi nam, nu o voi nu),
@@ -43,21 +65,26 @@ model Room {
   gender    Gender
   capacity  Int      @default(2)
   note      String?
+  // Khoa phong: khong nhan them nguoi khi random, nguoi dang o van giu nguyen.
+  locked    Boolean  @default(false)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   members   Member[]
 }
 
 model Setting {
   key   String  @id
-  value String?
+  value String? @db.Text
 }
 
 model Question {
   id           Int      @id @default(autoincrement())
   order        Int      @unique
-  text         String
+  text         String   @db.Text
   options      Json
   correctIndex Int
+  points       Int      @default(1)
+  timeLimitSec Int?
   createdAt    DateTime @default(now())
   answers      Answer[]
 }
@@ -74,4 +101,20 @@ model Answer {
   createdAt     DateTime @default(now())
 
   @@unique([memberId, questionId])
+}
+
+// Nhat ky thao tac - thay cho mang recentActivity trong bo nho (mat khi restart).
+// Dung cho ca feed "hoat dong gan day" tren trang chu va tab Nhat ky ben admin.
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  // 'random' | 'room' | 'quiz' | 'admin'
+  type      String   @db.VarChar(24)
+  icon      String?  @db.VarChar(32)
+  message   String   @db.Text
+  actor     String?  @db.VarChar(160)
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type])
 }

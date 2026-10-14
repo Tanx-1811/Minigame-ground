@@ -1,18 +1,32 @@
 const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
+const activity = require('../activity');
 const { getLeaderCount } = require('../settings');
 
 const router = express.Router();
 
 function serializeQuestion(q) {
-  return { id: q.id, order: q.order, text: q.text, options: q.options };
+  return {
+    id: q.id,
+    order: q.order,
+    text: q.text,
+    options: q.options,
+    points: q.points,
+    timeLimitSec: q.timeLimitSec,
+  };
+}
+
+// Tong diem toi da cua ca bo cau hoi (moi cau co the co diem rieng)
+async function getMaxScore() {
+  const agg = await prisma.question.aggregate({ _sum: { points: true } });
+  return agg._sum.points || 0;
 }
 
 async function getLeaderboard() {
   const total = await prisma.question.count();
   const members = await prisma.member.findMany({
-    where: { answers: { some: {} } },
+    where: { answers: { some: {} }, joinQuiz: true },
     orderBy: [{ quizScore: 'desc' }, { quizTimeMs: 'asc' }],
     include: { _count: { select: { answers: true } } },
     take: 20,
@@ -98,6 +112,9 @@ router.post('/quiz/join', async (req, res) => {
     if (!member) {
       return res.status(404).json({ error: 'Không tìm thấy thành viên' });
     }
+    if (!member.joinQuiz) {
+      return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng Quiz lần này' });
+    }
 
     const status = await quizLobby.getQuizStatus();
     if (status === 'active') {
@@ -144,6 +161,9 @@ router.post('/quiz/answer', async (req, res) => {
     if (!member) {
       return res.status(404).json({ error: 'Không tìm thấy thành viên' });
     }
+    if (!member.joinQuiz) {
+      return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng Quiz lần này' });
+    }
 
     const question = await prisma.question.findUnique({ where: { id: questionId } });
     if (!question) {
@@ -180,7 +200,7 @@ router.post('/quiz/answer', async (req, res) => {
       const updated = await tx.member.update({
         where: { id: member.id },
         data: {
-          quizScore: { increment: correct ? 1 : 0 },
+          quizScore: { increment: correct ? question.points : 0 },
           quizTimeMs: { increment: safeTimeMs },
         },
       });
@@ -266,7 +286,7 @@ router.post('/admin/quiz/finish', async (req, res) => {
     }
 
     const finishers = await prisma.member.findMany({
-      where: { answers: { some: {} } },
+      where: { answers: { some: {} }, joinQuiz: true },
       include: { _count: { select: { answers: true } } },
     });
     const eligible = finishers.filter((m) => m._count.answers >= total);
@@ -303,6 +323,15 @@ router.post('/admin/quiz/finish', async (req, res) => {
 
     const leaders = winners.map((w) => ({ id: w.id, name: w.name }));
     req.io.emit('phase:updated', { phase: 'random', leaders });
+
+    await activity.log(
+      {
+        type: 'quiz',
+        icon: 'crown',
+        message: `Chốt ${leaders.length} Nhóm Trưởng: ${leaders.map((l) => l.name).join(', ')}`,
+      },
+      req.io
+    );
 
     res.json({ ok: true, phase: 'random', leaders });
   } catch (err) {

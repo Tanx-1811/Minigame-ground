@@ -66,7 +66,7 @@
 
   async function loadMemberOptions() {
     try {
-      const res = await fetch('/api/members');
+      const res = await fetch('/api/members?scope=quiz');
       const members = await res.json();
       quizMemberSelect.innerHTML =
         '<option value="">-- Chọn tên --</option>' +

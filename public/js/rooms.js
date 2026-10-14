@@ -381,7 +381,8 @@ function spinTo(room) {
 /* ---------- tai du lieu ---------- */
 
 async function loadMembers() {
-  const res = await fetch('/api/members');
+  // scope=room: server loc san, ai bi admin tat quyen ghep phong se khong thay ten minh
+  const res = await fetch('/api/members?scope=room');
   members = await res.json();
 
   const current = memberSelect.value || localStorage.getItem(NAME_KEY) || '';
@@ -487,7 +488,7 @@ memberSelect.addEventListener('change', () => {
 /* ---------- realtime ---------- */
 
 socket.on('online:count', (count) => {
-  onlineBadge.textContent = `🟢 ${count} đang xem`;
+  onlineBadge.innerHTML = `<span class="dot is-live"></span> ${count} đang xem`;
 });
 
 socket.on('rooms:updated', (payload) => {
@@ -551,6 +552,9 @@ socket.on('rooms:config', (payload) => {
 });
 
 socket.on('members:updated', reloadAll);
+
+// Admin doi noi dung hien thi -> ap dung ngay, khong can tai lai trang
+if (window.UiConfig) window.UiConfig.bind(socket);
 
 let hasConnectedOnce = false;
 socket.on('connect', () => {

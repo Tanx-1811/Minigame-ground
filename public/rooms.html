@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#2563eb" />
-<title>Dimaco - Ghép Phòng Ngủ</title>
+<meta name="theme-color" content="#4f46e5" />
+<title>Dimaco · Ghép Phòng Ngủ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="stylesheet" href="/css/rooms.css" />
 </head>
@@ -20,7 +21,9 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <div class="fx-dock" role="toolbar" aria-label="Thông tin">
-    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">🟢 --</span>
+    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">
+      <span class="dot is-live"></span> --
+    </span>
   </div>
 
   <div class="rooms-page">
@@ -28,18 +31,18 @@
       <div class="company-banner">
         <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
       </div>
-      <span class="header-badge">🛏️ Nam ở với nam · Nữ ở với nữ</span>
-      <h1>Ghép Phòng Ngủ</h1>
-      <p class="subtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ trống.</p>
+      <span class="header-badge"><i data-lucide="bed-double"></i> Nam ở với nam · Nữ ở với nữ</span>
+      <h1 data-ui-text="roomsTitle">Ghép Phòng Ngủ</h1>
+      <p class="subtitle" data-ui-text="roomsSubtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ trống.</p>
       <nav class="rooms-nav">
-        <a href="/">🎲 Trang random chia nhóm</a>
+        <a href="/"><i data-lucide="dices"></i> Trang random chia nhóm</a>
       </nav>
     </header>
 
     <section class="rooms-card">
       <div class="rooms-card-head">
         <div>
-          <h2>📊 Tổng quan</h2>
+          <h2><i data-lucide="chart-no-axes-column"></i> Tổng quan</h2>
           <p>Tình hình ghép phòng của cả nhóm, cập nhật ngay khi có người quay.</p>
         </div>
       </div>
@@ -49,7 +52,7 @@
         <div class="progress-wrap rooms-progress">
           <div class="progress-label">
             <span id="roomsProgressText">Đã ghép 0/0 người</span>
-            <span id="roomsProgressPct">0%</span>
+            <span id="roomsProgressPct" class="num">0%</span>
           </div>
           <div class="progress-bar">
             <div class="progress-fill" id="roomsProgressFill"></div>
@@ -61,7 +64,7 @@
     <section class="rooms-card">
       <div class="rooms-card-head">
         <div>
-          <h2>🎲 Quay phòng của bạn</h2>
+          <h2><i data-lucide="dices"></i> Quay phòng của bạn</h2>
           <p>Mỗi người chỉ quay một lần — tải lại trang vẫn giữ đúng phòng đã quay.</p>
         </div>
       </div>
@@ -73,7 +76,9 @@
               <option value="">-- Chọn tên --</option>
             </select>
           </div>
-          <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">🎲 Quay ghép phòng</button>
+          <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">
+            <i data-lucide="dices"></i> Quay ghép phòng
+          </button>
         </div>
 
         <p id="roomsMyGender" class="rooms-my-gender"></p>
@@ -93,10 +98,10 @@
 
     <div id="roomsList"></div>
 
-    <section class="rooms-card" id="roomsPendingCard" hidden style="margin-top:26px;">
+    <section class="rooms-card" id="roomsPendingCard" hidden>
       <div class="rooms-card-head">
         <div>
-          <h2>⏳ Chưa ghép phòng</h2>
+          <h2><i data-lucide="hourglass"></i> Chưa ghép phòng</h2>
           <p>Những bạn chưa quay — vào quay để biết mình ở phòng nào nhé!</p>
         </div>
         <span id="roomsPendingCount" class="rooms-chip"></span>
@@ -107,11 +112,14 @@
     </section>
 
     <footer class="rooms-footer">
-      <p>Ngủ cùng phòng là anh em một nhà 🏠</p>
+      <p data-ui-text="footerText">Ngủ cùng phòng là anh em một nhà</p>
     </footer>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/icons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/ui-config.js"></script>
   <script src="/js/toast.js"></script>
   <script src="/js/rooms.js"></script>
 </body>
