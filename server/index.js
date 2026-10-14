@@ -9,6 +9,8 @@ const { Server } = require('socket.io');
 
 const apiRouter = require('./routes/api');
 const quizRouter = require('./routes/quiz');
+const roomsRouter = require('./routes/rooms');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -40,6 +42,8 @@ app.use((req, res, next) => {
 
 app.use('/api', apiRouter);
 app.use('/api', quizRouter);
+app.use('/api', roomsRouter);
+app.use('/api', adminRouter);
 
 function broadcastOnlineCount() {
   io.emit('online:count', io.engine.clientsCount);

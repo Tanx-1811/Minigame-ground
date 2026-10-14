@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
+const { getSetting, setSetting, isRoomsLocked } = require('../settings');
 
 const router = express.Router();
 
@@ -13,19 +14,6 @@ function pushActivity(entry) {
   if (recentActivity.length > MAX_ACTIVITY) {
     recentActivity.length = MAX_ACTIVITY;
   }
-}
-
-async function getSetting(key) {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  return row ? row.value : null;
-}
-
-async function setSetting(key, value) {
-  await prisma.setting.upsert({
-    where: { key },
-    update: { value },
-    create: { key, value },
-  });
 }
 
 async function resolvePhase() {
@@ -41,12 +29,17 @@ async function resolvePhase() {
 // GET /api/config - cau hinh cho man hinh intro (thoi diem mo bot tham, phase quiz/random)
 router.get('/config', async (req, res) => {
   try {
-    const [eventStartAt, phase] = await Promise.all([getSetting('eventStartAt'), resolvePhase()]);
+    const [eventStartAt, phase, roomsLocked, roomCount] = await Promise.all([
+      getSetting('eventStartAt'),
+      resolvePhase(),
+      isRoomsLocked(),
+      prisma.room.count(),
+    ]);
     const leaders =
       phase === 'random'
         ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
         : [];
-    res.json({ eventStartAt: eventStartAt || null, phase, leaders });
+    res.json({ eventStartAt: eventStartAt || null, phase, leaders, roomsLocked, roomCount });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải cấu hình' });
@@ -104,7 +97,10 @@ router.get('/members', async (req, res) => {
   try {
     const members = await prisma.member.findMany({
       orderBy: { name: 'asc' },
-      include: { group: true },
+      include: {
+        group: true,
+        room: { select: { id: true, name: true, gender: true, capacity: true } },
+      },
     });
     res.json(members);
   } catch (err) {
@@ -205,9 +201,11 @@ router.post('/random', async (req, res) => {
   }
 });
 
-// POST /api/admin/reset - xoa toan bo ket qua random (can dung secret)
+// POST /api/admin/reset - xoa toan bo ket qua random (can dung secret).
+// Mac dinh KHONG dong den ket qua ghep phong ngu (tinh nang doc lap);
+// truyen includeRooms=true neu muon xoa luon.
 router.post('/admin/reset', async (req, res) => {
-  const { secret } = req.body || {};
+  const { secret, includeRooms } = req.body || {};
 
   if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
     return res.status(401).json({ error: 'Sai mã bí mật' });
@@ -215,7 +213,13 @@ router.post('/admin/reset', async (req, res) => {
 
   try {
     await prisma.member.updateMany({
-      data: { groupId: null, isLeader: false, quizScore: 0, quizTimeMs: 0 },
+      data: {
+        groupId: null,
+        isLeader: false,
+        quizScore: 0,
+        quizTimeMs: 0,
+        ...(includeRooms ? { roomId: null } : {}),
+      },
     });
     await prisma.answer.deleteMany({});
 
@@ -232,8 +236,11 @@ router.post('/admin/reset', async (req, res) => {
 
     recentActivity = [];
     req.io.emit('groups:reset', { phase: newPhase });
+    if (includeRooms) {
+      req.io.emit('rooms:reset', {});
+    }
 
-    res.json({ ok: true, phase: newPhase });
+    res.json({ ok: true, phase: newPhase, roomsCleared: !!includeRooms });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi reset' });

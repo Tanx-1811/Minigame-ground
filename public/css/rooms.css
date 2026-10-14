@@ -1,0 +1,367 @@
+/* ---------- trang ghep phong ngu ---------- */
+
+.rooms-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px 72px;
+}
+
+.rooms-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.rooms-header h1 {
+  margin: 10px 0 6px;
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+}
+
+.rooms-header .subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.96rem;
+}
+
+.rooms-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.rooms-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.rooms-nav a:hover {
+  border-color: var(--color-primary-2);
+  color: var(--color-text);
+}
+
+.rooms-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 22px;
+}
+
+.rooms-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.rooms-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.rooms-chip strong { color: var(--color-text); }
+.rooms-chip.male { border-color: #93c5fd; background: #eff6ff; }
+.rooms-chip.female { border-color: #f9a8d4; background: #fdf2f8; }
+.rooms-chip.warn { border-color: #fcd34d; background: #fffbeb; }
+
+.rooms-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.rooms-form .field {
+  flex: 1 1 240px;
+}
+
+.rooms-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.rooms-form select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.rooms-draw-btn {
+  flex: 0 0 auto;
+  padding: 13px 24px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.rooms-draw-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.rooms-draw-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rooms-my-gender {
+  margin: 12px 0 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.rooms-notice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  background: #fffbeb;
+  font-size: 0.88rem;
+  color: #92400e;
+}
+
+.rooms-error {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  color: var(--color-error);
+}
+
+/* ---------- vong quay ---------- */
+
+.rooms-reel {
+  margin-top: 18px;
+  height: 88px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+}
+
+.rooms-reel-strip {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.rooms-reel-item {
+  height: 88px;
+  flex: 0 0 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ---------- ket qua ---------- */
+
+.rooms-result {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--color-primary-2);
+  border-radius: var(--radius-sm);
+  background: #f5f9ff;
+  text-align: center;
+}
+
+.rooms-result.pop {
+  animation: roomsPop 0.5s ease;
+}
+
+@keyframes roomsPop {
+  0% { transform: scale(0.94); opacity: 0; }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.rooms-result-room {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.rooms-result-mates {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.rooms-result-mates strong { color: var(--color-text); }
+
+/* ---------- danh sach phong ---------- */
+
+.rooms-section + .rooms-section {
+  margin-top: 26px;
+}
+
+.rooms-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.rooms-section-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.rooms-section-head span {
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.room-card {
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--accent, var(--color-primary));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 16px;
+}
+
+.room-card.is-mine {
+  border-color: var(--color-primary-2);
+  background: #f5f9ff;
+}
+
+.room-card.is-full .room-card-count {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.room-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.room-card-top h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.room-card-count {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.room-card-note {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.room-beds {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.room-bed {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  font-size: 0.88rem;
+}
+
+.room-bed.is-empty {
+  border-style: dashed;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.room-bed.is-me {
+  border-color: var(--color-primary);
+  background: #e8f1ff;
+  font-weight: 700;
+}
+
+.room-bed .avatar {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rooms-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.rooms-footer {
+  margin-top: 32px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .rooms-form .field,
+  .rooms-draw-btn {
+    flex: 1 1 100%;
+  }
+}

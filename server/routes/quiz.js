@@ -1,10 +1,9 @@
 const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
+const { getLeaderCount } = require('../settings');
 
 const router = express.Router();
-
-const LEADER_COUNT = 4;
 
 function serializeQuestion(q) {
   return { id: q.id, order: q.order, text: q.text, options: q.options };
@@ -272,13 +271,16 @@ router.post('/admin/quiz/finish', async (req, res) => {
     });
     const eligible = finishers.filter((m) => m._count.answers >= total);
 
-    // Nhom truong (admin) co the buoc chot du chua du LEADER_COUNT nguoi hoan thanh,
+    // So nhom truong do admin cau hinh (bang Setting, mac dinh 4)
+    const leaderCount = await getLeaderCount();
+
+    // Nhom truong (admin) co the buoc chot du chua du leaderCount nguoi hoan thanh,
     // de khong bi ket man chi vi thieu nguoi lam het quiz.
     const pool = force ? finishers : eligible;
 
-    if (!force && eligible.length < LEADER_COUNT) {
+    if (!force && eligible.length < leaderCount) {
       return res.status(400).json({
-        error: `Chưa đủ ${LEADER_COUNT} người hoàn thành hết câu hỏi (hiện có ${eligible.length})`,
+        error: `Chưa đủ ${leaderCount} người hoàn thành hết câu hỏi (hiện có ${eligible.length})`,
       });
     }
     if (force && pool.length === 0) {
@@ -286,7 +288,7 @@ router.post('/admin/quiz/finish', async (req, res) => {
     }
 
     pool.sort((a, b) => (b.quizScore - a.quizScore) || (a.quizTimeMs - b.quizTimeMs));
-    const winners = pool.slice(0, LEADER_COUNT);
+    const winners = pool.slice(0, leaderCount);
     const winnerIds = winners.map((w) => w.id);
 
     await prisma.$transaction([

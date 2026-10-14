@@ -1,5 +1,6 @@
 const secretInput = document.getElementById('secretInput');
 const resetBtn = document.getElementById('resetBtn');
+const resetIncludeRooms = document.getElementById('resetIncludeRooms');
 const msg = document.getElementById('msg');
 const eventTimeInput = document.getElementById('eventTimeInput');
 const saveTimeBtn = document.getElementById('saveTimeBtn');
@@ -157,14 +158,16 @@ startQuizBtn.addEventListener('click', async () => {
   }
 });
 
-if (window.io) {
-  const lobbySocket = window.io();
-  lobbySocket.on('quiz:lobby', (payload) => {
+// Dung chung socket cua AdminCommon: moi ket noi socket deu bi tinh vao so nguoi
+// dang online nen khong mo them socket rieng cho trang admin.
+const adminSocket = window.AdminCommon ? window.AdminCommon.socket : null;
+if (adminSocket) {
+  adminSocket.on('quiz:lobby', (payload) => {
     if (payload && Array.isArray(payload.members)) {
       renderLobby('waiting', payload.members);
     }
   });
-  lobbySocket.on('quiz:started', () => {
+  adminSocket.on('quiz:started', () => {
     loadLobby();
   });
 }
@@ -293,7 +296,12 @@ resetBtn.addEventListener('click', async () => {
     return;
   }
 
-  const confirmed = confirm('Bạn chắc chắn muốn xóa toàn bộ kết quả random? Không thể hoàn tác.');
+  const includeRooms = resetIncludeRooms.checked;
+  const confirmed = confirm(
+    includeRooms
+      ? 'Bạn chắc chắn muốn xóa toàn bộ kết quả random, tiến độ quiz VÀ kết quả ghép phòng ngủ? Không thể hoàn tác.'
+      : 'Bạn chắc chắn muốn xóa toàn bộ kết quả random? Không thể hoàn tác.'
+  );
   if (!confirmed) return;
 
   resetBtn.disabled = true;
@@ -304,7 +312,7 @@ resetBtn.addEventListener('click', async () => {
     const res = await fetch('/api/admin/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret }),
+      body: JSON.stringify({ secret, includeRooms }),
     });
     const data = await res.json();
 
@@ -314,7 +322,9 @@ resetBtn.addEventListener('click', async () => {
       return;
     }
 
-    msg.textContent = 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)';
+    msg.textContent = data.roomsCleared
+      ? 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz và kết quả ghép phòng)'
+      : 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)';
     msg.className = 'admin-msg ok';
     loadQuizLeaderboard();
     loadLobby();
@@ -325,3 +335,12 @@ resetBtn.addEventListener('click', async () => {
     resetBtn.disabled = false;
   }
 });
+
+// Mo lai tab thi tai lai du lieu moi nhat cua tab do
+if (window.AdminCommon) {
+  window.AdminCommon.onTab('event', loadCurrentEventTime);
+  window.AdminCommon.onTab('quiz', () => {
+    loadLobby();
+    loadQuizLeaderboard();
+  });
+}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2563eb" />
+<title>Dimaco - Ghép Phòng Ngủ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/rooms.css" />
+</head>
+<body>
+  <div class="bg-decor" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+  </div>
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="fx-dock" role="toolbar" aria-label="Thông tin">
+    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">🟢 --</span>
+  </div>
+
+  <div class="rooms-page">
+    <header class="rooms-header">
+      <div class="company-banner">
+        <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
+      </div>
+      <span class="header-badge">🛏️ Nam ở với nam · Nữ ở với nữ</span>
+      <h1>Ghép Phòng Ngủ</h1>
+      <p class="subtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ.</p>
+      <nav class="rooms-nav">
+        <a href="/">🎲 Về trang random chia nhóm</a>
+      </nav>
+    </header>
+
+    <section class="rooms-panel">
+      <div id="roomsStats" class="rooms-stats"></div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span id="roomsProgressText">Đã ghép 0/0 người</span>
+          <span id="roomsProgressPct">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="roomsProgressFill"></div>
+        </div>
+      </div>
+
+      <div class="rooms-form">
+        <div class="field">
+          <label for="roomsMemberSelect">Tên của bạn</label>
+          <select id="roomsMemberSelect">
+            <option value="">-- Chọn tên --</option>
+          </select>
+        </div>
+        <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">🎲 Quay ghép phòng</button>
+      </div>
+
+      <p id="roomsMyGender" class="rooms-my-gender"></p>
+      <p id="roomsNotice" class="rooms-notice hidden"></p>
+      <p id="roomsError" class="rooms-error hidden"></p>
+
+      <div id="roomsReel" class="rooms-reel hidden">
+        <div class="rooms-reel-strip" id="roomsReelStrip"></div>
+      </div>
+
+      <div id="roomsResult" class="rooms-result hidden">
+        <p id="roomsResultRoom" class="rooms-result-room"></p>
+        <p id="roomsResultMates" class="rooms-result-mates"></p>
+      </div>
+    </section>
+
+    <div id="roomsList"></div>
+
+    <footer class="rooms-footer">
+      <p>Ngủ cùng phòng là anh em một nhà 🏠</p>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/rooms.js"></script>
+</body>
+</html>

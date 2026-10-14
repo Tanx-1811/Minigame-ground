@@ -1124,6 +1124,16 @@ socket.on('member:randomized', (payload) => {
   }
 });
 
+// Admin sua danh sach nhom / thanh vien ben trang admin -> cap nhat luon o day
+socket.on('groups:updated', () => {
+  loadGroups();
+});
+
+socket.on('members:updated', () => {
+  loadMembers();
+  loadGroups();
+});
+
 socket.on('groups:reset', (payload) => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(QUIZ_NAME_KEY);

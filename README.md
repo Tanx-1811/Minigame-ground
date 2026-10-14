@@ -26,26 +26,38 @@ minigamegroup/
 ├─ .env
 ├─ README.md
 ├─ server/
-│  ├─ index.js         # Express + Socket.IO app
+│  ├─ index.js          # Express + Socket.IO app
 │  ├─ prisma.js         # Prisma client singleton
+│  ├─ settings.js       # doc/ghi bang Setting (leaderCount, roomCapacity, roomsLocked...)
+│  ├─ adminAuth.js      # middleware kiem tra ADMIN_RESET_SECRET
+│  ├─ rooms.js          # logic ghep phong ngu theo gioi tinh
+│  ├─ quizLobby.js      # phong cho quiz
 │  └─ routes/
-│     └─ api.js         # GET /api/groups, GET /api/members, POST /api/random
+│     ├─ api.js         # /api/config, /api/groups, /api/members, /api/random, /api/admin/reset
+│     ├─ quiz.js        # vong quiz chon Nhom Truong
+│     ├─ rooms.js       # /api/rooms, /api/room/random, /api/admin/rooms/*
+│     └─ admin.js       # CRUD thanh vien / nhom / cau hoi + cau hinh chung
 ├─ prisma/
 │  ├─ schema.prisma
+│  ├─ migrations/
 │  └─ seed.js
 └─ public/
-   ├─ index.html
-   ├─ css/style.css
-   └─ js/main.js
+   ├─ index.html        # trang random chia nhom
+   ├─ rooms.html        # trang ghep phong ngu
+   ├─ admin-reset.html  # bang dieu khien admin (nhieu tab)
+   ├─ css/              # style.css, quiz.css, rooms.css, admin.css
+   └─ js/               # main.js, quiz.js, rooms.js, admin-*.js
 ```
 
 ## Database
 
 **Group**: id, name, description, createdAt
-**Member**: id, name, groupId (nullable, FK -> Group), createdAt
-**Setting**: key, value — lưu cấu hình chỉnh qua trang admin (hiện tại chỉ có `eventStartAt`)
+**Member**: id, name, gender (nullable, `MALE`/`FEMALE`), groupId (nullable, FK -> Group), roomId (nullable, FK -> Room), createdAt, isLeader, quizScore, quizTimeMs
+**Room**: id, name (unique), gender (`MALE`/`FEMALE`), capacity (mặc định 2), note, createdAt — phòng ngủ, mỗi phòng chỉ dành cho một giới tính
+**Setting**: key, value — lưu cấu hình chỉnh qua trang admin (`eventStartAt`, `phase`, `quizStatus`, `leaderCount`, `roomCapacity`, `roomsLocked`)
+**Question** / **Answer**: bộ câu hỏi quiz chọn Nhóm Trưởng và câu trả lời của từng người
 
-Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, groupId = null).
+Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, chưa đặt giới tính — giới tính do admin đặt trong trang admin).
 
 ## Giao diện & tính năng
 
@@ -56,11 +68,30 @@ Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, groupId = null).
 - **Hoạt động gần đây (activity feed)**: danh sách ai vừa random vào nhóm nào, kèm giờ, cập nhật realtime qua Socket.IO; lưu tạm trong bộ nhớ server (tối đa 20 mục gần nhất, mất khi restart server).
 - **Tải ảnh kết quả**: sau khi random xong, có nút tải về ảnh PNG kết quả (tên + nhóm) để chia sẻ.
 
+## Ghép phòng ngủ (nam/nữ riêng biệt)
+
+Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms.html` (có link từ trang chủ).
+
+- **Mỗi phòng chỉ thuộc một giới tính**: nam ở với nam, nữ ở với nữ. Hệ thống không bao giờ xếp người vào phòng khác giới — kể cả khi admin xếp tay (API sẽ từ chối).
+- **Sức chứa tùy chỉnh**: admin đặt số người mỗi phòng (2 = ghép cặp đôi, tối đa 50).
+- **Thuật toán ghép** (`server/rooms.js`): chỉ chọn trong các phòng đúng giới tính và còn chỗ, **ưu tiên phòng đang có người nhưng chưa đầy** để lấp kín từng phòng (không để mỗi phòng lẻ loi 1 người), và random giữa các phòng cùng mức lấp đầy — nên ai ở với ai vẫn hoàn toàn ngẫu nhiên.
+- **Hai cách ghép**:
+  - Mỗi người tự vào `/rooms.html`, chọn tên và bấm "Quay ghép phòng" (có hiệu ứng quay, idempotent — quay lại/F5 vẫn ra đúng phòng cũ).
+  - Admin bấm **"Ghép phòng cho tất cả"** để hệ thống tự chia một lượt cho mọi người chưa có phòng (trộn thứ tự trước khi chia).
+- **Realtime**: ai vừa được ghép phòng, admin sửa/xóa phòng, reset ghép phòng... tất cả client đang mở trang đều thấy ngay qua Socket.IO.
+- **Điều kiện**: thành viên phải được admin đặt giới tính trước; nếu chưa có phòng trống cho giới tính đó, hệ thống báo rõ để admin tạo thêm phòng.
+
 ## Trang admin
 
-- `/admin-reset.html` — cần `ADMIN_RESET_SECRET` trong `.env`:
-  - **Đặt giờ mở bốc thăm**: chọn ngày giờ, bấm "Lưu giờ mở" — lưu vào bảng `Setting`, áp dụng ngay cho mọi người đang mở trang, không cần restart server. Để trống + bấm "Mở ngay" để bỏ đếm ngược.
-  - **Reset toàn bộ random**: xóa `groupId` của tất cả thành viên để random lại từ đầu.
+`/admin-reset.html` — bảng điều khiển nhiều tab, cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác):
+
+- **🛏️ Phòng ngủ**: tạo phòng tự động theo số người mỗi giới, thêm/sửa/xóa từng phòng (tên, giới tính, sức chứa, ghi chú), ghép phòng cho tất cả, khóa/mở vòng tự ghép, reset ghép phòng, kéo từng người ra khỏi phòng.
+- **👥 Thành viên**: thêm/xóa thành viên, sửa tên, **đặt giới tính Nam/Nữ**, xếp nhóm, xếp phòng thủ công, bật/tắt cờ Nhóm Trưởng, xem điểm quiz. Mọi ô lưu ngay khi thay đổi.
+- **🏷️ Nhóm**: thêm/sửa/xóa nhóm (tên + slogan). Xóa nhóm chỉ bỏ random của thành viên, không xóa người.
+- **⏰ Sự kiện**: đặt/xóa giờ mở bốc thăm (đếm ngược ở trang chủ).
+- **🧠 Quiz**: xem phòng chờ, bắt đầu làm bài, chốt Nhóm Trưởng, reset vòng chọn Nhóm Trưởng.
+- **❓ Câu hỏi**: thêm/sửa/xóa câu hỏi quiz, 2–6 phương án, chọn đáp án đúng, đổi thứ tự (đổi số thứ tự sẽ đổi chỗ với câu đang giữ số đó).
+- **⚙️ Hệ thống**: số Nhóm Trưởng chốt từ quiz (không còn cố định 4), sức chứa phòng mặc định, chuyển giai đoạn quiz/random, và reset toàn bộ (có tùy chọn xóa luôn kết quả ghép phòng).
 
 ## API
 
@@ -72,7 +103,39 @@ Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, groupId = null).
 | GET    | `/api/groups`          | Trả về 4 nhóm kèm danh sách thành viên trong từng nhóm                 |
 | GET    | `/api/members`         | Trả về toàn bộ thành viên (dùng cho dropdown chọn tên)                 |
 | POST   | `/api/random`          | Body `{ "name": "An" }`. Nếu đã random rồi thì trả về nhóm cũ (không random lại). Nếu chưa, random 1 nhóm trong 4 nhóm, lưu DB, emit socket `member:randomized` cho tất cả client, và trả kết quả. |
-| POST   | `/api/admin/reset`     | Body `{ "secret": "..." }`. Xóa `groupId` của mọi thành viên, emit socket `groups:reset`. |
+| POST   | `/api/admin/reset`     | Body `{ "secret": "...", "includeRooms": false }`. Xóa `groupId` + tiến độ quiz của mọi thành viên, emit socket `groups:reset`. `includeRooms: true` thì xóa luôn `roomId`. |
+
+### API phòng ngủ
+
+| Method | Endpoint                         | Mô tả                                                                 |
+|--------|----------------------------------|------------------------------------------------------------------------|
+| GET    | `/api/rooms`                     | Danh sách phòng kèm người ở trong, thống kê theo giới tính, trạng thái khóa, sức chứa mặc định. |
+| POST   | `/api/room/random`               | Body `{ "name": "An" }`. Random 1 phòng đúng giới tính và còn chỗ; đã có phòng thì trả về phòng cũ. Emit `member:room-randomized`. |
+| POST   | `/api/admin/rooms`               | Tạo phòng: `{ secret, name, gender, capacity, note }`.                 |
+| PUT    | `/api/admin/rooms/:id`           | Sửa phòng (chặn hạ sức chứa dưới số người đang ở, chặn đổi giới tính khi còn người khác giới). |
+| DELETE | `/api/admin/rooms/:id`           | Xóa phòng, người đang ở trở về trạng thái chưa có phòng.               |
+| POST   | `/api/admin/rooms/auto-create`   | `{ secret, capacity, prefix }` — tạo đủ số phòng còn thiếu cho cả 2 giới. |
+| POST   | `/api/admin/rooms/random-all`    | Ghép phòng một lượt cho tất cả người chưa có phòng, trả về danh sách đã ghép và những ai chưa ghép được kèm lý do. |
+| POST   | `/api/admin/rooms/reset`         | Bỏ toàn bộ kết quả ghép phòng (vẫn giữ danh sách phòng), emit `rooms:reset`. |
+| POST   | `/api/admin/rooms/lock`          | `{ secret, locked: true/false }` — khóa/mở vòng tự ghép phòng.         |
+
+### API quản trị khác
+
+| Method | Endpoint                      | Mô tả                                                                    |
+|--------|-------------------------------|--------------------------------------------------------------------------|
+| GET    | `/api/admin/members`          | Danh sách thành viên đầy đủ (nhóm, phòng, giới tính, điểm quiz).         |
+| POST   | `/api/admin/members`          | Thêm thành viên `{ secret, name, gender, groupId }`.                      |
+| PUT    | `/api/admin/members/:id`      | Sửa `{ name, gender, groupId, roomId, isLeader }` — kiểm tra giới tính và sức chứa phòng trước khi xếp. |
+| DELETE | `/api/admin/members/:id`      | Xóa thành viên (xóa luôn câu trả lời quiz của họ).                        |
+| POST   | `/api/admin/groups`           | Thêm nhóm `{ secret, name, description }`.                                |
+| PUT    | `/api/admin/groups/:id`       | Sửa tên / slogan nhóm.                                                    |
+| DELETE | `/api/admin/groups/:id`       | Xóa nhóm, thành viên trong nhóm trở về chưa random.                       |
+| GET    | `/api/admin/questions`        | Danh sách câu hỏi kèm đáp án đúng (chỉ admin).                            |
+| POST   | `/api/admin/questions`        | Thêm câu hỏi `{ secret, text, options[], correctIndex }`.                 |
+| PUT    | `/api/admin/questions/:id`    | Sửa nội dung / phương án / đáp án / thứ tự (đổi thứ tự = đổi chỗ 2 câu).  |
+| DELETE | `/api/admin/questions/:id`    | Xóa câu hỏi và các câu trả lời cho câu đó.                                |
+| GET    | `/api/admin/settings`         | Cấu hình đang áp dụng + số lượng thành viên/nhóm/phòng/câu hỏi.           |
+| POST   | `/api/admin/settings`         | Lưu `{ secret, leaderCount, roomCapacity, phase }`.                       |
 
 ## Cách chạy local
 

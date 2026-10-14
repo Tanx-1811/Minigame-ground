@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 model Group {
   id          Int      @id @default(autoincrement())
   name        String   @unique
@@ -18,13 +23,28 @@ model Group {
 model Member {
   id          Int      @id @default(autoincrement())
   name        String   @unique
+  gender      Gender?
   groupId     Int?
   group       Group?   @relation(fields: [groupId], references: [id])
+  roomId      Int?
+  room        Room?    @relation(fields: [roomId], references: [id])
   createdAt   DateTime @default(now())
   isLeader    Boolean  @default(false)
   quizScore   Int      @default(0)
   quizTimeMs  Int      @default(0)
   answers     Answer[]
+}
+
+// Phong ngu: moi phong chi danh cho 1 gioi tinh (nam o voi nam, nu o voi nu),
+// so nguoi toi da moi phong do admin tu dat (2 = ghep cap doi).
+model Room {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  gender    Gender
+  capacity  Int      @default(2)
+  note      String?
+  createdAt DateTime @default(now())
+  members   Member[]
 }
 
 model Setting {
