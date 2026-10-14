@@ -1099,7 +1099,9 @@ body {
 
 .admin-table {
   width: 100%;
-  min-width: 940px;
+  /* Du cho 10 cot cua bang thanh vien (co them cot "Tham gia"); hep hon thi
+     cac cot bi bop lai va chu bi xuong dong lung tung. */
+  min-width: 1100px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.85rem;

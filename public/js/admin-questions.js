@@ -2,6 +2,16 @@
 // doi thu tu (nut len/xuong hoac nhap so), nhan ban, xoa le hoac xoa nhieu cau,
 // tim kiem, xuat CSV. Chua nhap ma bi mat van xem duoc danh sach (an dap an).
 (function () {
+// Chi hoan ve lai khi nguoi dung dang GO trong 1 o chu/so - ve lai luc do se
+// cuop mat con tro. Con tick checkbox hay chon trong dropdown thi da xong thao tac,
+// phai ve lai ngay de bang hien dung trang thai moi.
+function isTyping(scope) {
+  const el = document.activeElement;
+  if (!el || !scope.contains(el)) return false;
+  if (el.tagName === 'TEXTAREA') return true;
+  if (el.tagName !== 'INPUT') return false;
+  return ['text', 'search', 'number', 'password', 'date', 'datetime-local'].includes(el.type);
+}
   const A = window.AdminCommon;
 
   const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -162,7 +172,7 @@
   }
 
   function render() {
-    if (questionList.contains(document.activeElement)) return;
+    if (isTyping(questionList)) return;
 
     renderBulkBar();
 
@@ -219,7 +229,6 @@
       });
 
       render();
-      if (canSeeAnswers) A.setMsg(questionMsg, '');
     } catch (err) {
       questionList.innerHTML = `<p class="admin-empty">${A.escapeHtml(err.message)}</p>`;
       A.setMsg(questionMsg, err.message, 'err');
@@ -230,7 +239,7 @@
 
   questionList.addEventListener('focusout', () => {
     setTimeout(() => {
-      if (!questionList.contains(document.activeElement)) render();
+      if (!isTyping(questionList)) render();
     }, 0);
   });
 
@@ -272,7 +281,7 @@
       );
       if (!data) return;
 
-      A.setMsg(questionMsg, 'Đã lưu câu hỏi.', 'ok');
+      A.done(questionMsg, 'Đã lưu câu hỏi.');
       loadQuestions();
       return;
     }
@@ -284,7 +293,7 @@
         })
       );
       if (!data) return;
-      A.setMsg(questionMsg, 'Đã đổi thứ tự câu hỏi.', 'ok');
+      A.done(questionMsg, 'Đã đổi thứ tự câu hỏi.');
       loadQuestions();
       return;
     }
@@ -294,7 +303,7 @@
         A.request('POST', `/api/admin/questions/${questionId}/duplicate`)
       );
       if (!data) return;
-      A.setMsg(questionMsg, `Đã nhân bản thành câu số ${data.question.order}.`, 'ok');
+      A.done(questionMsg, `Đã nhân bản thành câu số ${data.question.order}.`);
       loadQuestions();
       return;
     }
@@ -314,7 +323,7 @@
       if (!data) return;
 
       selected.delete(questionId);
-      A.setMsg(questionMsg, 'Đã xóa câu hỏi.', 'ok');
+      A.done(questionMsg, 'Đã xóa câu hỏi.');
       loadQuestions();
     }
   });
@@ -348,7 +357,7 @@
       if (!data) return;
 
       selected.clear();
-      A.setMsg(questionMsg, `Đã xóa ${data.affected} câu hỏi.`, 'ok');
+      A.done(questionMsg, `Đã xóa ${data.affected} câu hỏi.`);
       loadQuestions();
     }
   });
@@ -367,7 +376,7 @@
       ]);
     });
     A.downloadCsv('cau-hoi-quiz.csv', rows);
-    A.setMsg(questionMsg, `Đã xuất ${rows.length - 1} câu hỏi ra file CSV.`, 'ok');
+    A.done(questionMsg, `Đã xuất ${rows.length - 1} câu hỏi ra file CSV.`);
   });
 
   if (A.socket) {

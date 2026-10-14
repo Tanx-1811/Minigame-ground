@@ -8,6 +8,16 @@
 // Chua nhap ma bi mat thi van xem duoc danh sach (doc tu API cong khai),
 // chi cac o sua bi khoa lai.
 (function () {
+// Chi hoan ve lai khi nguoi dung dang GO trong 1 o chu/so - ve lai luc do se
+// cuop mat con tro. Con tick checkbox hay chon trong dropdown thi da xong thao tac,
+// phai ve lai ngay de bang hien dung trang thai moi.
+function isTyping(scope) {
+  const el = document.activeElement;
+  if (!el || !scope.contains(el)) return false;
+  if (el.tagName === 'TEXTAREA') return true;
+  if (el.tagName !== 'INPUT') return false;
+  return ['text', 'search', 'number', 'password', 'date', 'datetime-local'].includes(el.type);
+}
   const A = window.AdminCommon;
 
   const panel = document.querySelector('.admin-panel[data-panel="members"]');
@@ -299,7 +309,7 @@
 
   function render() {
     // Dang go trong o nao do thi khoan ve lai keo mat con tro
-    if (memberTableBody.contains(document.activeElement)) return;
+    if (isTyping(memberTableBody)) return;
 
     renderStats();
     renderFilterChips();
@@ -343,7 +353,6 @@
       });
 
       render();
-      A.setMsg(memberMsg, '');
     } catch (err) {
       memberTableBody.innerHTML = `<tr><td colspan="${COLSPAN}" class="admin-empty">${A.escapeHtml(
         err.message
@@ -418,13 +427,13 @@
     }
 
     const extra = data.movedOutOfRoom ? ' (đã đưa ra khỏi phòng cũ vì khác giới tính)' : '';
-    A.setMsg(memberMsg, `Đã cập nhật ${data.member.name}.${extra}`, 'ok');
+    A.done(memberMsg, `Đã cập nhật ${data.member.name}.${extra}`);
     loadAll();
   });
 
   memberTableBody.addEventListener('focusout', () => {
     setTimeout(() => {
-      if (!memberTableBody.contains(document.activeElement)) render();
+      if (!isTyping(memberTableBody)) render();
     }, 0);
   });
 

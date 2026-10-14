@@ -383,6 +383,63 @@ function startCountdown(targetIso) {
   countdownTimer = setInterval(tick, 1000);
 }
 
+// Doc lai /api/config -> cap nhat giai doan va dong ho dem nguoc.
+// Dung ca luc khoi dong lan moi khi admin reset, de man hinh cho hien dung trang thai.
+async function syncConfig() {
+  try {
+    const config = await (window.UiConfig ? window.UiConfig.refresh() : fetch('/api/config').then((r) => r.json()));
+    currentPhase = config.phase || 'quiz';
+
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+    if (config.eventStartAt) {
+      startCountdown(config.eventStartAt);
+    } else {
+      countdownBlock.classList.add('hidden');
+      countdownReady = true;
+    }
+    return config;
+  } catch (err) {
+    console.error(err);
+    countdownReady = true;
+    return null;
+  } finally {
+    updateStartBtnState();
+  }
+}
+
+// Dua trang ve MAN HINH CHO (intro): dung sau khi admin reset, hoac khi admin
+// chuyen giai doan nguoc tu random ve quiz.
+function backToWaitingScreen() {
+  resultBox.classList.add('hidden');
+  shareBtn.classList.add('hidden');
+  copyResultBtn.classList.add('hidden');
+  nativeShareBtn.classList.add('hidden');
+  slotMachine.classList.add('hidden');
+  errorText.classList.add('hidden');
+  lastResult = null;
+  pendingRandomName = null;
+  isSpinning = false;
+
+  memberSelect.value = '';
+  memberSelect.disabled = false;
+  randomBtn.disabled = false;
+  randomBtn.classList.remove('spinning');
+  memberSearch.value = '';
+
+  appScreen.classList.add('hidden');
+  quizScreen.classList.add('hidden');
+  introScreen.style.display = '';
+  introScreen.classList.remove('fade-out');
+
+  if (window.QuizUI && typeof window.QuizUI.reset === 'function') {
+    window.QuizUI.reset();
+  }
+  updateStartBtnState();
+}
+
 function enterAppScreen() {
   introScreen.classList.add('fade-out');
   appScreen.classList.remove('hidden');
@@ -1084,6 +1141,16 @@ rulesModal.addEventListener('click', (e) => {
 socket.on('phase:updated', (payload) => {
   if (!payload) return;
   currentPhase = payload.phase;
+
+  // Admin keo giai doan nguoc ve quiz (vd chot nham, muon lam lai): ai dang xem
+  // ket qua random phai duoc dua ve man hinh cho, khong de ket qua cu tren man.
+  if (currentPhase === 'quiz' && !appScreen.classList.contains('hidden')) {
+    localStorage.removeItem(STORAGE_KEY);
+    backToWaitingScreen();
+    showToast('🔄 Admin đã mở lại vòng Quiz — mời mọi người vào từ đầu', 'info', 5000);
+    return;
+  }
+
   if (currentPhase === 'random' && !quizScreen.classList.contains('hidden')) {
     quizScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
@@ -1101,18 +1168,9 @@ socket.on('phase:updated', (payload) => {
   }
 });
 
-socket.on('config:updated', (payload) => {
-  if (countdownTimer) {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
-  if (payload && payload.eventStartAt) {
-    startCountdown(payload.eventStartAt);
-  } else {
-    countdownBlock.classList.add('hidden');
-    countdownReady = true;
-    updateStartBtnState();
-  }
+socket.on('config:updated', () => {
+  // Doc lai tu server thay vi tin payload, de lay ca giai doan lan gio mo moi nhat
+  syncConfig();
 });
 
 socket.on('member:randomized', (payload) => {
@@ -1154,38 +1212,50 @@ socket.on('members:updated', () => {
   loadGroups();
 });
 
-socket.on('groups:reset', (payload) => {
+// Admin bam "Reset toan bo" hoac "Lam lai vong Quiz" -> moi nguoi ve man hinh cho
+socket.on('groups:reset', async (payload) => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(QUIZ_NAME_KEY);
-  resultBox.classList.add('hidden');
-  shareBtn.classList.add('hidden');
-  copyResultBtn.classList.add('hidden');
-  nativeShareBtn.classList.add('hidden');
-  slotMachine.classList.add('hidden');
-  lastResult = null;
-  memberSelect.value = '';
-  memberSearch.value = '';
-  loadGroups();
-  loadMembers();
-  loadActivity();
+
+  backToWaitingScreen();
 
   if (payload && payload.phase) {
     currentPhase = payload.phase;
   }
-  // Dua moi nguoi ve man hinh dau (intro) de bat dau lai tu quiz/random cho dung
-  appScreen.classList.add('hidden');
-  quizScreen.classList.add('hidden');
-  introScreen.style.display = '';
-  introScreen.classList.remove('fade-out');
+
+  // Tai lai du lieu roi moi mo nut "Bat dau" - tranh truong hop bam vao luc
+  // danh sach nhom/thanh vien chua kip ve.
+  dataReady = false;
   updateStartBtnState();
+  await Promise.all([loadGroups(), loadMembers(), loadActivity()]);
+  dataReady = true;
+
+  // Doc lai gio mo: admin co the vua hen gio moi cho luot choi ke tiep
+  await syncConfig();
+
+  showToast('🔄 Admin vừa reset — mời mọi người bắt đầu lại từ đầu', 'info', 5000);
 });
 
 /* ---------- init ---------- */
 
 (async function init() {
-  const myName = localStorage.getItem(STORAGE_KEY);
-  const dataPromise = Promise.all([loadGroups(), loadMembers(), loadActivity()]);
+  // Hai co nay quyet dinh nut "Bat dau" tren man hinh cho co bam duoc hay khong,
+  // nen phai duoc dat BAT KE nguoi dung dang o man nao. Truoc day chung chi duoc
+  // dat o nhanh "chua random", nen sau khi admin reset va dua moi nguoi ve man
+  // hinh cho thi nut bi khoa vinh vien.
+  const dataPromise = Promise.all([loadGroups(), loadMembers(), loadActivity()]).then(() => {
+    dataReady = true;
+    updateStartBtnState();
+  });
 
+  // Man hinh cho luon co san hieu ung nen, ke ca khi nguoi dung vao thang ket qua
+  // roi sau do bi dua nguoc ve day.
+  setupIntroParticles();
+
+  await syncConfig();
+  window.UiConfig.bind(socket);
+
+  const myName = localStorage.getItem(STORAGE_KEY);
   if (myName) {
     introScreen.style.display = 'none';
     appScreen.classList.remove('hidden');
@@ -1195,26 +1265,5 @@ socket.on('groups:reset', (payload) => {
     return;
   }
 
-  setupIntroParticles();
   updateStartBtnState();
-
-  dataPromise.then(() => {
-    dataReady = true;
-    updateStartBtnState();
-  });
-
-  try {
-    // UiConfig da goi /api/config va ap dung noi dung admin dat; dung lai ket qua do
-    const config = await window.UiConfig.ready;
-    window.UiConfig.bind(socket);
-    currentPhase = config.phase || 'quiz';
-    if (config.eventStartAt) {
-      startCountdown(config.eventStartAt);
-    } else {
-      updateStartBtnState();
-    }
-  } catch (err) {
-    console.error(err);
-    updateStartBtnState();
-  }
 })();

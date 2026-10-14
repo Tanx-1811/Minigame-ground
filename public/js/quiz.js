@@ -348,6 +348,31 @@
     });
   }
 
+  // Admin reset -> phai xoa sach tien do cu trong bo nho, neu khong nguoi choi
+  // quay lai se mang theo diem va danh sach cau da tra loi cua luot truoc.
+  function resetQuizState() {
+    questions = [];
+    answeredIds = new Set();
+    currentName = '';
+    questionShownAt = 0;
+    answering = false;
+    liveScore = 0;
+
+    quizOptions.innerHTML = '';
+    quizFeedback.classList.add('hidden');
+    quizCountdownOverlay.classList.add('hidden');
+    quizMemberSelect.value = '';
+    quizStartBtn.disabled = false;
+    showStep('pick');
+  }
+
+  if (window.socket) {
+    window.socket.on('groups:reset', () => {
+      resetQuizState();
+      loadMemberOptions();
+    });
+  }
+
   window.QuizUI = {
     enter() {
       showStep('pick');
@@ -357,5 +382,6 @@
         joinQuizLobby(savedName);
       }
     },
+    reset: resetQuizState,
   };
 })();

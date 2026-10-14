@@ -4,6 +4,16 @@
 // Khoa nhom = nhom do khong nhan them ai khi random, nhung nguoi dang o trong van giu nguyen.
 // Gioi han so nguoi de trong = khong gioi han (van chia deu giua cac nhom).
 (function () {
+// Chi hoan ve lai khi nguoi dung dang GO trong 1 o chu/so - ve lai luc do se
+// cuop mat con tro. Con tick checkbox hay chon trong dropdown thi da xong thao tac,
+// phai ve lai ngay de bang hien dung trang thai moi.
+function isTyping(scope) {
+  const el = document.activeElement;
+  if (!el || !scope.contains(el)) return false;
+  if (el.tagName === 'TEXTAREA') return true;
+  if (el.tagName !== 'INPUT') return false;
+  return ['text', 'search', 'number', 'password', 'date', 'datetime-local'].includes(el.type);
+}
   const A = window.AdminCommon;
 
   const panel = document.querySelector('.admin-panel[data-panel="groups"]');
@@ -176,7 +186,7 @@
   }
 
   function render() {
-    if (grid.contains(document.activeElement)) return;
+    if (isTyping(grid)) return;
 
     renderStats();
     syncLockRoundBtn();
@@ -208,7 +218,6 @@
       randomLocked = !!config.randomLocked;
 
       render();
-      A.setMsg(groupMsg, '');
     } catch (err) {
       A.setMsg(groupMsg, err.message, 'err');
     }
@@ -243,7 +252,7 @@
         A.request('POST', '/api/admin/groups/move', { memberId, groupId: '' })
       );
       if (!data) return;
-      A.setMsg(groupMsg, 'Đã đưa ra khỏi nhóm.', 'ok');
+      A.done(groupMsg, 'Đã đưa ra khỏi nhóm.');
       load();
       return;
     }

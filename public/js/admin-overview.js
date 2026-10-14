@@ -207,7 +207,6 @@
       data = await A.request('GET', '/api/admin/overview');
       renderFlow();
       renderStats();
-      A.setMsg(flowMsg, '');
     } catch (err) {
       A.setMsg(flowMsg, err.message, 'err');
     }

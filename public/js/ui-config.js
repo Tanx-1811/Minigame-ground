@@ -36,16 +36,25 @@ window.UiConfig = (function () {
   }
 
   // 1 request /api/config duy nhat cho ca trang
-  const ready = fetch('/api/config')
-    .then((r) => r.json())
-    .then((config) => {
-      apply(config.ui);
-      return config;
-    })
-    .catch((err) => {
-      console.error('[ui-config] khong tai duoc cau hinh:', err);
-      return {};
-    });
+  function load() {
+    return fetch('/api/config')
+      .then((r) => r.json())
+      .then((config) => {
+        apply(config.ui);
+        return config;
+      })
+      .catch((err) => {
+        console.error('[ui-config] khong tai duoc cau hinh:', err);
+        return {};
+      });
+  }
+
+  const ready = load();
+
+  // Doc lai cau hinh tu dau (vd sau khi admin reset, giai doan va gio mo co the da doi)
+  function refresh() {
+    return load();
+  }
 
   // Admin luu cau hinh -> ap dung ngay. Trang goi UiConfig.bind(socket) voi socket
   // san co cua no; khong tu mo socket moi vi moi ket noi deu bi tinh la 1 nguoi online.
@@ -60,6 +69,7 @@ window.UiConfig = (function () {
     apply,
     bind,
     ready,
+    refresh,
     get current() {
       return cache;
     },

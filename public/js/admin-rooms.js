@@ -4,6 +4,16 @@
 // dung gioi tinh va con cho. Phong bi KHOA van giu nguoi dang o nhung khong
 // nhan them ai khi random.
 (function () {
+// Chi hoan ve lai khi nguoi dung dang GO trong 1 o chu/so - ve lai luc do se
+// cuop mat con tro. Con tick checkbox hay chon trong dropdown thi da xong thao tac,
+// phai ve lai ngay de bang hien dung trang thai moi.
+function isTyping(scope) {
+  const el = document.activeElement;
+  if (!el || !scope.contains(el)) return false;
+  if (el.tagName === 'TEXTAREA') return true;
+  if (el.tagName !== 'INPUT') return false;
+  return ['text', 'search', 'number', 'password', 'date', 'datetime-local'].includes(el.type);
+}
   const A = window.AdminCommon;
 
   const panel = document.querySelector('.admin-panel[data-panel="rooms"]');
@@ -345,7 +355,7 @@
   }
 
   function render() {
-    if (roomList.contains(document.activeElement) || pendingList.contains(document.activeElement)) return;
+    if (isTyping(roomList) || isTyping(pendingList)) return;
 
     renderStats();
     renderFilterChips();
@@ -376,7 +386,6 @@
       }
 
       render();
-      A.setMsg(roomListMsg, '');
     } catch (err) {
       A.setMsg(roomListMsg, err.message, 'err');
     }
@@ -424,7 +433,7 @@
         A.request('POST', '/api/admin/rooms/move', { memberId, roomId: '' })
       );
       if (!data) return;
-      A.setMsg(roomListMsg, 'Đã đưa ra khỏi phòng.', 'ok');
+      A.done(roomListMsg, 'Đã đưa ra khỏi phòng.');
       load();
       return;
     }
@@ -510,7 +519,7 @@
       load();
       return;
     }
-    A.setMsg(pendingMsg, 'Đã xếp phòng.', 'ok');
+    A.done(pendingMsg, 'Đã xếp phòng.');
     load();
   });
 

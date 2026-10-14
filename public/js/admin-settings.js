@@ -135,7 +135,6 @@
       settings = await A.request('GET', '/api/admin/settings');
       renderSystem();
       renderAppearance();
-      A.setMsg(settingsMsg, '');
     } catch (err) {
       A.setMsg(settingsMsg, err.message, 'err');
     }

@@ -64,7 +64,6 @@
         ? await A.request('GET', `/api/admin/activity?limit=200&type=${encodeURIComponent(activeFilter)}`)
         : await fetch(`/api/activity?limit=50&type=${encodeURIComponent(activeFilter)}`).then((r) => r.json());
       render();
-      A.setMsg(msg, '');
     } catch (err) {
       A.setMsg(msg, err.message, 'err');
     }
