@@ -50,10 +50,23 @@ minigamegroup/
 └─ public/
    ├─ index.html        # trang random chia nhom
    ├─ rooms.html        # trang ghep phong ngu
-   ├─ admin-reset.html  # bang dieu khien admin (nhieu tab)
+   ├─ admin-reset.html  # duong dan cu -> chuyen huong sang /admin/
+   ├─ admin/            # moi khu vuc quan ly MOT TRANG rieng
+   │  ├─ index.html     #   Tong quan
+   │  ├─ event.html     #   Su kien
+   │  ├─ quiz.html      #   Vong Quiz
+   │  ├─ groups.html    #   Chia nhom
+   │  ├─ rooms.html     #   Phong ngu
+   │  ├─ members.html   #   Thanh vien
+   │  ├─ questions.html #   Cau hoi
+   │  ├─ activity.html  #   Nhat ky
+   │  ├─ appearance.html#   Giao dien & noi dung
+   │  └─ settings.html  #   Cau hinh & Reset
    ├─ css/              # theme.css (he thiet ke chung), style.css, quiz.css, rooms.css, admin.css
-   └─ js/               # icons.js, ui-config.js, version-guard.js,
-                        # main.js, quiz.js, rooms.js, admin-*.js
+   └─ js/               # icons.js, icon-set.js (tu sinh), ui-config.js, version-guard.js,
+                        # main.js, quiz.js, rooms.js,
+                        # admin-common.js (dung topbar + sidebar dung chung)
+                        # + 1 file cho moi trang admin
 ```
 
 ## Database
@@ -122,7 +135,9 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 
 ## Trang admin
 
-`/admin-reset.html` — bảng điều khiển dạng console (thanh trên cố định + sidebar tối 4 nhóm chức năng), cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác). Có nút đổi **nền sáng/tối**, toast thông báo và hộp thoại xác nhận riêng thay cho `confirm()` của trình duyệt.
+`/admin/` — bảng điều khiển dạng console (thanh trên cố định + sidebar tối 4 nhóm chức năng), cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác). Có nút đổi **nền sáng/tối**, toast thông báo và hộp thoại xác nhận riêng thay cho `confirm()` của trình duyệt. Đường dẫn cũ `/admin-reset.html` tự chuyển hướng sang đây.
+
+**Mỗi khu vực là một trang riêng.** Trước đây cả 10 khu vực nằm chung một trang và ẩn/hiện bằng tab: mở trang nào cũng phải tải 47KB HTML + 137KB JS của cả 10 module, tất cả cùng chạy và cùng đăng ký socket — đó là lý do trang giật và bấm tab không kịp phản hồi. Giờ mỗi trang chỉ còn trung bình **5KB HTML + 38KB JS**, nạp đúng một module của nó. Thanh trên và sidebar do `js/admin-common.js` dựng từ một bảng khai báo duy nhất nên không bao giờ lệch nhau giữa các trang.
 
 Những việc ít làm (thêm thủ công, nhập danh sách, đổi chỗ, sao lưu, reset) được **gấp lại thành khối thu gọn** — bấm vào tiêu đề để mở — nên mỗi tab chỉ hiện việc chính.
 
@@ -256,6 +271,35 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
    npm run dev
    ```
 6. Mở trình duyệt: http://localhost:3000
+
+## Tối ưu tốc độ
+
+Trang admin ban đầu gom cả 10 khu vực vào một file và ẩn/hiện bằng tab. Mở bất kỳ khu
+vực nào cũng phải tải và chạy toàn bộ, nên trang giật và bấm tab không kịp phản hồi.
+Bốn thay đổi dưới đây xử lý việc đó:
+
+| Trước | Sau |
+|---|---|
+| 1 trang 47KB HTML, 10 panel cùng nằm trong DOM | **Mỗi khu vực một trang**, trung bình 5KB HTML |
+| 137KB JS của 9 module đều tải và chạy cùng lúc | Chỉ nạp **1 module** của trang đang mở |
+| Lucide từ CDN: 348KB cho 1799 icon | **Tự host 21KB** cho đúng 108 icon đang dùng |
+| Mỗi lần vẽ lại icon là dựng lại **toàn bộ** icon trên trang | Chỉ vẽ phần DOM vừa đổi, có bộ nhớ đệm |
+
+Tổng tải mỗi lần mở: **~540KB → ~64KB**.
+
+Hai điểm đáng chú ý trong cách làm:
+
+- **Vẽ icon có giới hạn phạm vi** (`js/icons.js`). `lucide.createIcons()` không nhận
+  phạm vi — mỗi lần gọi là quét cả `document`. Đồng hồ đếm ngược ghi lại DOM mỗi giây,
+  nghĩa là mỗi giây dựng lại hơn trăm thẻ SVG. Giờ bộ vẽ tự dựng SVG từ `lucide.icons`,
+  nhớ sẵn theo tên icon, và `MutationObserver` chỉ xử lý **nhánh DOM vừa được thêm**.
+- **Đánh phiên bản tài nguyên.** Máy chủ chèn `?v=<BUILD_ID>` vào mọi đường dẫn
+  `/js/…` và `/css/…` trong HTML, rồi cho các file đó cache vĩnh viễn (`immutable`).
+  Sửa code thì `BUILD_ID` đổi → đường dẫn đổi → trình duyệt tự lấy bản mới. Nhờ vậy
+  chuyển trang không còn phải hỏi lại máy chủ từng file.
+
+> Thêm icon mới vào mã nguồn thì chạy lại `npm run build:icons` — script sẽ báo nếu
+> có tên icon không tồn tại trong thư viện.
 
 ## Nhắc tải lại khi có bản mới
 

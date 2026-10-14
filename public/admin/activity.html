@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Nhật ký · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="activity">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="activity">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="scroll-text"></i> Nhật ký</h2>
+                  <p>Mọi lượt bốc thăm, ghép phòng và thao tác admin đều được ghi lại — còn nguyên kể cả khi khởi động lại máy chủ.</p>
+                </div>
+                <div class="admin-page-head-actions">
+                  <button id="activityRefreshBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="refresh-cw"></i> Tải lại
+                  </button>
+                  <button id="activityExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="download"></i> Xuất CSV
+                  </button>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="history"></i> Lịch sử thao tác</h3>
+                  </div>
+                  <button id="activityClearBtn" class="admin-row-btn danger" type="button"><i data-lucide="trash-2"></i> Xóa nhật ký</button>
+                </div>
+                <div class="admin-card-body">
+                  <p id="activityLockNote" class="admin-msg"></p>
+                  <div class="admin-filter-chips" id="activityFilterChips"></div>
+                  <div id="activityList" class="admin-log"></div>
+                  <p id="activityMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-activity.js"></script>
+</body>
+</html>

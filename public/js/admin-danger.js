@@ -42,7 +42,5 @@
         ? 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz và kết quả ghép phòng)'
         : 'Đã reset toàn bộ thành công! (kể cả tiến độ quiz)'
     );
-    loadQuizLeaderboard();
-    loadLobby();
   });
 })();

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Thành viên · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="members">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="members">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="contact-round"></i> Thành viên</h2>
+                  <p>Đặt giới tính để hệ thống ghép phòng đúng, và bật/tắt quyền tham gia từng vòng cho từng người. Mọi ô trong bảng lưu ngay khi bạn thay đổi.</p>
+                </div>
+                <div class="admin-page-head-actions">
+                  <button id="memberExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="download"></i> Xuất CSV
+                  </button>
+                </div>
+              </div>
+
+              <div id="memberStats" class="admin-stats"></div>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="user-plus"></i> Thêm thành viên</h3>
+                    <p>Tên là cách hệ thống nhận ra từng người nên không được trùng với ai khác.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="newMemberName"><i data-lucide="user"></i> Họ tên</label>
+                      <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newMemberGender"><i data-lucide="venus-and-mars"></i> Giới tính</label>
+                      <select id="newMemberGender">
+                        <option value="">-- Chưa đặt --</option>
+                        <option value="MALE">Nam</option>
+                        <option value="FEMALE">Nữ</option>
+                      </select>
+                    </div>
+                    <div class="admin-field">
+                      <label for="newMemberGroup"><i data-lucide="users-round"></i> Nhóm</label>
+                      <select id="newMemberGroup">
+                        <option value="">-- Chưa có nhóm --</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button id="addMemberBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm thành viên</button>
+                  <p id="addMemberMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="file-up"></i> Thêm nhiều người một lúc</h3>
+                    <p>Mỗi dòng một người: <code>Họ tên, Giới tính, Tên nhóm</code>. Hai cột sau có thể bỏ trống. Tên đã có sẵn sẽ được bỏ qua.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-field">
+                    <label for="memberImportText"><i data-lucide="clipboard-list"></i> Danh sách tên</label>
+                    <textarea id="memberImportText" placeholder="Nguyễn Văn A, Nam
+      Trần Thị B, Nữ, Nhóm Gà
+      Lê Văn C"></textarea>
+                  </div>
+                  <button id="memberImportBtn" class="admin-btn" type="button"><i data-lucide="file-up"></i> Thêm tất cả</button>
+                  <p id="memberImportMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="table"></i> Danh sách thành viên</h3>
+                    <p>Bấm tiêu đề cột để sắp xếp. Tick chọn nhiều người để sửa hàng loạt. Cột "Tham gia" quyết định ai được bốc thăm chia nhóm, ghép phòng hay làm quiz.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <p id="memberLockNote" class="admin-msg"></p>
+
+                  <div class="admin-help">
+                    <strong>Cột Tham gia:</strong>
+                    <i data-lucide="dices"></i> chia nhóm ·
+                    <i data-lucide="bed-double"></i> ghép phòng ·
+                    <i data-lucide="brain"></i> làm quiz ·
+                    <i data-lucide="pin"></i> ghim kết quả (không bị xáo lại).
+                    Tắt một vòng thì người đó không thấy tên mình trong ô chọn của vòng đó và kết quả cũ của vòng đó cũng bị gỡ.
+                  </div>
+
+                  <div class="admin-toolbar">
+                    <div class="admin-field">
+                      <label for="memberFilter"><i data-lucide="search"></i> Tìm thành viên</label>
+                      <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1" />
+                    </div>
+                    <div class="admin-filter-chips" id="memberFilterChips"></div>
+                  </div>
+
+                  <div id="memberBulkBar" class="admin-bulkbar" hidden>
+                    <span id="memberBulkCount" class="admin-bulkbar-count"><i data-lucide="check-check"></i></span>
+                    <div class="admin-bulkbar-actions">
+                      <button type="button" class="admin-row-btn" data-bulk="gender-female">Đặt Nữ</button>
+                      <button type="button" class="admin-row-btn" data-bulk="gender-male">Đặt Nam</button>
+                      <span class="admin-bulkbar-sep"></span>
+                      <select id="memberBulkGroup" title="Xếp những người đã chọn vào nhóm"></select>
+                      <select id="memberBulkRoom" title="Xếp những người đã chọn vào phòng"></select>
+                      <span class="admin-bulkbar-sep"></span>
+                      <button type="button" class="admin-row-btn" data-bulk="join-on" title="Cho tham gia tất cả các vòng">
+                        <i data-lucide="user-round-check"></i> Cho tham gia
+                      </button>
+                      <button type="button" class="admin-row-btn danger" data-bulk="join-off" title="Loại khỏi tất cả các vòng">
+                        <i data-lucide="user-round-x"></i> Loại khỏi vòng
+                      </button>
+                      <select id="memberBulkFlag" title="Bật/tắt từng quyền riêng lẻ">
+                        <option value="">Bật/tắt riêng...</option>
+                        <option value="joinRandom:1">Cho chia nhóm</option>
+                        <option value="joinRandom:0">Cấm chia nhóm</option>
+                        <option value="joinRoom:1">Cho ghép phòng</option>
+                        <option value="joinRoom:0">Cấm ghép phòng</option>
+                        <option value="joinQuiz:1">Cho làm quiz</option>
+                        <option value="joinQuiz:0">Cấm làm quiz</option>
+                        <option value="pinnedGroup:1">Ghim nhóm</option>
+                        <option value="pinnedGroup:0">Bỏ ghim nhóm</option>
+                        <option value="pinnedRoom:1">Ghim phòng</option>
+                        <option value="pinnedRoom:0">Bỏ ghim phòng</option>
+                      </select>
+                      <span class="admin-bulkbar-sep"></span>
+                      <button type="button" class="admin-row-btn" data-bulk="clear-group">Bỏ nhóm</button>
+                      <button type="button" class="admin-row-btn" data-bulk="clear-room">Bỏ phòng</button>
+                      <button type="button" class="admin-row-btn danger" data-bulk="delete"><i data-lucide="trash-2"></i> Xóa</button>
+                      <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
+                    </div>
+                  </div>
+
+                  <div class="admin-table-wrap">
+                    <table class="admin-table">
+                      <thead>
+                        <tr>
+                          <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" title="Chọn tất cả" data-always-enabled="1" /></th>
+                          <th></th>
+                          <th data-sort="name">Họ tên</th>
+                          <th data-sort="gender">Giới tính</th>
+                          <th data-sort="join" class="admin-cell-flags">Tham gia</th>
+                          <th data-sort="group">Nhóm</th>
+                          <th data-sort="room">Phòng ngủ</th>
+                          <th data-sort="leader">NT</th>
+                          <th data-sort="quiz">Quiz</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="memberTableBody"></tbody>
+                    </table>
+                  </div>
+                  <p id="memberMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-members.js"></script>
+</body>
+</html>

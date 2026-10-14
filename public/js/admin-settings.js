@@ -1,13 +1,11 @@
-// Hai tab he thong:
-//  - "Cau hinh & Reset": luat choi (so nhom truong, suc chua, giai doan) + sao luu/phuc hoi
-//  - "Giao dien & noi dung": sua chu hien tren trang chu / trang ghep phong va
-//    bat/tat tung khoi giao dien. Danh sach o nhap duoc server mo ta trong
-//    settings.schema nen them key moi ben server la tu co o nhap, khong phai sua HTML.
+// Trang "Cau hinh & Reset": luat choi (so nhom truong, suc chua, giai doan)
+// va sao luu / phuc hoi toan bo du lieu.
+// Khoi "Reset toan bo" nam o file rieng: admin-danger.js
 (function () {
   const A = window.AdminCommon;
 
-  const systemPanel = document.querySelector('.admin-panel[data-panel="system"]');
-  const appearancePanel = document.querySelector('.admin-panel[data-panel="appearance"]');
+  const systemPanel = document.querySelector('.admin-panel[data-panel="settings"]');
+  if (!systemPanel) return;
 
   const systemStats = document.getElementById('systemStats');
   const systemLockNote = document.getElementById('systemLockNote');
@@ -18,21 +16,12 @@
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
   const settingsMsg = document.getElementById('settingsMsg');
 
-  const appearanceLockNote = document.getElementById('appearanceLockNote');
-  const uiTextFields = document.getElementById('uiTextFields');
-  const uiFlagFields = document.getElementById('uiFlagFields');
-  const saveUiBtn = document.getElementById('saveUiBtn');
-  const previewUiBtn = document.getElementById('previewUiBtn');
-  const uiMsg = document.getElementById('uiMsg');
-
   const backupExportBtn = document.getElementById('backupExportBtn');
   const backupImportBtn = document.getElementById('backupImportBtn');
   const backupFileInput = document.getElementById('backupFileInput');
   const backupMsg = document.getElementById('backupMsg');
 
   let settings = null;
-
-  /* ================= cau hinh chung ================= */
 
   function renderSystem() {
     if (!settings) return;
@@ -71,70 +60,16 @@
     A.applyEditLock(systemPanel, systemLockNote);
   }
 
-  /* ================= giao dien & noi dung ================= */
-
-  function renderAppearance() {
-    if (!settings || !settings.schema) {
-      uiTextFields.innerHTML = `<div class="admin-empty-rich">${A.icon('key-round')}
-        <strong>Cần mã bí mật admin</strong>
-        <p>Nhập mã bí mật ở đầu trang để sửa nội dung hiển thị trên các trang công khai.</p></div>`;
-      uiFlagFields.innerHTML = '';
-      return;
-    }
-
-    uiTextFields.innerHTML = settings.schema.text
-      .map((field) => {
-        const value = settings.ui[field.key] || '';
-        const isColor = field.key.toLowerCase().includes('color');
-        const long = value.length > 60 && !isColor;
-
-        return `
-          <div class="admin-field" ${long ? 'style="grid-column:1/-1"' : ''}>
-            <label for="ui_${field.key}">${A.escapeHtml(field.label)}</label>
-            ${
-              isColor
-                ? `<input id="ui_${field.key}" type="color" data-ui-text="${field.key}" value="${A.escapeHtml(value)}" />`
-                : long
-                ? `<textarea id="ui_${field.key}" data-ui-text="${field.key}" rows="2">${A.escapeHtml(value)}</textarea>`
-                : `<input id="ui_${field.key}" type="text" data-ui-text="${field.key}" value="${A.escapeHtml(value)}" />`
-            }
-            <span class="admin-field-hint">Mặc định: ${A.escapeHtml(
-              field.fallback.length > 70 ? `${field.fallback.slice(0, 70)}...` : field.fallback
-            )}</span>
-          </div>`;
-      })
-      .join('');
-
-    uiFlagFields.innerHTML = settings.schema.flags
-      .map(
-        (field) => `
-        <label class="admin-switch" for="ui_${field.key}">
-          <span>${A.escapeHtml(field.label)}</span>
-          <input id="ui_${field.key}" type="checkbox" data-ui-flag="${field.key}" ${settings.ui[field.key] ? 'checked' : ''} />
-          <span class="admin-switch-track"></span>
-        </label>`
-      )
-      .join('');
-
-    A.applyEditLock(appearancePanel, appearanceLockNote);
-  }
-
-  /* ================= tai du lieu ================= */
-
   async function load() {
     if (!A.canEdit()) {
       settings = null;
       systemStats.innerHTML = '';
       A.applyEditLock(systemPanel, systemLockNote);
-      renderAppearance();
-      A.applyEditLock(appearancePanel, appearanceLockNote);
       return;
     }
-
     try {
       settings = await A.request('GET', '/api/admin/settings');
       renderSystem();
-      renderAppearance();
     } catch (err) {
       A.setMsg(settingsMsg, err.message, 'err');
     }
@@ -154,28 +89,6 @@
     A.done(settingsMsg, `Đã lưu: ${data.changes.join(', ')}.`);
     load();
   });
-
-  saveUiBtn.addEventListener('click', async () => {
-    const ui = {};
-    appearancePanel.querySelectorAll('[data-ui-text]').forEach((el) => {
-      ui[el.dataset.uiText] = el.value;
-    });
-    appearancePanel.querySelectorAll('[data-ui-flag]').forEach((el) => {
-      ui[el.dataset.uiFlag] = el.checked;
-    });
-
-    const data = await A.run(saveUiBtn, uiMsg, 'Đang lưu...', () => A.request('POST', '/api/admin/settings', { ui }));
-    if (!data) return;
-
-    A.done(uiMsg, 'Đã lưu — mọi người đang mở trang sẽ thấy ngay.');
-    load();
-  });
-
-  previewUiBtn.addEventListener('click', () => {
-    window.open('/', '_blank', 'noopener');
-  });
-
-  /* ================= sao luu & phuc hoi ================= */
 
   backupExportBtn.addEventListener('click', async () => {
     const data = await A.run(backupExportBtn, backupMsg, 'Đang chuẩn bị file...', () =>
@@ -238,20 +151,11 @@
     load();
   });
 
-  /* ================= realtime ================= */
-
   if (A.socket) {
-    const refreshIfVisible = () => {
-      if (A.activeTab() === 'system' || A.activeTab() === 'appearance') load();
-    };
-    ['settings:updated', 'phase:updated', 'groups:reset', 'members:updated', 'rooms:updated', 'questions:updated',
-      'rooms:config', 'random:config'].forEach((evt) => A.socket.on(evt, refreshIfVisible));
+    ['settings:updated', 'phase:updated', 'groups:reset', 'members:updated', 'rooms:updated',
+      'questions:updated', 'rooms:config', 'random:config'].forEach((evt) => A.socket.on(evt, load));
   }
 
-  A.onSecretChange(() => {
-    if (A.activeTab() === 'system' || A.activeTab() === 'appearance') load();
-  });
-
-  A.onTab('system', load);
-  A.onTab('appearance', load);
+  A.onSecretChange(load);
+  A.onTab('settings', load);
 })();

@@ -52,14 +52,58 @@ const io = new Server(server, {
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+// Phuc vu HTML: chen ?v=<BUILD_ID> vao moi duong dan /js/... va /css/...
+//
+// Nho vay trinh duyet duoc phep cache cac file do VINH VIEN (duong dan co phien
+// ban nen khong bao gio cu), ma sua code xong van chac chan nhan ban moi vi
+// BUILD_ID doi -> duong dan doi. Truoc day moi file deu phai hoi lai may chu
+// mot lan (no-cache); voi admin tach thanh nhieu trang thi moi lan bam sang
+// trang khac la mot loat request kiem tra lai - cham thay ro.
+const htmlCache = new Map();
+
+function renderHtml(filePath) {
+  const stat = fs.statSync(filePath);
+  const cached = htmlCache.get(filePath);
+  if (cached && cached.mtimeMs === stat.mtimeMs) return cached.html;
+
+  const html = fs
+    .readFileSync(filePath, 'utf8')
+    .replace(/(src|href)="(\/(?:js|css)\/[^"?]+)"/g, `$1="$2?v=${BUILD_ID}"`);
+
+  htmlCache.set(filePath, { mtimeMs: stat.mtimeMs, html });
+  return html;
+}
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+
+  let rel = decodeURIComponent(req.path);
+  if (rel.endsWith('/')) rel += 'index.html';
+  if (!rel.endsWith('.html')) return next();
+
+  const filePath = path.join(PUBLIC_DIR, rel);
+  // Chan di ra ngoai thu muc public qua duong dan kieu ../
+  if (!filePath.startsWith(PUBLIC_DIR) || !fs.existsSync(filePath)) return next();
+
+  res.setHeader('Cache-Control', 'no-cache');
+  res.type('html').send(renderHtml(filePath));
+});
+
 app.use(
-  express.static(path.join(__dirname, '..', 'public'), {
+  express.static(PUBLIC_DIR, {
     maxAge: '1d',
     setHeaders: (res, filePath) => {
-      // html/js/css thay doi thuong xuyen (sua cau hoi quiz, fix bug...) ke ca trong luc
-      // su kien dang dien ra - bat buoc trinh duyet revalidate (ETag) thay vi dung cache mu
-      // 1 ngay, tranh client chay code cu lech voi html moi va bi loi runtime nhu getElementById null.
-      if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      // Co ?v= trong duong dan -> noi dung gan voi dung phien ban do, cache thoai mai.
+      if (res.req && res.req.query && res.req.query.v) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        return;
+      }
+      // Khong co phien ban (vd mo thang file) thi van bat revalidate cho an toan,
+      // tranh client chay code cu lech voi html moi.
+      if (/\.(html|js|css)$/.test(filePath)) {
         res.setHeader('Cache-Control', 'no-cache');
       }
     },

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Chia nhóm · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="groups">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="groups">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="users-round"></i> Chia nhóm</h2>
+                  <p>Mỗi nhóm có màu riêng, giới hạn số người riêng và có thể khóa lại để không nhận thêm ai. Chỉ những người được bật quyền tham gia mới được chia vào nhóm.</p>
+                </div>
+                <div class="admin-page-head-actions">
+                  <button id="groupExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="download"></i> Xuất CSV
+                  </button>
+                </div>
+              </div>
+
+              <div id="groupStats" class="admin-stats"></div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="wand-sparkles"></i> Thao tác nhanh</h3>
+                    <p>Chia nhóm thay cho mọi người thay vì để từng người tự bấm, hoặc xóa kết quả để chia lại.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <div class="admin-btn-row">
+                    <button id="groupRandomAllBtn" class="admin-btn" type="button"><i data-lucide="dices"></i> Chia nhóm cho người chưa có</button>
+                    <button id="groupReshuffleBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="shuffle"></i> Xáo lại toàn bộ</button>
+                    <button id="groupLockRoundBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="lock"></i> Khóa vòng chia nhóm</button>
+                    <button id="groupResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Xóa kết quả chia nhóm</button>
+                  </div>
+                  <label class="admin-checkbox">
+                    <input id="groupKeepPinned" type="checkbox" checked />
+                    <span>Giữ nguyên những người đã ghim
+                      <small>Người được ghim (biểu tượng ghim ở trang <a href="/admin/members.html">Thành viên</a>) sẽ không bị xáo lại hay bị xóa nhóm.</small>
+                    </span>
+                  </label>
+                  <p id="groupActionMsg" class="admin-msg"></p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="folder-plus"></i> Thêm nhóm</h3>
+                    <p>Để trống giới hạn số người nghĩa là nhóm nhận không giới hạn — hệ thống vẫn luôn chia đều giữa các nhóm.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="newGroupName"><i data-lucide="tag"></i> Tên nhóm</label>
+                      <input id="newGroupName" type="text" placeholder="VD: Nhóm Gà - Gà ít, chiến nhiều" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newGroupDesc"><i data-lucide="message-square-quote"></i> Slogan / mô tả</label>
+                      <input id="newGroupDesc" type="text" placeholder="VD: Chơi thì 9, quoặy là 10" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newGroupCapacity"><i data-lucide="user-round-check"></i> Giới hạn số người</label>
+                      <input id="newGroupCapacity" type="number" min="1" max="500" placeholder="Để trống = không giới hạn" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newGroupColor"><i data-lucide="paintbrush"></i> Màu nhận diện</label>
+                      <input id="newGroupColor" type="color" value="#4f46e5" />
+                    </div>
+                  </div>
+                  <button id="addGroupBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm nhóm</button>
+                  <p id="addGroupMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="list"></i> Danh sách nhóm</h3>
+                    <p>Bấm dấu ✕ cạnh tên người để đưa họ ra khỏi nhóm. Xóa nhóm chỉ đưa thành viên về trạng thái chưa chia — không ai bị xóa khỏi hệ thống.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <p id="groupLockNote" class="admin-msg"></p>
+
+                  <div class="admin-toolbar">
+                    <div class="admin-field">
+                      <label for="groupFilter"><i data-lucide="search"></i> Tìm nhóm / tên người</label>
+                      <input id="groupFilter" type="search" placeholder="VD: Nhóm Gà hoặc tên một người..." data-always-enabled="1" />
+                    </div>
+                  </div>
+
+                  <div id="groupGrid" class="admin-group-grid"></div>
+                  <p id="groupMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-groups.js"></script>
+</body>
+</html>

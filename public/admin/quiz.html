@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Vòng Quiz · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="quiz">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="quiz">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="brain"></i> Vòng Quiz chọn Nhóm Trưởng</h2>
+                  <p>Mọi người vào phòng chờ trước, admin bấm bắt đầu để cả nhóm cùng làm bài, rồi chốt những người điểm cao nhất làm Nhóm Trưởng.</p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="door-open"></i> Bước 1 · Phòng chờ</h3>
+                    <p>Danh sách người đã chọn tên và đang chờ (cập nhật realtime). Bấm bắt đầu để đếm ngược 3 giây và mở câu hỏi đầu tiên cho tất cả cùng lúc.</p>
+                  </div>
+                  <span id="lobbyStatusText" class="admin-chip"></span>
+                </div>
+                <div class="admin-card-body">
+                  <p id="quizLockNote" class="admin-msg"></p>
+                  <ol id="lobbyMembersList" class="admin-list"></ol>
+                  <button id="startQuizBtn" class="admin-btn" type="button"><i data-lucide="play"></i> Bắt đầu làm bài (đếm ngược 3 giây)</button>
+                  <p id="lobbyMsg" class="admin-msg"></p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="crown"></i> Bước 2 · Chốt Nhóm Trưởng</h3>
+                    <p>Điểm cao nhất thắng, hòa điểm thì ai nhanh hơn thắng. Chốt xong vòng Random mới mở khóa. Số lượng Nhóm Trưởng đổi được ở trang <a href="/admin/settings.html">Cấu hình</a>.</p>
+                  </div>
+                  <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="refresh-cw"></i> Tải bảng xếp hạng
+                  </button>
+                </div>
+                <div class="admin-card-body">
+                  <ol id="quizAdminLeaderboard" class="admin-list"></ol>
+
+                  <label class="admin-checkbox">
+                    <input id="forceFinishCheckbox" type="checkbox" />
+                    <span>Chốt luôn dù chưa đủ người hoàn thành hết câu hỏi
+                      <small>Lấy những người điểm cao nhất trong số đã làm bài.</small>
+                    </span>
+                  </label>
+
+                  <div class="admin-btn-row">
+                    <button id="finishQuizBtn" class="admin-btn" type="button"><i data-lucide="crown"></i> Chốt Nhóm Trưởng &amp; mở Random</button>
+                    <button id="resetLeadersBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="rotate-ccw"></i> Làm lại vòng Quiz từ đầu</button>
+                  </div>
+                  <p id="quizMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-quiz.js"></script>
+</body>
+</html>

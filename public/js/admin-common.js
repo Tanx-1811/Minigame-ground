@@ -249,8 +249,7 @@ window.AdminCommon = (function () {
           console.error(err);
         }
       });
-      const handler = tabHandlers.get(activeTab());
-      if (handler) handler();
+      reloadActive();
     }, 700);
   });
 

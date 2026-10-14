@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Phòng ngủ · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="rooms">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="rooms">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="bed-double"></i> Phòng ngủ</h2>
+                  <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính, chưa khóa và còn chỗ. Sức chứa 2 nghĩa là ghép cặp đôi.</p>
+                </div>
+                <div class="admin-page-head-actions">
+                  <button id="roomExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="download"></i> Xuất CSV
+                  </button>
+                </div>
+              </div>
+
+              <div id="roomStats" class="admin-stats"></div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="wand-sparkles"></i> Thao tác nhanh</h3>
+                    <p>Tạo đủ phòng theo số người từng giới, rồi ghép một lượt cho tất cả hoặc để mọi người tự quay.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <div class="admin-form-grid is-tight">
+                    <div class="admin-field">
+                      <label for="roomAutoCapacity"><i data-lucide="users"></i> Sức chứa mỗi phòng</label>
+                      <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="roomAutoPrefix"><i data-lucide="type"></i> Tiền tố tên phòng</label>
+                      <input id="roomAutoPrefix" type="text" value="Phòng" />
+                    </div>
+                  </div>
+                  <p class="admin-help">Ví dụ: <strong>9 nữ</strong> với sức chứa <strong>2</strong> sẽ tạo <strong>5 phòng nữ</strong>. Gọi lại nhiều lần cũng không tạo trùng — chỉ bù số phòng còn thiếu, và chỉ tính những người được tham gia ghép phòng.</p>
+
+                  <div class="admin-btn-row">
+                    <button id="roomAutoCreateBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="layout-grid"></i> Tạo phòng tự động</button>
+                    <button id="roomRandomAllBtn" class="admin-btn" type="button"><i data-lucide="dices"></i> Ghép phòng cho tất cả</button>
+                    <button id="roomReshuffleBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="shuffle"></i> Xáo lại toàn bộ</button>
+                    <button id="roomLockBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="lock"></i> Khóa vòng ghép phòng</button>
+                    <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Reset ghép phòng</button>
+                  </div>
+                  <label class="admin-checkbox">
+                    <input id="roomKeepPinned" type="checkbox" checked />
+                    <span>Giữ nguyên những người đã ghim
+                      <small>Người được ghim phòng sẽ không bị xáo lại hay bị đưa ra khỏi phòng.</small>
+                    </span>
+                  </label>
+                  <p id="roomActionMsg" class="admin-msg"></p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
+                    <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="newRoomName"><i data-lucide="tag"></i> Tên phòng</label>
+                      <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
+                      <select id="newRoomGender">
+                        <option value="FEMALE">Nữ</option>
+                        <option value="MALE">Nam</option>
+                      </select>
+                    </div>
+                    <div class="admin-field">
+                      <label for="newRoomCapacity"><i data-lucide="users"></i> Sức chứa</label>
+                      <input id="newRoomCapacity" type="number" min="1" max="50" value="2" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newRoomNote"><i data-lucide="sticky-note"></i> Ghi chú</label>
+                      <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công" />
+                    </div>
+                  </div>
+                  <button id="addRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm phòng</button>
+                  <p id="addRoomMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="user-round-search"></i> Chưa có phòng</h3>
+                    <p>Những người chưa được ghép. Chọn phòng trong ô bên cạnh để xếp tay, hoặc dùng "Ghép phòng cho tất cả" ở trên.</p>
+                  </div>
+                  <span id="pendingCount" class="admin-chip"></span>
+                </div>
+                <div class="admin-card-body">
+                  <div id="pendingList"></div>
+                  <p id="pendingMsg" class="admin-msg"></p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="arrow-left-right"></i> Đổi chỗ hai người</h3>
+                    <p>Hai người cùng giới tính sẽ hoán đổi phòng cho nhau — không cần quan tâm phòng có còn chỗ trống hay không.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="swapMemberA"><i data-lucide="user"></i> Người thứ nhất</label>
+                      <select id="swapMemberA"></select>
+                    </div>
+                    <div class="admin-field">
+                      <label for="swapMemberB"><i data-lucide="user"></i> Người thứ hai</label>
+                      <select id="swapMemberB"></select>
+                    </div>
+                  </div>
+                  <button id="swapBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="arrow-left-right"></i> Đổi chỗ</button>
+                  <p id="swapMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="list"></i> Danh sách phòng</h3>
+                    <p>Bấm ✕ cạnh tên để đưa người ra khỏi phòng. Mở "Sửa phòng" để đổi tên, giới tính, sức chứa hoặc xóa phòng.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <p id="roomLockNote" class="admin-msg"></p>
+
+                  <div class="admin-toolbar">
+                    <div class="admin-field">
+                      <label for="roomFilter"><i data-lucide="search"></i> Tìm phòng / tên người</label>
+                      <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1" />
+                    </div>
+                    <div class="admin-filter-chips" id="roomFilterChips"></div>
+                  </div>
+
+                  <div class="admin-btn-row">
+                    <button id="roomDeleteEmptyBtn" class="admin-row-btn danger" type="button"><i data-lucide="eraser"></i> Xóa hết phòng đang trống</button>
+                    <button id="roomLockEmptyBtn" class="admin-row-btn" type="button"><i data-lucide="lock"></i> Khóa hết phòng đang đầy</button>
+                  </div>
+
+                  <div id="roomList"></div>
+                  <p id="roomListMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-rooms.js"></script>
+</body>
+</html>

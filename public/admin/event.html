@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Sự kiện · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="event">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="event">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="calendar-clock"></i> Sự kiện</h2>
+                  <p>Hẹn giờ mở vòng bốc thăm trên trang chủ. Mọi người đang mở trang sẽ thấy đếm ngược cập nhật ngay, không cần tải lại.</p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="timer"></i> Giờ mở bốc thăm</h3>
+                    <p>Chưa đặt giờ thì nút "Bắt đầu bốc thăm" mở ngay lập tức, không đếm ngược.</p>
+                  </div>
+                  <span id="eventCountdownChip" class="admin-chip"></span>
+                </div>
+                <div class="admin-card-body">
+                  <p id="eventLockNote" class="admin-msg"></p>
+
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="eventTimeInput"><i data-lucide="calendar"></i> Ngày giờ mở (theo giờ máy của bạn)</label>
+                      <input id="eventTimeInput" type="datetime-local" />
+                    </div>
+                  </div>
+                  <div class="admin-btn-row">
+                    <button id="saveTimeBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu giờ mở</button>
+                    <button id="clearTimeBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="zap"></i> Mở ngay (xóa giờ)</button>
+                  </div>
+                  <p id="timeMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-event.js"></script>
+</body>
+</html>

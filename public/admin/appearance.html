@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Giao diện & nội dung · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="appearance">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="appearance">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="palette"></i> Giao diện &amp; nội dung</h2>
+                  <p>Sửa chữ hiển thị trên trang chủ và trang ghép phòng, bật/tắt từng khối giao diện — không cần đụng vào code. Lưu xong áp dụng ngay cho mọi người đang mở trang.</p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="type"></i> Nội dung hiển thị</h3>
+                    <p>Để trống ô nào thì ô đó quay về nội dung mặc định.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <p id="appearanceLockNote" class="admin-msg"></p>
+                  <div id="uiTextFields" class="admin-form-grid"></div>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="toggle-right"></i> Bật / tắt khối giao diện</h3>
+                    <p>Tắt khối nào thì khối đó biến mất khỏi trang của mọi người.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <div id="uiFlagFields" class="admin-form-grid"></div>
+                  <div class="admin-btn-row">
+                    <button id="saveUiBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu giao diện &amp; nội dung</button>
+                    <button id="previewUiBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                      <i data-lucide="external-link"></i> Mở trang chủ để xem
+                    </button>
+                  </div>
+                  <p id="uiMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-appearance.js"></script>
+</body>
+</html>

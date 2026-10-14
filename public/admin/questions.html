@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Câu hỏi · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body data-admin-page="questions">
+  <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
+  <div class="admin-shell">
+    <main class="admin-content">
+      <section class="admin-panel" data-panel="questions">
+              <div class="admin-page-head">
+                <div>
+                  <h2><i data-lucide="circle-help"></i> Câu hỏi Quiz</h2>
+                  <p>Bộ câu hỏi dùng để chọn Nhóm Trưởng. Mỗi câu có điểm riêng và giới hạn thời gian riêng. Nếu không có câu hỏi nào, hệ thống bỏ qua vòng quiz và mở random luôn.</p>
+                </div>
+                <div class="admin-page-head-actions">
+                  <button id="questionExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
+                    <i data-lucide="download"></i> Xuất CSV
+                  </button>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="plus-circle"></i> Thêm câu hỏi</h3>
+                    <p>Nhập từ 2 đến 6 phương án — ô nào để trống thì bỏ qua. Danh sách đáp án đúng tự cập nhật theo phương án bạn nhập.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-field">
+                    <label for="newQuestionText"><i data-lucide="message-square"></i> Nội dung câu hỏi</label>
+                    <input id="newQuestionText" type="text" placeholder="VD: Giá trị cốt lõi của DIMACO là gì?" />
+                  </div>
+
+                  <p class="admin-label"><i data-lucide="list-checks"></i> Các phương án trả lời</p>
+                  <div id="newQuestionOptions" class="admin-options"></div>
+
+                  <div class="admin-form-grid is-tight">
+                    <div class="admin-field">
+                      <label for="newQuestionCorrect"><i data-lucide="check"></i> Đáp án đúng</label>
+                      <select id="newQuestionCorrect"></select>
+                    </div>
+                    <div class="admin-field">
+                      <label for="newQuestionPoints"><i data-lucide="star"></i> Điểm cho câu này</label>
+                      <input id="newQuestionPoints" type="number" min="1" max="100" value="1" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newQuestionTime"><i data-lucide="timer"></i> Giới hạn (giây)</label>
+                      <input id="newQuestionTime" type="number" min="3" max="600" placeholder="Trống = không giới hạn" />
+                    </div>
+                  </div>
+
+                  <button id="addQuestionBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm câu hỏi</button>
+                  <p id="addQuestionMsg" class="admin-msg"></p>
+                </div>
+              </details>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="list-ordered"></i> Danh sách câu hỏi</h3>
+                    <p>Dùng mũi tên để đổi thứ tự, hoặc nhập trực tiếp số thứ tự. Sửa nội dung xong bấm "Lưu câu này". Xóa câu hỏi sẽ xóa luôn câu trả lời của mọi người cho câu đó.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <p id="questionLockNote" class="admin-msg"></p>
+
+                  <div class="admin-toolbar">
+                    <div class="admin-field">
+                      <label for="questionFilter"><i data-lucide="search"></i> Tìm câu hỏi</label>
+                      <input id="questionFilter" type="search" placeholder="Nhập từ khóa trong câu hỏi hoặc phương án..." data-always-enabled="1" />
+                    </div>
+                  </div>
+
+                  <div id="questionBulkBar" class="admin-bulkbar" hidden>
+                    <span id="questionBulkCount" class="admin-bulkbar-count"><i data-lucide="check-check"></i></span>
+                    <div class="admin-bulkbar-actions">
+                      <button type="button" class="admin-row-btn danger" data-bulk="delete"><i data-lucide="trash-2"></i> Xóa câu đã chọn</button>
+                      <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
+                    </div>
+                  </div>
+
+                  <div id="questionList"></div>
+                  <p id="questionMsg" class="admin-msg"></p>
+                </div>
+              </div>
+            </section>
+    </main>
+  </div>
+
+  <script src="/js/icon-set.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/version-guard.js"></script>
+  <script src="/js/admin-common.js"></script>
+  <script src="/js/admin-questions.js"></script>
+</body>
+</html>
