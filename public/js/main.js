@@ -51,7 +51,6 @@ const soundToggleBtn = document.getElementById('soundToggleBtn');
 const fxToggleBtn = document.getElementById('fxToggleBtn');
 const onlineBadge = document.getElementById('onlineBadge');
 const backToTopBtn = document.getElementById('backToTopBtn');
-const toastContainer = document.getElementById('toastContainer');
 const memberSearch = document.getElementById('memberSearch');
 const resultMotto = document.getElementById('resultMotto');
 const copyResultBtn = document.getElementById('copyResultBtn');
@@ -235,16 +234,11 @@ soundToggleBtn.addEventListener('click', () => {
 updateSoundBtn();
 
 /* ---------- toast notifications ---------- */
+/* Toan bo logic nam trong js/toast.js (load truoc file nay): gioi han so toast
+   hien cung luc, gop toast trung noi dung, gop su kien realtime. */
 
-function showToast(message, type = 'info', duration = 3200) {
-  const el = document.createElement('div');
-  el.className = 'toast' + (type === 'success' ? ' toast-success' : type === 'error' ? ' toast-error' : '');
-  el.textContent = message;
-  toastContainer.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('leaving');
-    setTimeout(() => el.remove(), 250);
-  }, duration);
+function showToast(message, type, duration, opts) {
+  return window.Toast.show(message, type, duration, opts);
 }
 
 /* ---------- cursor sparkle fx toggle ---------- */
@@ -1120,7 +1114,21 @@ socket.on('member:randomized', (payload) => {
   const myName = localStorage.getItem(STORAGE_KEY);
   const isSelf = payload.member.name === myName || payload.member.name === pendingRandomName;
   if (!isSelf) {
-    showToast(`🎲 ${payload.member.name} vừa random vào ${payload.group.name}`, 'info', 2800);
+    // Luc cao diem ca phong random cung luc: gop tat ca vao 1 toast duy nhat
+    // (cap nhat tai cho) thay vi day xuong mot day toast rieng le.
+    window.Toast.stream(
+      'member-randomized',
+      { name: payload.member.name, group: payload.group.name },
+      (items) => {
+        if (items.length === 1) {
+          return `🎲 ${items[0].name} vừa random vào ${items[0].group}`;
+        }
+        const recent = items.slice(-3).map((i) => i.name).reverse();
+        const rest = items.length - recent.length;
+        return `🎲 ${items.length} người vừa random: ${recent.join(', ')}${rest > 0 ? ` và ${rest} người nữa` : ''}`;
+      },
+      { duration: 2800 }
+    );
   }
 });
 

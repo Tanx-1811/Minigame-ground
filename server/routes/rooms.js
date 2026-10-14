@@ -48,8 +48,6 @@ async function drawRoomFor(member) {
       if (err.message !== 'RACE' || attempt === MAX_DRAW_ATTEMPTS) throw err;
     }
   }
-
-  throw new Error('ROOMS_FULL');
 }
 
 // Sau moi thay doi tu admin (them/sua/xoa phong, ghep hang loat, reset) thi phat

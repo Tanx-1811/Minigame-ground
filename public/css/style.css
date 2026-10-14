@@ -1111,46 +1111,164 @@ body {
 
 .toast-container {
   position: fixed;
-  top: 16px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: stretch;
   pointer-events: none;
-  width: min(360px, calc(100vw - 32px));
+  width: min(380px, calc(100vw - 24px));
+  /* Stack bi gioi han boi JS (toi da 3 toast) nen khong bao gio trum man hinh,
+     max-height chi la chot an toan. */
+  max-height: calc(100vh - 28px);
 }
 
 .toast {
+  position: relative;
   pointer-events: auto;
-  padding: 11px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 10px 12px 11px;
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
   font-size: 0.85rem;
-  animation: toastIn 0.25s ease both;
+  line-height: 1.4;
+  overflow: hidden;
+  animation: toastIn 0.22s ease both;
+  /* opacity do animation lo, transition chi phu trach viec thu gon chieu cao */
+  transition: height 0.2s ease, margin 0.2s ease, padding 0.2s ease;
 }
 
-.toast.leaving {
-  animation: toastOut 0.22s ease forwards;
+.toast-icon {
+  flex: none;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.toast-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  /* Thong bao dai khong keo cao ca stack */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.toast-count {
+  flex: none;
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.toast-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toast-close:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+/* Thanh dem nguoc: cho nguoi dung biet toast se tu tat, va dung lai khi hover */
+.toast-life {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-primary-2);
+  transform-origin: left center;
+  animation: toastLife var(--toast-life, 3200ms) linear forwards;
+}
+
+.toast.is-paused .toast-life {
+  animation-play-state: paused;
 }
 
 .toast.toast-success {
   border-color: var(--color-success);
-  border-width: 1.5px;
+}
+
+.toast.toast-success .toast-life {
+  background: var(--color-success);
 }
 
 .toast.toast-error {
   border-color: var(--color-error);
-  border-width: 1.5px;
+}
+
+.toast.toast-error .toast-life {
+  background: var(--color-error);
+}
+
+/* .bump dat truoc .leaving: khi mot toast dang bump bi dong thi animation
+   dong phai thang, neu khong node se treo lai tren man hinh. */
+.toast.bump {
+  animation: toastBump 0.3s ease;
+}
+
+.toast.leaving {
+  animation: toastOut 0.2s ease forwards;
+  pointer-events: none;
+}
+
+.toast.leaving-fast {
+  animation-duration: 0.12s;
+}
+
+.toast.collapsing {
+  /* chieu cao bat dau duoc JS gan inline roi ha ve 0, nen transition chay muot */
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Chi doc cho screen reader, khong chiem cho tren man hinh */
+.toast-live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 @keyframes toastIn {
   from {
     opacity: 0;
-    transform: translateY(-10px) scale(0.97);
+    transform: translateY(-8px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -1161,7 +1279,40 @@ body {
 @keyframes toastOut {
   to {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes toastLife {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes toastBump {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.025);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .toast-container {
+    top: 2px;
+    width: calc(100vw - 20px);
+  }
+
+  .toast {
+    font-size: 0.82rem;
+    padding: 9px 11px 10px;
   }
 }
 
@@ -1404,6 +1555,7 @@ body {
   .intro-particle,
   .app-screen,
   .toast,
+  .toast.bump,
   .shake,
   .cursor-spark,
   .group-card-inner,
@@ -1415,4 +1567,81 @@ body {
   .slot-reel-strip {
     transition-duration: 0.01ms !important;
   }
+
+  /* Thanh dem nguoc dua tren animation nen khong hoat dong o che do nay */
+  .toast-life {
+    display: none;
+  }
+}
+
+/* ---------- tieu de tung muc o trang chu (dong bo voi trang phong/admin) ---------- */
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+}
+
+.section-head p {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.section-step {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Tieu de the thong ke: tach khoi noi dung ben duoi cho de doc */
+.stats-card > h3 {
+  margin: 0 0 14px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.stats-card + .stats-card {
+  margin-top: 16px;
+}
+
+/* Thanh tieu de khu "Danh sach cac nhom" */
+.groups-toolbar {
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.groups-title {
+  font-weight: 700;
+}
+
+.groups-toolbar-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }

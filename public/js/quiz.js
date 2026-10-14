@@ -35,12 +35,18 @@
 
   const OPTION_MARKS = { correct: '✓', wrong: '✗' };
 
-  function notify(message, type) {
+  function notify(message, type, opts) {
     if (typeof window.showToast === 'function') {
-      window.showToast(message, type);
+      window.showToast(message, type, undefined, opts);
     } else {
       alert(message);
     }
+  }
+
+  // Loi mang hay bi ban lien tiep khi nguoi dung bam lai nhieu lan -> dung 1 key
+  // chung de toast ghi de tai cho thay vi xep thanh day.
+  function notifyNetworkError() {
+    notify('Không thể kết nối máy chủ', 'error', { key: 'net-error' });
   }
 
   function showStep(step) {
@@ -207,7 +213,7 @@
       }, 1100);
     } catch (err) {
       console.error(err);
-      notify('Không thể kết nối máy chủ', 'error');
+      notifyNetworkError();
       quizOptions.querySelectorAll('.quiz-option-btn').forEach((btn) => {
         btn.disabled = false;
       });
@@ -241,7 +247,7 @@
       renderQuestion(findNextQuestion());
     } catch (err) {
       console.error(err);
-      notify('Không thể kết nối máy chủ', 'error');
+      notifyNetworkError();
     }
   }
 
@@ -273,7 +279,7 @@
       showStep('waiting');
     } catch (err) {
       console.error(err);
-      notify('Không thể kết nối máy chủ', 'error');
+      notifyNetworkError();
     }
   }
 

@@ -98,10 +98,16 @@ function escapeHtml(str) {
 function renderLobby(status, members) {
   const list = Array.isArray(members) ? members : [];
   lobbyStatusText.textContent =
-    status === 'active' ? '✅ Quiz đã bắt đầu.' : `⏳ Đang chờ (${list.length} người đã sẵn sàng)`;
+    status === 'active' ? '✅ Quiz đã bắt đầu' : `⏳ ${list.length} người đã sẵn sàng`;
+  lobbyStatusText.className = `admin-chip ${status === 'active' ? 'is-ok' : ''}`;
   lobbyMembersList.innerHTML = list.length
-    ? list.map((name) => `<li><span>${escapeHtml(name)}</span></li>`).join('')
-    : '<li>Chưa có ai tham gia phòng chờ</li>';
+    ? list
+        .map(
+          (name, i) =>
+            `<li><span class="admin-list-rank">${i + 1}</span><span>${escapeHtml(name)}</span><span class="admin-list-value">✅ sẵn sàng</span></li>`
+        )
+        .join('')
+    : '<li class="admin-empty">Chưa có ai vào phòng chờ</li>';
   startQuizBtn.disabled = status === 'active';
 }
 
@@ -179,13 +185,14 @@ async function loadQuizLeaderboard() {
     const res = await fetch('/api/quiz/leaderboard');
     const rows = await res.json();
     if (!rows.length) {
-      quizAdminLeaderboard.innerHTML = '<li>Chưa có ai làm quiz</li>';
+      quizAdminLeaderboard.innerHTML = '<li class="admin-empty">Chưa có ai làm quiz</li>';
       return;
     }
+    const medals = ['🥇', '🥈', '🥉'];
     quizAdminLeaderboard.innerHTML = rows
       .map(
-        (r) =>
-          `<li><span>${escapeHtml(r.name)}${r.finished ? ' ✅' : ' (chưa xong)'}</span><span>${r.score} điểm</span></li>`
+        (r, i) =>
+          `<li><span class="admin-list-rank">${medals[i] || i + 1}</span><span>${escapeHtml(r.name)}${r.finished ? ' ✅' : ' <em>(chưa xong)</em>'}</span><span class="admin-list-value">${r.score} điểm</span></li>`
       )
       .join('');
   } catch (err) {

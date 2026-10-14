@@ -26,26 +26,61 @@
   let locked = false;
   let latestPayload = null;
 
+  function statTile({ label, value, sub, variant }) {
+    return `
+      <div class="admin-stat ${variant ? `is-${variant}` : ''}">
+        <span class="admin-stat-label">${label}</span>
+        <span class="admin-stat-value">${value}</span>
+        ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
+      </div>`;
+  }
+
   function renderStats(stats) {
     const female = stats.byGender.FEMALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
     const male = stats.byGender.MALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
 
-    const chips = [
-      `<span class="admin-chip">🛏️ Đã ghép <strong>${stats.assigned}/${stats.totalMembers}</strong> người</span>`,
-      `<span class="admin-chip female">👩 Nữ <strong>${female.assigned}/${female.members}</strong> · ${female.rooms} phòng · ${female.capacity} chỗ</span>`,
-      `<span class="admin-chip male">👨 Nam <strong>${male.assigned}/${male.members}</strong> · ${male.rooms} phòng · ${male.capacity} chỗ</span>`,
+    const tiles = [
+      statTile({
+        label: 'Đã ghép phòng',
+        value: `${stats.assigned}/${stats.totalMembers}`,
+        sub: `${stats.totalCapacity} chỗ trong ${female.rooms + male.rooms} phòng`,
+        variant: stats.totalMembers > 0 && stats.assigned === stats.totalMembers ? 'ok' : '',
+      }),
+      statTile({
+        label: '👩 Nữ',
+        value: `${female.assigned}/${female.members}`,
+        sub: `${female.rooms} phòng · ${female.capacity} chỗ`,
+        variant: 'female',
+      }),
+      statTile({
+        label: '👨 Nam',
+        value: `${male.assigned}/${male.members}`,
+        sub: `${male.rooms} phòng · ${male.capacity} chỗ`,
+        variant: 'male',
+      }),
     ];
 
     if (stats.noGender > 0) {
-      chips.push(`<span class="admin-chip warn">⚠️ <strong>${stats.noGender}</strong> người chưa đặt giới tính</span>`);
+      tiles.push(
+        statTile({
+          label: '⚠️ Chưa đặt giới tính',
+          value: stats.noGender,
+          sub: 'Chưa ghép phòng được — sang tab Thành viên',
+          variant: 'warn',
+        })
+      );
     }
-    chips.push(
-      locked
-        ? '<span class="admin-chip warn">🔒 Đang khóa, mọi người không tự ghép được</span>'
-        : '<span class="admin-chip">🔓 Đang mở cho mọi người tự ghép</span>'
+
+    tiles.push(
+      statTile({
+        label: 'Vòng tự ghép',
+        value: locked ? '🔒 Đang khóa' : '🔓 Đang mở',
+        sub: locked ? 'Mọi người không tự quay được' : 'Mọi người tự quay ở /rooms.html',
+        variant: locked ? 'warn' : 'ok',
+      })
     );
 
-    roomStats.innerHTML = chips.join('');
+    roomStats.innerHTML = tiles.join('');
     roomLockBtn.textContent = locked ? '🔓 Mở vòng ghép phòng' : '🔒 Khóa vòng ghép phòng';
   }
 
@@ -63,37 +98,46 @@
           .join('')
       : '<li class="admin-occupants-empty">Phòng đang trống</li>';
 
+    const fillPct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
+
     return `
       <div class="admin-room ${room.gender === 'MALE' ? 'is-male' : 'is-female'} ${isFull ? 'is-full' : ''}" data-room-id="${room.id}">
-        <div class="admin-room-head">
-          <strong>${A.genderIcon(room.gender)} ${A.escapeHtml(room.name)}</strong>
+        <div class="admin-room-top">
+          <span class="admin-room-name">${A.genderIcon(room.gender)} ${A.escapeHtml(room.name)}</span>
           <span class="admin-room-count">${room.occupancy}/${room.capacity}</span>
         </div>
-        <ul class="admin-occupants">${occupants}</ul>
-        <div class="admin-room-fields">
-          <div class="span-2">
-            <label>Tên phòng</label>
-            <input type="text" data-field="name" value="${A.escapeHtml(room.name)}" />
-          </div>
-          <div>
-            <label>Dành cho</label>
-            <select data-field="gender">
-              <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>👩 Nữ</option>
-              <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>👨 Nam</option>
-            </select>
-          </div>
-          <div>
-            <label>Sức chứa</label>
-            <input type="number" min="1" max="50" data-field="capacity" value="${room.capacity}" />
-          </div>
-          <div class="span-2">
-            <label>Ghi chú</label>
-            <input type="text" data-field="note" value="${A.escapeHtml(room.note || '')}" placeholder="Không có" />
-          </div>
+        <div class="admin-room-meter"><span style="width:${fillPct}%"></span></div>
+        <div class="admin-room-body">
+          ${room.note ? `<p class="admin-room-note">${A.escapeHtml(room.note)}</p>` : ''}
+          <ul class="admin-occupants">${occupants}</ul>
         </div>
-        <div class="admin-btn-row">
-          <button type="button" class="admin-row-btn danger" data-action="delete-room">🗑️ Xóa phòng</button>
-        </div>
+        <details class="admin-room-edit">
+          <summary>⚙️ Sửa phòng</summary>
+          <div class="admin-room-fields">
+            <div class="span-2">
+              <label>Tên phòng</label>
+              <input type="text" data-field="name" value="${A.escapeHtml(room.name)}" />
+            </div>
+            <div>
+              <label>Dành cho</label>
+              <select data-field="gender">
+                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>👩 Nữ</option>
+                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>👨 Nam</option>
+              </select>
+            </div>
+            <div>
+              <label>Sức chứa</label>
+              <input type="number" min="1" max="50" data-field="capacity" value="${room.capacity}" />
+            </div>
+            <div class="span-2">
+              <label>Ghi chú</label>
+              <input type="text" data-field="note" value="${A.escapeHtml(room.note || '')}" placeholder="Không có" />
+            </div>
+          </div>
+          <div class="admin-room-actions">
+            <button type="button" class="admin-row-btn danger" data-action="delete-room">🗑️ Xóa phòng</button>
+          </div>
+        </details>
       </div>`;
   }
 
@@ -118,7 +162,10 @@
       const people = rooms.reduce((sum, r) => sum + r.occupancy, 0);
       return `
         <div class="admin-room-group">
-          <h3>${A.genderIcon(gender)} Phòng ${A.genderLabel(gender)} — ${rooms.length} phòng · ${people}/${capacity} chỗ đã dùng</h3>
+          <div class="admin-room-group-head">
+            <h4>${A.genderIcon(gender)} Phòng ${A.genderLabel(gender)}</h4>
+            <span>${rooms.length} phòng · ${people}/${capacity} chỗ đã có người</span>
+          </div>
           <div class="admin-room-list">${rooms.map(roomCardHtml).join('')}</div>
         </div>`;
     }).join('');

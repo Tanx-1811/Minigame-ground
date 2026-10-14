@@ -84,19 +84,30 @@
 
     return `
       <div class="admin-question" data-question-id="${question.id}">
-        <div class="admin-question-head">
-          <input type="number" class="admin-order-input" min="1" data-field="order" value="${question.order}" title="Thứ tự câu hỏi" />
-          <input type="text" data-field="text" value="${A.escapeHtml(question.text)}" />
+        <div class="admin-question-top">
+          <span class="admin-question-order">
+            Câu
+            <input type="number" min="1" data-field="order" value="${question.order}" title="Thứ tự câu hỏi" />
+          </span>
           <span class="admin-question-badge">${answered} câu trả lời</span>
         </div>
-        <div class="admin-options" data-options>${optionInputsHtml(options)}</div>
-        <div class="admin-grid">
+        <div class="admin-question-body">
           <div class="admin-field">
-            <label>Đáp án đúng</label>
-            <select data-field="correctIndex"></select>
+            <label>Nội dung câu hỏi</label>
+            <input type="text" data-field="text" value="${A.escapeHtml(question.text)}" />
+          </div>
+          <div class="admin-field">
+            <label>Các phương án trả lời</label>
+            <div class="admin-options" data-options>${optionInputsHtml(options)}</div>
+          </div>
+          <div class="admin-form-grid is-tight">
+            <div class="admin-field">
+              <label>Đáp án đúng</label>
+              <select data-field="correctIndex"></select>
+            </div>
           </div>
         </div>
-        <div class="admin-btn-row">
+        <div class="admin-question-foot">
           <button type="button" class="admin-row-btn" data-action="save-question">💾 Lưu câu này</button>
           <button type="button" class="admin-row-btn danger" data-action="delete-question">🗑️ Xóa câu này</button>
         </div>

@@ -17,59 +17,77 @@
     <span class="blob blob-2"></span>
     <span class="blob blob-3"></span>
   </div>
-  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  <div id="toastContainer" class="toast-container"></div>
 
   <div class="fx-dock" role="toolbar" aria-label="Thông tin">
     <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">🟢 --</span>
   </div>
 
   <div class="rooms-page">
-    <header class="rooms-header">
+    <header class="rooms-hero">
       <div class="company-banner">
         <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
       </div>
       <span class="header-badge">🛏️ Nam ở với nam · Nữ ở với nữ</span>
       <h1>Ghép Phòng Ngủ</h1>
-      <p class="subtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ.</p>
+      <p class="subtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ trống.</p>
       <nav class="rooms-nav">
-        <a href="/">🎲 Về trang random chia nhóm</a>
+        <a href="/">🎲 Trang random chia nhóm</a>
       </nav>
     </header>
 
-    <section class="rooms-panel">
-      <div id="roomsStats" class="rooms-stats"></div>
-
-      <div class="progress-wrap">
-        <div class="progress-label">
-          <span id="roomsProgressText">Đã ghép 0/0 người</span>
-          <span id="roomsProgressPct">0%</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="roomsProgressFill"></div>
+    <section class="rooms-card">
+      <div class="rooms-card-head">
+        <div>
+          <h2>📊 Tổng quan</h2>
+          <p>Tình hình ghép phòng của cả nhóm, cập nhật ngay khi có người quay.</p>
         </div>
       </div>
+      <div class="rooms-card-body">
+        <div id="roomsStats" class="rooms-stats"></div>
 
-      <div class="rooms-form">
-        <div class="field">
-          <label for="roomsMemberSelect">Tên của bạn</label>
-          <select id="roomsMemberSelect">
-            <option value="">-- Chọn tên --</option>
-          </select>
+        <div class="progress-wrap rooms-progress">
+          <div class="progress-label">
+            <span id="roomsProgressText">Đã ghép 0/0 người</span>
+            <span id="roomsProgressPct">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="roomsProgressFill"></div>
+          </div>
         </div>
-        <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">🎲 Quay ghép phòng</button>
       </div>
+    </section>
 
-      <p id="roomsMyGender" class="rooms-my-gender"></p>
-      <p id="roomsNotice" class="rooms-notice hidden"></p>
-      <p id="roomsError" class="rooms-error hidden"></p>
-
-      <div id="roomsReel" class="rooms-reel hidden">
-        <div class="rooms-reel-strip" id="roomsReelStrip"></div>
+    <section class="rooms-card">
+      <div class="rooms-card-head">
+        <div>
+          <h2>🎲 Quay phòng của bạn</h2>
+          <p>Mỗi người chỉ quay một lần — tải lại trang vẫn giữ đúng phòng đã quay.</p>
+        </div>
       </div>
+      <div class="rooms-card-body">
+        <div class="rooms-form">
+          <div class="field">
+            <label for="roomsMemberSelect">Tên của bạn</label>
+            <select id="roomsMemberSelect">
+              <option value="">-- Chọn tên --</option>
+            </select>
+          </div>
+          <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">🎲 Quay ghép phòng</button>
+        </div>
 
-      <div id="roomsResult" class="rooms-result hidden">
-        <p id="roomsResultRoom" class="rooms-result-room"></p>
-        <p id="roomsResultMates" class="rooms-result-mates"></p>
+        <p id="roomsMyGender" class="rooms-my-gender"></p>
+        <p id="roomsNotice" class="rooms-notice hidden"></p>
+        <p id="roomsError" class="rooms-error hidden"></p>
+
+        <div id="roomsReel" class="rooms-reel hidden">
+          <div class="rooms-reel-strip" id="roomsReelStrip"></div>
+        </div>
+
+        <div id="roomsResult" class="rooms-result hidden">
+          <p id="roomsResultRoom" class="rooms-result-room"></p>
+          <p id="roomsResultMates" class="rooms-result-mates"></p>
+        </div>
       </div>
     </section>
 
@@ -81,6 +99,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/toast.js"></script>
   <script src="/js/rooms.js"></script>
 </body>
 </html>

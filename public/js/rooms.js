@@ -23,7 +23,6 @@ const roomsStats = document.getElementById('roomsStats');
 const progressText = document.getElementById('roomsProgressText');
 const progressPct = document.getElementById('roomsProgressPct');
 const progressFill = document.getElementById('roomsProgressFill');
-const toastContainer = document.getElementById('toastContainer');
 const onlineBadge = document.getElementById('onlineBadge');
 
 const GENDER_SECTIONS = [
@@ -64,15 +63,10 @@ function genderMeta(gender) {
   return GENDER_SECTIONS.find((s) => s.gender === gender) || { icon: '❔', label: 'Chưa đặt', accent: '#94a3b8' };
 }
 
-function showToast(message, type = 'info', duration = 3200) {
-  const el = document.createElement('div');
-  el.className = 'toast' + (type === 'success' ? ' toast-success' : type === 'error' ? ' toast-error' : '');
-  el.textContent = message;
-  toastContainer.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('leaving');
-    setTimeout(() => el.remove(), 250);
-  }, duration);
+// Logic toast nam trong js/toast.js (load truoc file nay): gioi han so toast
+// hien cung luc, gop toast trung noi dung, gop su kien realtime.
+function showToast(message, type, duration, opts) {
+  return window.Toast.show(message, type, duration, opts);
 }
 
 function showError(message) {
@@ -98,18 +92,48 @@ function roomOf(name) {
 
 /* ---------- render ---------- */
 
+function statTile({ label, value, sub, variant }) {
+  return `
+    <div class="rooms-stat ${variant ? `is-${variant}` : ''}">
+      <span class="rooms-stat-label">${label}</span>
+      <span class="rooms-stat-value">${value}</span>
+      ${sub ? `<span class="rooms-stat-sub">${sub}</span>` : ''}
+    </div>`;
+}
+
 function renderStats() {
   const female = stats.byGender.FEMALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
   const male = stats.byGender.MALE || { members: 0, assigned: 0, rooms: 0, capacity: 0 };
+  const allDone = stats.totalMembers > 0 && stats.assigned === stats.totalMembers;
 
-  const chips = [
-    `<span class="rooms-chip female">👩 Nữ <strong>${female.assigned}/${female.members}</strong> · ${female.rooms} phòng</span>`,
-    `<span class="rooms-chip male">👨 Nam <strong>${male.assigned}/${male.members}</strong> · ${male.rooms} phòng</span>`,
+  const tiles = [
+    statTile({
+      label: 'Đã có phòng',
+      value: `${stats.assigned}/${stats.totalMembers}`,
+      sub: allDone ? 'Cả nhóm đã xong 🎉' : `Còn ${stats.totalMembers - stats.assigned} người chưa quay`,
+      variant: allDone ? 'ok' : '',
+    }),
+    statTile({
+      label: '👩 Nữ',
+      value: `${female.assigned}/${female.members}`,
+      sub: `${female.rooms} phòng · ${female.capacity} chỗ`,
+      variant: 'female',
+    }),
+    statTile({
+      label: '👨 Nam',
+      value: `${male.assigned}/${male.members}`,
+      sub: `${male.rooms} phòng · ${male.capacity} chỗ`,
+      variant: 'male',
+    }),
   ];
+
   if (locked) {
-    chips.push('<span class="rooms-chip warn">🔒 Đang tạm khóa</span>');
+    tiles.push(
+      statTile({ label: 'Trạng thái', value: '🔒 Tạm khóa', sub: 'Chờ admin mở vòng ghép phòng', variant: 'warn' })
+    );
   }
-  roomsStats.innerHTML = chips.join('');
+
+  roomsStats.innerHTML = tiles.join('');
 
   const pct = stats.totalMembers ? Math.round((stats.assigned / stats.totalMembers) * 100) : 0;
   progressText.textContent = `Đã ghép ${stats.assigned}/${stats.totalMembers} người`;
@@ -137,35 +161,51 @@ function roomCardHtml(room, meta) {
     () => '<li class="room-bed is-empty">Còn trống</li>'
   ).join('');
 
+  const fillPct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
+
   return `
     <article class="room-card ${isMine ? 'is-mine' : ''} ${isFull ? 'is-full' : ''}" style="--accent:${meta.accent}">
       <div class="room-card-top">
         <h3>${meta.icon} ${escapeHtml(room.name)}</h3>
         <span class="room-card-count">${room.occupancy}/${room.capacity}</span>
       </div>
-      ${room.note ? `<p class="room-card-note">${escapeHtml(room.note)}</p>` : ''}
-      <ul class="room-beds">${beds}${emptyBeds}</ul>
+      <div class="room-card-meter"><span style="width:${fillPct}%"></span></div>
+      <div class="room-card-body">
+        ${isMine ? '<span class="room-mine-flag">⭐ Phòng của bạn</span>' : ''}
+        ${room.note ? `<p class="room-card-note">${escapeHtml(room.note)}</p>` : ''}
+        <ul class="room-beds">${beds}${emptyBeds}</ul>
+      </div>
     </article>`;
 }
 
 function renderRooms() {
   if (!rooms.length) {
     roomsList.innerHTML =
-      '<p class="rooms-empty">Chưa có phòng nào được tạo. Chờ admin thiết lập danh sách phòng nhé!</p>';
+      '<p class="rooms-empty">Chưa có phòng nào được tạo.<br />Chờ admin thiết lập danh sách phòng nhé!</p>';
     return;
   }
 
   roomsList.innerHTML = GENDER_SECTIONS.map((meta) => {
     const sectionRooms = rooms.filter((r) => r.gender === meta.gender);
     if (!sectionRooms.length) return '';
+
     const people = sectionRooms.reduce((sum, r) => sum + r.occupancy, 0);
     const capacity = sectionRooms.reduce((sum, r) => sum + r.capacity, 0);
+    const fullRooms = sectionRooms.filter((r) => r.occupancy >= r.capacity).length;
+    const freeSlots = capacity - people;
 
     return `
-      <section class="rooms-section">
+      <section class="rooms-section is-${meta.gender.toLowerCase()}">
         <div class="rooms-section-head">
-          <h2>${meta.icon} Phòng ${meta.label}</h2>
-          <span>${sectionRooms.length} phòng · ${people}/${capacity} chỗ đã có người</span>
+          <span class="rooms-section-icon" aria-hidden="true">${meta.icon}</span>
+          <div>
+            <h2>Phòng ${meta.label}</h2>
+            <p>${sectionRooms.length} phòng · ${people}/${capacity} chỗ đã có người</p>
+          </div>
+          <div class="rooms-section-meta">
+            <span class="rooms-chip ${fullRooms === sectionRooms.length ? 'is-ok' : ''}">✅ ${fullRooms} phòng đã kín</span>
+            <span class="rooms-chip">🛏️ Còn ${freeSlots} chỗ trống</span>
+          </div>
         </div>
         <div class="rooms-grid">${sectionRooms.map((room) => roomCardHtml(room, meta)).join('')}</div>
       </section>`;
@@ -197,7 +237,7 @@ function updateDrawState() {
   const member = findMember(name);
 
   if (!name) {
-    myGenderText.textContent = 'Chọn tên của bạn để bắt đầu.';
+    myGenderText.textContent = '👋 Chọn tên của bạn trong danh sách để bắt đầu.';
     drawBtn.disabled = true;
     noticeBox.classList.add('hidden');
     resultBox.classList.add('hidden');
@@ -207,17 +247,22 @@ function updateDrawState() {
   const meta = genderMeta(member ? member.gender : null);
   const myRoom = roomOf(name);
 
-  myGenderText.textContent = member && member.gender
-    ? `Giới tính của bạn: ${meta.icon} ${meta.label}`
-    : 'Bạn chưa được đặt giới tính.';
-
   if (myRoom) {
     drawBtn.disabled = true;
     drawBtn.textContent = '✅ Bạn đã có phòng';
+    myGenderText.textContent = `✅ Bạn đã quay rồi — kết quả ở ngay bên dưới (${meta.icon} ${meta.label}).`;
     noticeBox.classList.add('hidden');
     renderResultFor(name);
     return;
   }
+
+  const freeRoomCount = member && member.gender
+    ? rooms.filter((r) => r.gender === member.gender && r.occupancy < r.capacity).length
+    : 0;
+
+  myGenderText.textContent = member && member.gender
+    ? `Giới tính của bạn: ${meta.icon} ${meta.label} · Còn ${freeRoomCount} phòng ${meta.label.toLowerCase()} trống chỗ`
+    : 'Giới tính của bạn: ❔ Chưa đặt';
 
   drawBtn.textContent = '🎲 Quay ghép phòng';
   resultBox.classList.add('hidden');
@@ -438,21 +483,45 @@ socket.on('member:room-randomized', (payload) => {
   });
 
   if (payload.member.name !== myName()) {
-    showToast(`🛏️ ${payload.member.name} vừa được ghép vào ${payload.room.name}`, 'info', 2800);
+    // Ca phong bam cung luc: gop vao 1 toast cap nhat tai cho
+    window.Toast.stream(
+      'room-randomized',
+      { name: payload.member.name, room: payload.room.name },
+      (items) => {
+        if (items.length === 1) {
+          return `🛏️ ${items[0].name} vừa được ghép vào ${items[0].room}`;
+        }
+        const recent = items.slice(-3).map((i) => i.name).reverse();
+        const rest = items.length - recent.length;
+        return `🛏️ ${items.length} người vừa được ghép phòng: ${recent.join(', ')}${rest > 0 ? ` và ${rest} người nữa` : ''}`;
+      },
+      { duration: 2800 }
+    );
   }
 });
 
 socket.on('rooms:reset', () => {
   resultBox.classList.add('hidden');
   reel.classList.add('hidden');
-  showToast('♻️ Admin đã reset kết quả ghép phòng, mọi người quay lại nhé!', 'info', 5000);
+  // priority 2: thong bao quan trong, khong bi toast info day ra va khong bi bo
+  // qua khi nguoi dung dang o tab khac
+  showToast('♻️ Admin đã reset kết quả ghép phòng, mọi người quay lại nhé!', 'info', 5000, {
+    key: 'rooms-reset',
+    priority: 2,
+  });
   reloadAll();
 });
 
 socket.on('rooms:config', (payload) => {
   if (payload) locked = !!payload.locked;
   updateDrawState();
-  showToast(locked ? '🔒 Vòng ghép phòng đã bị khóa' : '🔓 Vòng ghép phòng đã mở!', 'info', 4000);
+  // Admin bat/tat lien tuc -> chi 1 toast duy nhat doi noi dung tai cho
+  showToast(
+    locked ? '🔒 Vòng ghép phòng đã bị khóa' : '🔓 Vòng ghép phòng đã mở!',
+    'info',
+    4000,
+    { key: 'rooms-lock' }
+  );
 });
 
 socket.on('members:updated', reloadAll);

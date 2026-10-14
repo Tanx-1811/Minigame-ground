@@ -19,7 +19,7 @@
   </div>
   <canvas id="confettiCanvas" class="hidden"></canvas>
   <canvas id="fireworksCanvas" class="hidden"></canvas>
-  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  <div id="toastContainer" class="toast-container"></div>
 
   <div class="fx-dock" role="toolbar" aria-label="Tuỳ chỉnh giao diện">
     <button type="button" id="soundToggleBtn" class="fx-btn" title="Bật/tắt âm thanh" aria-label="Bật/tắt âm thanh">🔊</button>
@@ -138,6 +138,14 @@
 
     <main class="container">
       <section class="random-panel">
+        <div class="section-head">
+          <div>
+            <h2>🎲 Bốc thăm của bạn</h2>
+            <p>Chọn đúng tên mình rồi bấm Random — mỗi người chỉ bốc một lần duy nhất.</p>
+          </div>
+          <span class="section-step">Bước 1</span>
+        </div>
+
         <div class="progress-wrap">
           <div class="progress-label">
             <span id="progressText">Đã random 0/0 người</span>
@@ -198,7 +206,10 @@
 
       <section class="groups-section">
         <div class="groups-toolbar">
-          <h2 class="groups-title">📋 Danh sách các nhóm</h2>
+          <div class="groups-toolbar-title">
+            <h2 class="groups-title">📋 Danh sách các nhóm</h2>
+            <span class="section-step">Bước 2 · Xem kết quả</span>
+          </div>
           <div class="search-field">
             <span class="search-icon">🔍</span>
             <input type="search" id="memberSearch" placeholder="Tìm tên thành viên..." aria-label="Tìm tên thành viên" />
@@ -231,6 +242,7 @@
   <canvas id="shareCanvas" class="hidden" width="800" height="800"></canvas>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/toast.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/quiz.js"></script>
 </body>

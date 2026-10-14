@@ -1,43 +1,85 @@
-/* ---------- trang ghep phong ngu ---------- */
+/* ===================================================================
+   Trang ghep phong ngu (public)
+   Chia 3 khoi ro rang: (1) tong quan so lieu, (2) khu quay ghep phong
+   cua ban, (3) danh sach phong tach theo gioi tinh.
+   Khong dung box-shadow - phan tach bang vien + nen + khoang trang.
+   =================================================================== */
+
+:root {
+  --rm-surface: #ffffff;
+  --rm-surface-2: #f8fafc;
+  --rm-surface-3: #f1f5f9;
+  --rm-border: #e3e9f2;
+  --rm-border-strong: #cbd5e1;
+  --rm-muted: #64748b;
+  --rm-female: #db2777;
+  --rm-female-soft: #fdf2f8;
+  --rm-female-line: #f9a8d4;
+  --rm-male: #2563eb;
+  --rm-male-soft: #eff6ff;
+  --rm-male-line: #bfdbfe;
+  --rm-ok: #15803d;
+  --rm-ok-soft: #f0fdf4;
+  --rm-ok-line: #bbf7d0;
+  --rm-warn: #b45309;
+  --rm-warn-soft: #fffbeb;
+  --rm-warn-line: #fcd34d;
+  --rm-r-lg: 18px;
+  --rm-r: 12px;
+  --rm-r-sm: 9px;
+}
 
 .rooms-page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 24px 16px 72px;
+  padding: 0 16px 72px;
 }
 
-.rooms-header {
+/* ---------- hero ---------- */
+
+.rooms-hero {
   text-align: center;
-  margin-bottom: 24px;
+  padding: 0 0 26px;
 }
 
-.rooms-header h1 {
-  margin: 10px 0 6px;
-  font-size: clamp(1.6rem, 4vw, 2.3rem);
+.rooms-hero .company-banner {
+  margin-bottom: 22px;
 }
 
-.rooms-header .subtitle {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.96rem;
+.rooms-hero h1 {
+  margin: 12px 0 8px;
+  font-size: clamp(1.65rem, 4vw, 2.3rem);
+  background: linear-gradient(120deg, var(--color-primary-hover), var(--color-primary) 55%, var(--color-primary-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.rooms-hero .subtitle {
+  margin: 0 auto;
+  max-width: 62ch;
+  color: var(--rm-muted);
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  line-height: 1.6;
 }
 
 .rooms-nav {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 .rooms-nav a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid var(--color-border);
+  padding: 9px 16px;
+  border: 1px solid var(--rm-border);
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  background: var(--rm-surface);
+  color: var(--rm-muted);
   text-decoration: none;
   font-size: 0.86rem;
   font-weight: 600;
@@ -45,41 +87,147 @@
 
 .rooms-nav a:hover {
   border-color: var(--color-primary-2);
-  color: var(--color-text);
+  color: var(--color-primary);
 }
 
-.rooms-panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 24px;
-  margin-bottom: 22px;
+/* ---------- the noi dung ---------- */
+
+.rooms-card {
+  background: var(--rm-surface);
+  border: 1px solid var(--rm-border);
+  border-radius: var(--rm-r-lg);
+  overflow: hidden;
 }
+
+.rooms-card + .rooms-card {
+  margin-top: 18px;
+}
+
+.rooms-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 22px;
+  background: var(--rm-surface-2);
+  border-bottom: 1px solid var(--rm-border);
+}
+
+.rooms-card-head h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.rooms-card-head p {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--rm-muted);
+}
+
+.rooms-card-body {
+  padding: 22px;
+}
+
+/* ---------- o thong ke ---------- */
 
 .rooms-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 12px;
 }
+
+.rooms-stats:empty {
+  display: none;
+}
+
+.rooms-stat {
+  padding: 13px 15px;
+  border: 1px solid var(--rm-border);
+  border-left: 3px solid var(--rm-border-strong);
+  border-radius: var(--rm-r);
+  background: var(--rm-surface);
+}
+
+.rooms-stat-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.71rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rm-muted);
+}
+
+.rooms-stat-value {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.rooms-stat-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--rm-muted);
+}
+
+.rooms-stat.is-female { border-left-color: var(--rm-female); }
+.rooms-stat.is-male { border-left-color: var(--rm-male); }
+.rooms-stat.is-ok { border-left-color: #22c55e; }
+
+.rooms-stat.is-warn {
+  border-left-color: var(--rm-warn-line);
+  background: var(--rm-warn-soft);
+}
+
+.rooms-stat.is-warn .rooms-stat-label,
+.rooms-stat.is-warn .rooms-stat-sub {
+  color: var(--rm-warn);
+}
+
+.rooms-progress {
+  margin-top: 18px;
+}
+
+/* ---------- chip / nhan ---------- */
 
 .rooms-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
+  padding: 5px 11px;
+  border: 1px solid var(--rm-border);
   border-radius: 999px;
-  background: var(--color-surface-alt);
-  font-size: 0.82rem;
+  background: var(--rm-surface-2);
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: var(--rm-muted);
+  white-space: nowrap;
 }
 
-.rooms-chip strong { color: var(--color-text); }
-.rooms-chip.male { border-color: #93c5fd; background: #eff6ff; }
-.rooms-chip.female { border-color: #f9a8d4; background: #fdf2f8; }
-.rooms-chip.warn { border-color: #fcd34d; background: #fffbeb; }
+.rooms-chip.is-ok {
+  border-color: var(--rm-ok-line);
+  background: var(--rm-ok-soft);
+  color: var(--rm-ok);
+}
+
+.rooms-chip.is-warn {
+  border-color: var(--rm-warn-line);
+  background: var(--rm-warn-soft);
+  color: var(--rm-warn);
+}
+
+.rooms-chip.is-mine {
+  border-color: var(--rm-male-line);
+  background: var(--rm-male-soft);
+  color: var(--color-primary-hover);
+}
+
+/* ---------- form quay ---------- */
 
 .rooms-form {
   display: flex;
@@ -89,70 +237,101 @@
 }
 
 .rooms-form .field {
-  flex: 1 1 240px;
+  flex: 1 1 260px;
 }
 
 .rooms-form label {
   display: block;
   margin-bottom: 6px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  font-size: 0.73rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rm-muted);
 }
 
 .rooms-form select {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--rm-border);
+  border-radius: var(--rm-r-sm);
+  background: var(--rm-surface);
   color: var(--color-text);
   font-family: inherit;
   font-size: 1rem;
 }
 
+.rooms-form select:hover {
+  border-color: var(--rm-border-strong);
+}
+
+.rooms-form select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid rgba(37, 99, 235, 0.16);
+  outline-offset: 0;
+}
+
 .rooms-draw-btn {
   flex: 0 0 auto;
-  padding: 13px 24px;
+  height: 48px;
+  padding: 0 26px;
   border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
+  border-radius: var(--rm-r-sm);
+  background: linear-gradient(120deg, var(--color-primary), var(--color-primary-2));
   color: #fff;
   font-family: inherit;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: filter 0.15s ease;
 }
 
 .rooms-draw-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  filter: brightness(1.07);
 }
 
 .rooms-draw-btn:disabled {
-  opacity: 0.55;
+  background: var(--rm-surface-3);
+  border-color: var(--rm-border);
+  color: var(--rm-muted);
   cursor: not-allowed;
 }
 
+/* ---------- dong trang thai ---------- */
+
 .rooms-my-gender {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  border: 1px solid var(--rm-border);
+  border-radius: var(--rm-r-sm);
+  background: var(--rm-surface-2);
   font-size: 0.88rem;
-  color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.rooms-my-gender:empty {
+  display: none;
 }
 
 .rooms-notice {
-  margin: 14px 0 0;
-  padding: 12px 14px;
-  border: 1px solid #fcd34d;
-  border-radius: var(--radius-sm);
-  background: #fffbeb;
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  border: 1px solid var(--rm-warn-line);
+  border-radius: var(--rm-r-sm);
+  background: var(--rm-warn-soft);
   font-size: 0.88rem;
-  color: #92400e;
+  line-height: 1.5;
+  color: var(--rm-warn);
 }
 
 .rooms-error {
-  margin: 14px 0 0;
-  font-size: 0.9rem;
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  border: 1px solid #fecaca;
+  border-radius: var(--rm-r-sm);
+  background: #fef2f2;
+  font-size: 0.88rem;
   color: var(--color-error);
 }
 
@@ -162,9 +341,9 @@
   margin-top: 18px;
   height: 88px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-alt);
+  border: 1px solid var(--rm-border);
+  border-radius: var(--rm-r);
+  background: var(--rm-surface-2);
 }
 
 .rooms-reel-strip {
@@ -189,83 +368,117 @@
 
 .rooms-result {
   margin-top: 18px;
-  padding: 20px;
-  border: 1px solid var(--color-primary-2);
-  border-radius: var(--radius-sm);
-  background: #f5f9ff;
-  text-align: center;
+  padding: 20px 22px;
+  border: 1px solid var(--rm-male-line);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--rm-r);
+  background: var(--rm-male-soft);
 }
 
 .rooms-result.pop {
-  animation: roomsPop 0.5s ease;
+  animation: roomsPop 0.45s ease;
 }
 
 @keyframes roomsPop {
-  0% { transform: scale(0.94); opacity: 0; }
-  60% { transform: scale(1.02); }
+  0% { transform: scale(0.96); opacity: 0; }
+  60% { transform: scale(1.01); }
   100% { transform: scale(1); opacity: 1; }
 }
 
 .rooms-result-room {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
+  margin: 0 0 6px;
+  font-size: 1.22rem;
   font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .rooms-result-mates {
   margin: 0;
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--rm-muted);
 }
 
-.rooms-result-mates strong { color: var(--color-text); }
+.rooms-result-mates strong {
+  color: var(--color-text);
+}
 
-/* ---------- danh sach phong ---------- */
+/* ---------- danh sach phong theo gioi tinh ---------- */
 
-.rooms-section + .rooms-section {
+.rooms-section {
   margin-top: 26px;
 }
 
 .rooms-section-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--rm-border);
+}
+
+.rooms-section-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rm-r);
+  border: 1px solid var(--rm-border);
+  background: var(--rm-surface);
+  font-size: 1rem;
 }
 
 .rooms-section-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
-.rooms-section-head span {
-  font-size: 0.84rem;
-  color: var(--color-text-muted);
+.rooms-section-head p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--rm-muted);
+}
+
+.rooms-section-meta {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.rooms-section.is-female .rooms-section-icon {
+  border-color: var(--rm-female-line);
+  background: var(--rm-female-soft);
+}
+
+.rooms-section.is-male .rooms-section-icon {
+  border-color: var(--rm-male-line);
+  background: var(--rm-male-soft);
 }
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
   gap: 14px;
 }
 
+/* ---------- the phong ---------- */
+
 .room-card {
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--accent, var(--color-primary));
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  padding: 16px;
+  border: 1px solid var(--rm-border);
+  border-top: 3px solid var(--accent, var(--color-primary));
+  border-radius: var(--rm-r);
+  background: var(--rm-surface);
+  overflow: hidden;
 }
 
 .room-card.is-mine {
-  border-color: var(--color-primary-2);
-  background: #f5f9ff;
-}
-
-.room-card.is-full .room-card-count {
-  border-color: var(--color-success);
-  color: var(--color-success);
+  border-color: var(--color-primary);
+  background: var(--rm-male-soft);
 }
 
 .room-card-top {
@@ -273,35 +486,83 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 4px;
+  padding: 14px 15px 10px;
 }
 
 .room-card-top h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .room-card-count {
   flex: 0 0 auto;
-  font-size: 0.76rem;
-  font-weight: 700;
   padding: 3px 9px;
+  border: 1px solid var(--rm-border);
   border-radius: 999px;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
+  background: var(--rm-surface-2);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--rm-muted);
+}
+
+.room-card.is-full .room-card-count {
+  border-color: var(--rm-ok-line);
+  background: var(--rm-ok-soft);
+  color: var(--rm-ok);
+}
+
+.room-card-meter {
+  height: 5px;
+  margin: 0 15px;
+  border-radius: 999px;
+  background: var(--rm-surface-3);
+  overflow: hidden;
+}
+
+.room-card-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent, var(--color-primary));
+  transition: width 0.4s ease;
+}
+
+.room-card.is-full .room-card-meter span {
+  background: #22c55e;
+}
+
+.room-card-body {
+  padding: 12px 15px 15px;
 }
 
 .room-card-note {
   margin: 0 0 10px;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
+  font-size: 0.79rem;
+  color: var(--rm-muted);
   font-style: italic;
+}
+
+.room-mine-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--rm-surface);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--color-primary-hover);
 }
 
 .room-beds {
   list-style: none;
   padding: 0;
-  margin: 10px 0 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -311,23 +572,25 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 7px 9px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-alt);
+  padding: 7px 10px;
+  border: 1px solid var(--rm-border);
+  border-radius: var(--rm-r-sm);
+  background: var(--rm-surface-2);
   font-size: 0.88rem;
 }
 
 .room-bed.is-empty {
   border-style: dashed;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--rm-muted);
+  font-size: 0.82rem;
   font-style: italic;
+  justify-content: center;
 }
 
 .room-bed.is-me {
   border-color: var(--color-primary);
-  background: #e8f1ff;
+  background: var(--rm-surface);
   font-weight: 700;
 }
 
@@ -340,28 +603,43 @@
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   font-weight: 700;
 }
 
 .rooms-empty {
-  padding: 28px;
+  padding: 34px 20px;
   text-align: center;
-  color: var(--color-text-muted);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-sm);
+  color: var(--rm-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  border: 1px dashed var(--rm-border-strong);
+  border-radius: var(--rm-r-lg);
+  background: var(--rm-surface);
 }
 
 .rooms-footer {
-  margin-top: 32px;
+  margin-top: 34px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rm-border);
   text-align: center;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
+  color: var(--rm-muted);
+  font-size: 0.84rem;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 620px) {
+  .rooms-card-head,
+  .rooms-card-body {
+    padding: 15px;
+  }
+
   .rooms-form .field,
   .rooms-draw-btn {
     flex: 1 1 100%;
+  }
+
+  .rooms-section-meta {
+    margin-left: 0;
+    width: 100%;
   }
 }

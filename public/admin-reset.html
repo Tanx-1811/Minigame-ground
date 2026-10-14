@@ -5,323 +5,485 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Admin - Bảng điều khiển</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="stylesheet" href="/css/admin.css" />
 </head>
 <body>
-  <div class="bg-decor" aria-hidden="true"></div>
-
-  <div class="admin-wrap">
-    <div class="admin-topbar">
-      <div>
-        <h1>🛠️ Bảng điều khiển Admin</h1>
-        <p>Quản lý sự kiện, thành viên, phòng ngủ, nhóm và câu hỏi quiz — mọi thay đổi áp dụng ngay cho người đang mở trang.</p>
+  <header class="admin-topbar">
+    <div class="admin-topbar-inner">
+      <div class="admin-brand">
+        <span class="admin-brand-mark" aria-hidden="true">🛠️</span>
+        <div>
+          <h1>Bảng điều khiển sự kiện</h1>
+          <p>DIMACO · Chia nhóm &amp; ghép phòng ngủ</p>
+        </div>
       </div>
       <div class="admin-secret">
-        <div class="admin-field" style="margin-bottom:0;">
-          <label for="secretInput">🔑 Mã bí mật admin</label>
-          <input id="secretInput" type="password" placeholder="Nhập mã bí mật" autocomplete="off" />
+        <div class="admin-secret-field">
+          <label class="admin-label" for="secretInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Mã bí mật admin</label>
+          <input id="secretInput" type="password" placeholder="Mã bí mật admin" autocomplete="off" />
         </div>
       </div>
     </div>
+  </header>
 
-    <nav class="admin-tabs" role="tablist" aria-label="Khu vực quản lý">
-      <button type="button" class="admin-tab is-active" data-tab="rooms" role="tab">🛏️ Phòng ngủ</button>
-      <button type="button" class="admin-tab" data-tab="members" role="tab">👥 Thành viên</button>
-      <button type="button" class="admin-tab" data-tab="groups" role="tab">🏷️ Nhóm</button>
-      <button type="button" class="admin-tab" data-tab="event" role="tab">⏰ Sự kiện</button>
-      <button type="button" class="admin-tab" data-tab="quiz" role="tab">🧠 Quiz</button>
-      <button type="button" class="admin-tab" data-tab="questions" role="tab">❓ Câu hỏi</button>
-      <button type="button" class="admin-tab" data-tab="system" role="tab">⚙️ Hệ thống</button>
-    </nav>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <nav class="admin-sidebar-nav" role="tablist" aria-label="Khu vực quản lý">
+        <div class="admin-nav-group">
+          <p class="admin-nav-title">Vận hành</p>
+          <div class="admin-nav-list">
+            <button type="button" class="admin-tab is-active" data-tab="rooms" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">🛏️</span> Phòng ngủ
+            </button>
+            <button type="button" class="admin-tab" data-tab="event" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">⏰</span> Sự kiện
+            </button>
+            <button type="button" class="admin-tab" data-tab="quiz" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">🧠</span> Vòng Quiz
+            </button>
+          </div>
+        </div>
 
-    <!-- ===================== PHONG NGU ===================== -->
-    <section class="admin-panel" data-panel="rooms" role="tabpanel">
-      <div class="admin-card">
-        <h2>🛏️ Ghép phòng ngủ theo giới tính</h2>
-        <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính của họ và chỉ khi phòng còn chỗ. Sức chứa 2 là ghép cặp đôi.</p>
+        <div class="admin-nav-group">
+          <p class="admin-nav-title">Dữ liệu</p>
+          <div class="admin-nav-list">
+            <button type="button" class="admin-tab" data-tab="members" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">👥</span> Thành viên
+            </button>
+            <button type="button" class="admin-tab" data-tab="groups" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">🏷️</span> Nhóm
+            </button>
+            <button type="button" class="admin-tab" data-tab="questions" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">❓</span> Câu hỏi
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-nav-group">
+          <p class="admin-nav-title">Hệ thống</p>
+          <div class="admin-nav-list">
+            <button type="button" class="admin-tab" data-tab="system" role="tab">
+              <span class="admin-tab-icon" aria-hidden="true">⚙️</span> Cấu hình &amp; Reset
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="admin-nav-foot">
+        <a href="/" target="_blank" rel="noopener">🎲 Trang chia nhóm</a>
+        <a href="/rooms.html" target="_blank" rel="noopener">🛏️ Trang ghép phòng</a>
+      </div>
+    </aside>
+
+    <main class="admin-content">
+      <!-- ===================== PHONG NGU ===================== -->
+      <section class="admin-panel" data-panel="rooms" role="tabpanel">
+        <div class="admin-page-head">
+          <h2>🛏️ Phòng ngủ</h2>
+          <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính và còn chỗ. Sức chứa 2 nghĩa là ghép cặp đôi.</p>
+        </div>
 
         <div id="roomStats" class="admin-stats"></div>
 
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label for="roomAutoCapacity">Sức chứa mỗi phòng khi tạo tự động</label>
-            <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" />
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Thao tác nhanh</h3>
+              <p>Tạo đủ phòng theo số người từng giới, rồi ghép một lượt cho tất cả hoặc để mọi người tự quay.</p>
+            </div>
           </div>
-          <div class="admin-field">
-            <label for="roomAutoPrefix">Tiền tố tên phòng</label>
-            <input id="roomAutoPrefix" type="text" value="Phòng" />
+          <div class="admin-card-body">
+            <div class="admin-form-grid is-tight">
+              <div class="admin-field">
+                <label for="roomAutoCapacity">Sức chứa mỗi phòng</label>
+                <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" />
+              </div>
+              <div class="admin-field">
+                <label for="roomAutoPrefix">Tiền tố tên phòng</label>
+                <input id="roomAutoPrefix" type="text" value="Phòng" />
+              </div>
+            </div>
+            <p class="admin-help">Ví dụ: <strong>9 nữ</strong> với sức chứa <strong>2</strong> sẽ tạo <strong>5 phòng nữ</strong>. Gọi lại nhiều lần cũng không tạo trùng — chỉ bù số phòng còn thiếu.</p>
+
+            <div class="admin-btn-row">
+              <button id="roomAutoCreateBtn" class="admin-btn admin-btn-secondary" type="button">🏗️ Tạo phòng tự động</button>
+              <button id="roomRandomAllBtn" class="admin-btn" type="button">🎲 Ghép phòng cho tất cả</button>
+              <button id="roomLockBtn" class="admin-btn admin-btn-secondary" type="button">🔒 Khóa vòng ghép phòng</button>
+              <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button">♻️ Reset ghép phòng</button>
+            </div>
+            <p id="roomActionMsg" class="admin-msg"></p>
           </div>
         </div>
-        <p class="admin-hint">"Tạo phòng tự động" sẽ tính số người mỗi giới rồi tạo đủ số phòng còn thiếu (ví dụ 9 nữ, sức chứa 2 → 5 phòng nữ).</p>
 
-        <div class="admin-btn-row">
-          <button id="roomAutoCreateBtn" class="admin-btn admin-btn-secondary" type="button">🏗️ Tạo phòng tự động</button>
-          <button id="roomRandomAllBtn" class="admin-btn" type="button">🎲 Ghép phòng cho tất cả</button>
-          <button id="roomLockBtn" class="admin-btn admin-btn-secondary" type="button">🔒 Khóa vòng ghép phòng</button>
-          <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button">♻️ Reset ghép phòng</button>
-        </div>
-        <p id="roomActionMsg" class="admin-msg"></p>
-      </div>
-
-      <div class="admin-card">
-        <h2>➕ Thêm phòng</h2>
-        <p>Mỗi phòng thuộc về một giới tính duy nhất. Tên phòng không được trùng nhau.</p>
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label for="newRoomName">Tên phòng</label>
-            <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Thêm phòng thủ công</h3>
+              <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
+            </div>
           </div>
-          <div class="admin-field">
-            <label for="newRoomGender">Dành cho</label>
-            <select id="newRoomGender">
-              <option value="FEMALE">👩 Nữ</option>
-              <option value="MALE">👨 Nam</option>
-            </select>
-          </div>
-          <div class="admin-field">
-            <label for="newRoomCapacity">Sức chứa</label>
-            <input id="newRoomCapacity" type="number" min="1" max="50" value="2" />
-          </div>
-          <div class="admin-field">
-            <label for="newRoomNote">Ghi chú (tùy chọn)</label>
-            <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công" />
-          </div>
-        </div>
-        <button id="addRoomBtn" class="admin-btn" type="button">Thêm phòng</button>
-        <p id="addRoomMsg" class="admin-msg"></p>
-      </div>
-
-      <div class="admin-card">
-        <h2>📋 Danh sách phòng</h2>
-        <p>Sửa trực tiếp tên, giới tính, sức chứa, ghi chú — lưu ngay khi rời ô. Bấm ✕ cạnh tên người để đưa họ ra khỏi phòng.</p>
-        <div id="roomList"></div>
-        <p id="roomListMsg" class="admin-msg"></p>
-      </div>
-    </section>
-
-    <!-- ===================== THANH VIEN ===================== -->
-    <section class="admin-panel" data-panel="members" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>➕ Thêm thành viên</h2>
-        <p>Tên phải khác với mọi thành viên hiện có (tên là cách hệ thống nhận ra từng người).</p>
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label for="newMemberName">Họ tên</label>
-            <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" />
-          </div>
-          <div class="admin-field">
-            <label for="newMemberGender">Giới tính</label>
-            <select id="newMemberGender">
-              <option value="">-- Chưa đặt --</option>
-              <option value="MALE">👨 Nam</option>
-              <option value="FEMALE">👩 Nữ</option>
-            </select>
-          </div>
-          <div class="admin-field">
-            <label for="newMemberGroup">Nhóm (tùy chọn)</label>
-            <select id="newMemberGroup">
-              <option value="">-- Chưa có nhóm --</option>
-            </select>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label for="newRoomName">Tên phòng</label>
+                <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+              </div>
+              <div class="admin-field">
+                <label for="newRoomGender">Dành cho</label>
+                <select id="newRoomGender">
+                  <option value="FEMALE">👩 Nữ</option>
+                  <option value="MALE">👨 Nam</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label for="newRoomCapacity">Sức chứa</label>
+                <input id="newRoomCapacity" type="number" min="1" max="50" value="2" />
+              </div>
+              <div class="admin-field">
+                <label for="newRoomNote">Ghi chú</label>
+                <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công" />
+              </div>
+            </div>
+            <button id="addRoomBtn" class="admin-btn" type="button">➕ Thêm phòng</button>
+            <p id="addRoomMsg" class="admin-msg"></p>
           </div>
         </div>
-        <button id="addMemberBtn" class="admin-btn" type="button">Thêm thành viên</button>
-        <p id="addMemberMsg" class="admin-msg"></p>
-      </div>
 
-      <div class="admin-card">
-        <h2>👥 Quản lý thành viên</h2>
-        <p>Đặt giới tính cho từng người để hệ thống ghép phòng đúng. Mọi ô đều lưu ngay khi thay đổi.</p>
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Danh sách phòng</h3>
+              <p>Bấm ✕ cạnh tên để đưa người ra khỏi phòng. Mở "Sửa phòng" để đổi tên, giới tính, sức chứa hoặc xóa phòng.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div id="roomList"></div>
+            <p id="roomListMsg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SU KIEN ===================== -->
+      <section class="admin-panel" data-panel="event" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>⏰ Sự kiện</h2>
+          <p>Hẹn giờ mở vòng bốc thăm trên trang chủ. Mọi người đang mở trang sẽ thấy đếm ngược cập nhật ngay, không cần tải lại.</p>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Giờ mở bốc thăm</h3>
+              <p>Chưa đặt giờ thì nút "Bắt đầu bốc thăm" mở ngay lập tức, không đếm ngược.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label for="eventTimeInput">Ngày giờ mở (theo giờ máy của bạn)</label>
+                <input id="eventTimeInput" type="datetime-local" />
+              </div>
+            </div>
+            <div class="admin-btn-row">
+              <button id="saveTimeBtn" class="admin-btn" type="button">💾 Lưu giờ mở</button>
+              <button id="clearTimeBtn" class="admin-btn admin-btn-secondary" type="button">⚡ Mở ngay (xóa giờ)</button>
+            </div>
+            <p id="timeMsg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== QUIZ ===================== -->
+      <section class="admin-panel" data-panel="quiz" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>🧠 Vòng Quiz chọn Nhóm Trưởng</h2>
+          <p>Mọi người vào phòng chờ trước, admin bấm bắt đầu để cả nhóm cùng làm bài, rồi chốt những người điểm cao nhất làm Nhóm Trưởng.</p>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Bước 1 · Phòng chờ</h3>
+              <p>Danh sách người đã chọn tên và đang chờ (cập nhật realtime). Bấm bắt đầu để đếm ngược 3 giây và mở câu hỏi đầu tiên cho tất cả cùng lúc.</p>
+            </div>
+            <span id="lobbyStatusText" class="admin-chip"></span>
+          </div>
+          <div class="admin-card-body">
+            <ol id="lobbyMembersList" class="admin-list"></ol>
+            <button id="startQuizBtn" class="admin-btn" type="button">🚀 Bắt đầu làm bài (đếm ngược 3 giây)</button>
+            <p id="lobbyMsg" class="admin-msg"></p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Bước 2 · Chốt Nhóm Trưởng</h3>
+              <p>Điểm cao nhất thắng, hòa điểm thì ai nhanh hơn thắng. Chốt xong vòng Random mới mở khóa. Số lượng Nhóm Trưởng đổi được ở tab ⚙️ Cấu hình.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button">🔄 Tải bảng xếp hạng</button>
+            <ol id="quizAdminLeaderboard" class="admin-list" style="margin-top:14px;"></ol>
+
+            <label class="admin-checkbox" style="margin-top:14px;">
+              <input id="forceFinishCheckbox" type="checkbox" />
+              <span>Chốt luôn dù chưa đủ người hoàn thành hết câu hỏi (lấy người điểm cao nhất hiện có)</span>
+            </label>
+
+            <div class="admin-btn-row">
+              <button id="finishQuizBtn" class="admin-btn" type="button">👑 Chốt Nhóm Trưởng &amp; mở Random</button>
+              <button id="resetLeadersBtn" class="admin-btn admin-btn-secondary" type="button">🔄 Làm lại vòng Quiz từ đầu</button>
+            </div>
+            <p id="quizMsg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== THANH VIEN ===================== -->
+      <section class="admin-panel" data-panel="members" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>👥 Thành viên</h2>
+          <p>Đặt giới tính cho từng người để hệ thống ghép phòng đúng. Mọi ô trong bảng lưu ngay khi bạn thay đổi.</p>
+        </div>
 
         <div id="memberStats" class="admin-stats"></div>
 
-        <div class="admin-field">
-          <label for="memberFilter">Tìm thành viên</label>
-          <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." />
-        </div>
-
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Họ tên</th>
-                <th>Giới tính</th>
-                <th>Nhóm</th>
-                <th>Phòng ngủ</th>
-                <th>Nhóm trưởng</th>
-                <th>Quiz</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="memberTableBody"></tbody>
-          </table>
-        </div>
-        <p id="memberMsg" class="admin-msg"></p>
-      </div>
-    </section>
-
-    <!-- ===================== NHOM ===================== -->
-    <section class="admin-panel" data-panel="groups" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>➕ Thêm nhóm</h2>
-        <p>Nhóm dùng cho vòng random chia nhóm ở trang chủ. Slogan sẽ hiện ở mặt sau thẻ nhóm.</p>
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label for="newGroupName">Tên nhóm</label>
-            <input id="newGroupName" type="text" placeholder="VD: Nhóm Gà - Gà ít, chiến nhiều" />
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Thêm thành viên</h3>
+              <p>Tên là cách hệ thống nhận ra từng người nên không được trùng với ai khác.</p>
+            </div>
           </div>
-          <div class="admin-field">
-            <label for="newGroupDesc">Slogan / mô tả</label>
-            <input id="newGroupDesc" type="text" placeholder="VD: Chơi thì 9, quoặy là 10" />
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label for="newMemberName">Họ tên</label>
+                <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" />
+              </div>
+              <div class="admin-field">
+                <label for="newMemberGender">Giới tính</label>
+                <select id="newMemberGender">
+                  <option value="">-- Chưa đặt --</option>
+                  <option value="MALE">👨 Nam</option>
+                  <option value="FEMALE">👩 Nữ</option>
+                </select>
+              </div>
+              <div class="admin-field">
+                <label for="newMemberGroup">Nhóm</label>
+                <select id="newMemberGroup">
+                  <option value="">-- Chưa có nhóm --</option>
+                </select>
+              </div>
+            </div>
+            <button id="addMemberBtn" class="admin-btn" type="button">➕ Thêm thành viên</button>
+            <p id="addMemberMsg" class="admin-msg"></p>
           </div>
         </div>
-        <button id="addGroupBtn" class="admin-btn" type="button">Thêm nhóm</button>
-        <p id="addGroupMsg" class="admin-msg"></p>
-      </div>
 
-      <div class="admin-card">
-        <h2>🏷️ Danh sách nhóm</h2>
-        <p>Xóa nhóm sẽ đưa toàn bộ thành viên trong nhóm đó về trạng thái chưa random (không xóa người).</p>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Tên nhóm</th>
-                <th>Slogan / mô tả</th>
-                <th>Số người</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="groupTableBody"></tbody>
-          </table>
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Danh sách thành viên</h3>
+              <p>Phòng ngủ chỉ liệt kê các phòng đúng giới tính của người đó. Phòng đã kín sẽ bị khóa chọn.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-form-grid is-tight" style="margin-bottom:14px;">
+              <div class="admin-field">
+                <label for="memberFilter">Tìm thành viên</label>
+                <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." />
+              </div>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Họ tên</th>
+                    <th>Giới tính</th>
+                    <th>Nhóm</th>
+                    <th>Phòng ngủ</th>
+                    <th>Nhóm trưởng</th>
+                    <th>Quiz</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="memberTableBody"></tbody>
+              </table>
+            </div>
+            <p id="memberMsg" class="admin-msg"></p>
+          </div>
         </div>
-        <p id="groupMsg" class="admin-msg"></p>
-      </div>
-    </section>
+      </section>
 
-    <!-- ===================== SU KIEN ===================== -->
-    <section class="admin-panel" data-panel="event" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>⏰ Giờ mở bốc thăm</h2>
-        <p>Đặt thời điểm mở khóa nút "Bắt đầu bốc thăm" trên trang chủ — mọi người đang mở trang sẽ tự động thấy đếm ngược cập nhật ngay. Để trống rồi bấm "Mở ngay" để bỏ đếm ngược.</p>
-
-        <div class="admin-field">
-          <label for="eventTimeInput">Ngày giờ mở (theo giờ máy của bạn)</label>
-          <input id="eventTimeInput" type="datetime-local" />
-        </div>
-        <p class="admin-hint">Chưa đặt giờ nào thì bốc thăm mở ngay lập tức, không đếm ngược.</p>
-
-        <div class="admin-btn-row">
-          <button id="saveTimeBtn" class="admin-btn" type="button">Lưu giờ mở</button>
-          <button id="clearTimeBtn" class="admin-btn admin-btn-secondary" type="button">Mở ngay (xóa giờ)</button>
-        </div>
-        <p id="timeMsg" class="admin-msg"></p>
-      </div>
-    </section>
-
-    <!-- ===================== QUIZ ===================== -->
-    <section class="admin-panel" data-panel="quiz" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>🚀 Bắt đầu làm bài Quiz</h2>
-        <p>Danh sách người đã chọn tên và đang chờ trong phòng chờ (cập nhật realtime). Khi đủ người, bấm nút bên dưới để đếm ngược 3 giây và mở câu hỏi đầu tiên cho tất cả cùng lúc.</p>
-        <p id="lobbyStatusText" class="admin-hint"></p>
-        <ol id="lobbyMembersList" class="admin-quiz-list"></ol>
-        <button id="startQuizBtn" class="admin-btn" type="button">🚀 Bắt đầu làm bài (đếm ngược 3 giây)</button>
-        <p id="lobbyMsg" class="admin-msg"></p>
-      </div>
-
-      <div class="admin-card">
-        <h2>👑 Chốt Nhóm Trưởng</h2>
-        <p>Xem điểm quiz hiện tại và chốt những người điểm cao nhất (hòa thì ai nhanh hơn thắng) làm Nhóm Trưởng. Sau khi chốt, vòng Random mới mở khóa cho mọi người. Số lượng nhóm trưởng đổi được ở tab ⚙️ Hệ thống.</p>
-
-        <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button">Tải bảng xếp hạng quiz</button>
-        <ol id="quizAdminLeaderboard" class="admin-quiz-list" style="margin-top:14px;"></ol>
-        <label class="admin-checkbox">
-          <input id="forceFinishCheckbox" type="checkbox" />
-          Chốt luôn dù chưa đủ người hoàn thành (lấy người điểm cao nhất hiện có)
-        </label>
-        <div class="admin-btn-row">
-          <button id="finishQuizBtn" class="admin-btn" type="button">Chốt Nhóm Trưởng &amp; Mở Random</button>
-          <button id="resetLeadersBtn" class="admin-btn admin-btn-secondary" type="button">🔄 Reset vòng chọn Nhóm Trưởng</button>
-        </div>
-        <p id="quizMsg" class="admin-msg"></p>
-      </div>
-    </section>
-
-    <!-- ===================== CAU HOI ===================== -->
-    <section class="admin-panel" data-panel="questions" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>➕ Thêm câu hỏi</h2>
-        <p>Nhập từ 2 đến 6 phương án (để trống ô nào thì bỏ qua ô đó) và chọn đáp án đúng.</p>
-
-        <div class="admin-field">
-          <label for="newQuestionText">Nội dung câu hỏi</label>
-          <input id="newQuestionText" type="text" placeholder="VD: Giá trị cốt lõi của DIMACO là gì?" />
+      <!-- ===================== NHOM ===================== -->
+      <section class="admin-panel" data-panel="groups" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>🏷️ Nhóm</h2>
+          <p>Các nhóm dùng cho vòng random chia nhóm ở trang chủ. Slogan hiện ở mặt sau thẻ nhóm khi người xem bấm vào.</p>
         </div>
 
-        <div id="newQuestionOptions" class="admin-options"></div>
-
-        <div class="admin-field">
-          <label for="newQuestionCorrect">Đáp án đúng</label>
-          <select id="newQuestionCorrect"></select>
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Thêm nhóm</h3>
+              <p>Hệ thống luôn chia đều số người giữa các nhóm hiện có.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label for="newGroupName">Tên nhóm</label>
+                <input id="newGroupName" type="text" placeholder="VD: Nhóm Gà - Gà ít, chiến nhiều" />
+              </div>
+              <div class="admin-field">
+                <label for="newGroupDesc">Slogan / mô tả</label>
+                <input id="newGroupDesc" type="text" placeholder="VD: Chơi thì 9, quoặy là 10" />
+              </div>
+            </div>
+            <button id="addGroupBtn" class="admin-btn" type="button">➕ Thêm nhóm</button>
+            <p id="addGroupMsg" class="admin-msg"></p>
+          </div>
         </div>
 
-        <button id="addQuestionBtn" class="admin-btn" type="button">Thêm câu hỏi</button>
-        <p id="addQuestionMsg" class="admin-msg"></p>
-      </div>
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Danh sách nhóm</h3>
+              <p>Xóa nhóm chỉ đưa thành viên về trạng thái chưa random — không ai bị xóa khỏi hệ thống.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Tên nhóm</th>
+                    <th>Slogan / mô tả</th>
+                    <th>Số người</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="groupTableBody"></tbody>
+              </table>
+            </div>
+            <p id="groupMsg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
 
-      <div class="admin-card">
-        <h2>❓ Danh sách câu hỏi</h2>
-        <p>Sửa trực tiếp rồi bấm "Lưu câu này". Đổi số thứ tự sẽ đổi chỗ với câu đang giữ số đó. Xóa câu hỏi sẽ xóa luôn câu trả lời của mọi người cho câu đó.</p>
-        <div id="questionList"></div>
-        <p id="questionMsg" class="admin-msg"></p>
-      </div>
-    </section>
+      <!-- ===================== CAU HOI ===================== -->
+      <section class="admin-panel" data-panel="questions" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>❓ Câu hỏi Quiz</h2>
+          <p>Bộ câu hỏi dùng để chọn Nhóm Trưởng. Nếu không có câu hỏi nào, hệ thống bỏ qua vòng quiz và mở random luôn.</p>
+        </div>
 
-    <!-- ===================== HE THONG ===================== -->
-    <section class="admin-panel" data-panel="system" role="tabpanel" hidden>
-      <div class="admin-card">
-        <h2>⚙️ Cấu hình chung</h2>
-        <p>Các thông số điều khiển luật chơi. Lưu xong áp dụng ngay, không cần restart server.</p>
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Thêm câu hỏi</h3>
+              <p>Nhập từ 2 đến 6 phương án — ô nào để trống thì bỏ qua. Danh sách đáp án đúng tự cập nhật theo phương án bạn nhập.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-field">
+              <label for="newQuestionText">Nội dung câu hỏi</label>
+              <input id="newQuestionText" type="text" placeholder="VD: Giá trị cốt lõi của DIMACO là gì?" />
+            </div>
+
+            <p class="admin-label" style="margin-top:14px;">Các phương án trả lời</p>
+            <div id="newQuestionOptions" class="admin-options"></div>
+
+            <div class="admin-form-grid is-tight" style="margin-top:14px;">
+              <div class="admin-field">
+                <label for="newQuestionCorrect">Đáp án đúng</label>
+                <select id="newQuestionCorrect"></select>
+              </div>
+            </div>
+
+            <button id="addQuestionBtn" class="admin-btn" type="button">➕ Thêm câu hỏi</button>
+            <p id="addQuestionMsg" class="admin-msg"></p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Danh sách câu hỏi</h3>
+              <p>Sửa xong bấm "Lưu câu này". Đổi số thứ tự sẽ đổi chỗ với câu đang giữ số đó. Xóa câu hỏi sẽ xóa luôn câu trả lời của mọi người cho câu đó.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <div id="questionList"></div>
+            <p id="questionMsg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== HE THONG ===================== -->
+      <section class="admin-panel" data-panel="system" role="tabpanel" hidden>
+        <div class="admin-page-head">
+          <h2>⚙️ Cấu hình &amp; Reset</h2>
+          <p>Các thông số điều khiển luật chơi. Lưu xong áp dụng ngay cho mọi người đang mở trang, không cần restart server.</p>
+        </div>
 
         <div id="systemStats" class="admin-stats"></div>
 
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label for="leaderCountInput">Số Nhóm Trưởng chốt từ quiz</label>
-            <input id="leaderCountInput" type="number" min="1" max="100" />
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Cấu hình chung</h3>
+              <p>Chuyển giai đoạn sang "Random" là cách mở vòng chia nhóm ngay mà không cần làm quiz.</p>
+            </div>
           </div>
-          <div class="admin-field">
-            <label for="roomCapacityInput">Sức chứa phòng mặc định</label>
-            <input id="roomCapacityInput" type="number" min="1" max="50" />
-          </div>
-          <div class="admin-field">
-            <label for="phaseSelect">Giai đoạn hiện tại</label>
-            <select id="phaseSelect">
-              <option value="quiz">🧠 Quiz (chọn nhóm trưởng)</option>
-              <option value="random">🎲 Random chia nhóm</option>
-            </select>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-field">
+                <label for="leaderCountInput">Số Nhóm Trưởng chốt từ quiz</label>
+                <input id="leaderCountInput" type="number" min="1" max="100" />
+              </div>
+              <div class="admin-field">
+                <label for="roomCapacityInput">Sức chứa phòng mặc định</label>
+                <input id="roomCapacityInput" type="number" min="1" max="50" />
+              </div>
+              <div class="admin-field">
+                <label for="phaseSelect">Giai đoạn hiện tại</label>
+                <select id="phaseSelect">
+                  <option value="quiz">🧠 Quiz (chọn nhóm trưởng)</option>
+                  <option value="random">🎲 Random chia nhóm</option>
+                </select>
+              </div>
+            </div>
+            <button id="saveSettingsBtn" class="admin-btn" type="button">💾 Lưu cấu hình</button>
+            <p id="settingsMsg" class="admin-msg"></p>
           </div>
         </div>
-        <p class="admin-hint">Chuyển giai đoạn sang "Random" là cách mở vòng random ngay mà không cần làm quiz.</p>
 
-        <button id="saveSettingsBtn" class="admin-btn" type="button">Lưu cấu hình</button>
-        <p id="settingsMsg" class="admin-msg"></p>
-      </div>
-
-      <div class="admin-card">
-        <h2>⚠️ Reset toàn bộ</h2>
-        <p>Xóa kết quả random nhóm và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của <strong>tất cả thành viên</strong> để mọi người chơi lại từ đầu. Không thể hoàn tác.</p>
-
-        <label class="admin-checkbox">
-          <input id="resetIncludeRooms" type="checkbox" />
-          Xóa luôn kết quả ghép phòng ngủ (vẫn giữ danh sách phòng)
-        </label>
-
-        <button id="resetBtn" class="admin-btn admin-btn-danger" type="button">Reset toàn bộ ngay</button>
-        <p id="msg" class="admin-msg"></p>
-      </div>
-    </section>
+        <div class="admin-card is-danger">
+          <div class="admin-card-head">
+            <div>
+              <h3>⚠️ Reset toàn bộ</h3>
+              <p>Xóa kết quả random nhóm và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của <strong>tất cả thành viên</strong> để chơi lại từ đầu. Không thể hoàn tác.</p>
+            </div>
+          </div>
+          <div class="admin-card-body">
+            <label class="admin-checkbox">
+              <input id="resetIncludeRooms" type="checkbox" />
+              <span>Xóa luôn kết quả ghép phòng ngủ (vẫn giữ danh sách phòng)</span>
+            </label>
+            <button id="resetBtn" class="admin-btn admin-btn-danger" type="button">Reset toàn bộ ngay</button>
+            <p id="msg" class="admin-msg"></p>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

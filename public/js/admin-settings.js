@@ -11,18 +11,32 @@
 
   const PHASE_LABEL = { quiz: 'Quiz (chọn nhóm trưởng)', random: 'Random chia nhóm' };
 
+  function statTile({ label, value, sub, variant }) {
+    return `
+      <div class="admin-stat ${variant ? `is-${variant}` : ''}">
+        <span class="admin-stat-label">${label}</span>
+        <span class="admin-stat-value">${value}</span>
+        ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
+      </div>`;
+  }
+
   function renderStats(settings) {
     const c = settings.counts;
     systemStats.innerHTML = [
-      `<span class="admin-chip">👥 <strong>${c.members}</strong> thành viên</span>`,
-      `<span class="admin-chip">🏷️ <strong>${c.groups}</strong> nhóm</span>`,
-      `<span class="admin-chip">🛏️ <strong>${c.rooms}</strong> phòng ngủ</span>`,
-      `<span class="admin-chip">❓ <strong>${c.questions}</strong> câu hỏi</span>`,
-      `<span class="admin-chip">🎬 Giai đoạn <strong>${PHASE_LABEL[settings.phase] || settings.phase}</strong></span>`,
-      `<span class="admin-chip">🧠 Quiz <strong>${settings.quizStatus === 'active' ? 'đang chạy' : 'đang chờ'}</strong></span>`,
-      settings.roomsLocked
-        ? '<span class="admin-chip warn">🔒 Vòng ghép phòng đang khóa</span>'
-        : '<span class="admin-chip">🔓 Vòng ghép phòng đang mở</span>',
+      statTile({ label: '👥 Thành viên', value: c.members }),
+      statTile({ label: '🏷️ Nhóm', value: c.groups }),
+      statTile({ label: '🛏️ Phòng ngủ', value: c.rooms }),
+      statTile({ label: '❓ Câu hỏi', value: c.questions }),
+      statTile({
+        label: '🎬 Giai đoạn',
+        value: PHASE_LABEL[settings.phase] || settings.phase,
+        sub: settings.quizStatus === 'active' ? 'Quiz đang chạy' : 'Quiz đang chờ',
+      }),
+      statTile({
+        label: '🛏️ Vòng ghép phòng',
+        value: settings.roomsLocked ? '🔒 Đang khóa' : '🔓 Đang mở',
+        variant: settings.roomsLocked ? 'warn' : 'ok',
+      }),
     ].join('');
   }
 

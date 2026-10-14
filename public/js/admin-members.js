@@ -17,6 +17,15 @@
   let groups = [];
   let rooms = [];
 
+  function statTile({ label, value, sub, variant }) {
+    return `
+      <div class="admin-stat ${variant ? `is-${variant}` : ''}">
+        <span class="admin-stat-label">${label}</span>
+        <span class="admin-stat-value">${value}</span>
+        ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
+      </div>`;
+  }
+
   function renderStats() {
     const male = members.filter((m) => m.gender === 'MALE').length;
     const female = members.filter((m) => m.gender === 'FEMALE').length;
@@ -24,17 +33,24 @@
     const inRoom = members.filter((m) => m.roomId).length;
     const inGroup = members.filter((m) => m.groupId).length;
 
-    const chips = [
-      `<span class="admin-chip">👥 Tổng <strong>${members.length}</strong> người</span>`,
-      `<span class="admin-chip female">👩 Nữ <strong>${female}</strong></span>`,
-      `<span class="admin-chip male">👨 Nam <strong>${male}</strong></span>`,
-      `<span class="admin-chip">🛏️ Đã có phòng <strong>${inRoom}</strong></span>`,
-      `<span class="admin-chip">🏷️ Đã có nhóm <strong>${inGroup}</strong></span>`,
+    const tiles = [
+      statTile({ label: '👥 Tổng thành viên', value: members.length }),
+      statTile({ label: '👩 Nữ', value: female, variant: 'female' }),
+      statTile({ label: '👨 Nam', value: male, variant: 'male' }),
+      statTile({ label: '🛏️ Đã có phòng', value: `${inRoom}/${members.length}` }),
+      statTile({ label: '🏷️ Đã có nhóm', value: `${inGroup}/${members.length}` }),
     ];
     if (noGender) {
-      chips.push(`<span class="admin-chip warn">⚠️ Chưa đặt giới tính <strong>${noGender}</strong></span>`);
+      tiles.push(
+        statTile({
+          label: '⚠️ Chưa đặt giới tính',
+          value: noGender,
+          sub: 'Chọn Nam/Nữ ở bảng dưới',
+          variant: 'warn',
+        })
+      );
     }
-    memberStats.innerHTML = chips.join('');
+    memberStats.innerHTML = tiles.join('');
   }
 
   function groupOptions(selectedId) {
@@ -82,10 +98,10 @@
         </td>
         <td><select data-field="groupId">${groupOptions(member.groupId)}</select></td>
         <td><select data-field="roomId" ${member.gender ? '' : 'disabled'}>${roomOptions(member)}</select></td>
-        <td style="text-align:center;">
+        <td class="admin-cell-center">
           <input type="checkbox" data-field="isLeader" ${member.isLeader ? 'checked' : ''} title="Đánh dấu là Nhóm Trưởng" />
         </td>
-        <td style="white-space:nowrap;">${member.quizScore} điểm${member._count && member._count.answers ? ` · ${member._count.answers} câu` : ''}</td>
+        <td class="admin-cell-muted">${member.quizScore} điểm${member._count && member._count.answers ? ` · ${member._count.answers} câu` : ''}</td>
         <td class="admin-cell-actions">
           <button type="button" class="admin-row-btn danger" data-action="delete-member">🗑️</button>
         </td>
