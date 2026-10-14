@@ -4,8 +4,156 @@
 
 window.AdminCommon = (function () {
   const SECRET_KEY = 'randomTeam_adminSecret';
-  const TAB_KEY = 'randomTeam_adminTab';
   const THEME_KEY = 'randomTeam_adminTheme';
+
+  /* ================= khung trang (topbar + sidebar) ================= */
+
+  // Moi khu vuc quan ly gio la MOT TRANG RIENG. Danh sach dieu huong khai bao
+  // mot cho duy nhat o day roi dung chung cho ca 10 trang, nen khong bao gio
+  // lech nhau. Truoc day tat ca nam chung 1 trang voi 10 panel an/hien: 47KB
+  // HTML + 137KB JS cua ca 10 module deu phai tai va chay cung luc, tab nao
+  // cung dang ky socket - do la ly do trang giat va bam tab khong kip phan hoi.
+  const NAV = [
+    {
+      title: 'Điều hành',
+      items: [
+        { page: 'overview', href: '/admin/', icon: 'layout-dashboard', label: 'Tổng quan' },
+        { page: 'event', href: '/admin/event.html', icon: 'calendar-clock', label: 'Sự kiện' },
+        { page: 'quiz', href: '/admin/quiz.html', icon: 'brain', label: 'Vòng Quiz' },
+      ],
+    },
+    {
+      title: 'Chia người',
+      items: [
+        { page: 'groups', href: '/admin/groups.html', icon: 'users-round', label: 'Chia nhóm', badge: 'groups' },
+        { page: 'rooms', href: '/admin/rooms.html', icon: 'bed-double', label: 'Phòng ngủ', badge: 'rooms' },
+      ],
+    },
+    {
+      title: 'Dữ liệu',
+      items: [
+        { page: 'members', href: '/admin/members.html', icon: 'contact-round', label: 'Thành viên', badge: 'members' },
+        { page: 'questions', href: '/admin/questions.html', icon: 'circle-help', label: 'Câu hỏi', badge: 'questions' },
+        { page: 'activity', href: '/admin/activity.html', icon: 'scroll-text', label: 'Nhật ký' },
+      ],
+    },
+    {
+      title: 'Hệ thống',
+      items: [
+        { page: 'appearance', href: '/admin/appearance.html', icon: 'palette', label: 'Giao diện & nội dung' },
+        { page: 'settings', href: '/admin/settings.html', icon: 'settings', label: 'Cấu hình & Reset' },
+      ],
+    },
+  ];
+
+  // Trang hien tai, doc tu <body data-admin-page="...">
+  const PAGE = document.body.dataset.adminPage || 'overview';
+
+  // So dem canh ten muc o sidebar duoc nho lai, de trang nao cung hien duoc
+  // ma khong phai goi them API chi de dien con so cho cac muc khac.
+  const BADGE_KEY = 'randomTeam_adminBadges';
+  let badges = {};
+  try {
+    badges = JSON.parse(sessionStorage.getItem(BADGE_KEY) || '{}');
+  } catch (err) {
+    badges = {};
+  }
+
+  function buildShell() {
+    document.body.insertAdjacentHTML(
+      'afterbegin',
+      `
+      <header class="admin-topbar">
+        <div class="admin-topbar-inner">
+          <div class="admin-brand">
+            <button type="button" id="navToggle" class="admin-icon-btn admin-nav-toggle" aria-label="Mở menu">
+              <i data-lucide="menu"></i>
+            </button>
+            <a class="admin-brand-mark" href="/admin/" aria-label="Về trang tổng quan">
+              <i data-lucide="sliders-horizontal"></i>
+            </a>
+            <div>
+              <h1>Bảng điều khiển sự kiện</h1>
+              <p>DIMACO · Chia nhóm &amp; ghép phòng ngủ</p>
+            </div>
+          </div>
+
+          <div class="admin-topbar-tools">
+            <span id="authDot" class="admin-auth-dot"><i data-lucide="shield-off"></i><span>Chỉ xem</span></span>
+            <div class="admin-secret">
+              <div class="admin-secret-field">
+                <label class="visually-hidden" for="secretInput">Mã bí mật admin</label>
+                <i data-lucide="key-round"></i>
+                <input id="secretInput" type="password" placeholder="Mã bí mật admin" autocomplete="off" />
+                <button type="button" id="secretToggle" class="admin-secret-toggle" aria-label="Hiện mã bí mật">
+                  <i data-lucide="eye"></i>
+                </button>
+              </div>
+            </div>
+            <button type="button" id="themeToggle" class="admin-icon-btn" aria-label="Đổi sáng/tối" title="Đổi giao diện sáng/tối">
+              <i data-lucide="moon"></i>
+            </button>
+          </div>
+        </div>
+      </header>`
+    );
+
+    const nav = NAV.map(
+      (group) => `
+        <div class="admin-nav-group">
+          <p class="admin-nav-title">${group.title}</p>
+          <div class="admin-nav-list">
+            ${group.items
+              .map(
+                (item) => `
+              <a class="admin-tab ${item.page === PAGE ? 'is-active' : ''}" href="${item.href}" data-tab="${item.page}">
+                <span class="admin-tab-icon"><i data-lucide="${item.icon}"></i></span> ${item.label}
+                ${item.badge ? `<span class="admin-tab-badge" data-badge="${item.badge}">${badges[item.badge] || ''}</span>` : ''}
+              </a>`
+              )
+              .join('')}
+          </div>
+        </div>`
+    ).join('');
+
+    const sidebar = document.createElement('aside');
+    sidebar.className = 'admin-sidebar';
+    sidebar.id = 'adminSidebar';
+    sidebar.innerHTML = `
+      <nav class="admin-sidebar-nav" aria-label="Khu vực quản lý">${nav}</nav>
+      <div class="admin-nav-foot">
+        <a href="/" target="_blank" rel="noopener"><i data-lucide="dices"></i> Trang chia nhóm</a>
+        <a href="/rooms.html" target="_blank" rel="noopener"><i data-lucide="bed-double"></i> Trang ghép phòng</a>
+      </div>`;
+
+    const scrim = document.createElement('button');
+    scrim.type = 'button';
+    scrim.className = 'admin-scrim';
+    scrim.id = 'navScrim';
+    scrim.hidden = true;
+    scrim.setAttribute('aria-label', 'Đóng menu');
+
+    const shell = document.querySelector('.admin-shell');
+    shell.insertBefore(sidebar, shell.firstChild);
+    shell.insertBefore(scrim, shell.firstChild);
+
+    // Vung thong bao + hop thoai xac nhan dung chung moi trang
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `
+      <div id="adminToasts" class="admin-toasts" aria-live="polite"></div>
+      <dialog id="confirmDialog" class="admin-dialog">
+        <div class="admin-dialog-head"><i data-lucide="triangle-alert"></i> <span id="confirmTitle">Xác nhận</span></div>
+        <div class="admin-dialog-body" id="confirmBody"></div>
+        <div class="admin-dialog-foot">
+          <button type="button" id="confirmCancel" class="admin-btn admin-btn-secondary">Hủy</button>
+          <button type="button" id="confirmOk" class="admin-btn admin-btn-danger">Đồng ý</button>
+        </div>
+      </dialog>`
+    );
+  }
+
+  buildShell();
 
   const secretInput = document.getElementById('secretInput');
   const secretToggle = document.getElementById('secretToggle');
@@ -13,12 +161,8 @@ window.AdminCommon = (function () {
   const themeToggle = document.getElementById('themeToggle');
   const navToggle = document.getElementById('navToggle');
   const navScrim = document.getElementById('navScrim');
-  const sidebar = document.getElementById('adminSidebar');
+  const sidebarEl = document.getElementById('adminSidebar');
   const toastHost = document.getElementById('adminToasts');
-
-  const tabButtons = [...document.querySelectorAll('.admin-tab')];
-  const panels = [...document.querySelectorAll('.admin-panel')];
-  const tabHandlers = new Map();
 
   /* ================= che do sang / toi ================= */
 
@@ -347,65 +491,61 @@ window.AdminCommon = (function () {
     toast(text, 'ok');
   }
 
-  /* ================= tabs ================= */
+  /* ================= dieu huong ================= */
 
   function closeNav() {
-    if (sidebar) sidebar.classList.remove('is-open');
+    if (sidebarEl) sidebarEl.classList.remove('is-open');
     if (navScrim) navScrim.hidden = true;
   }
 
   if (navToggle) {
     navToggle.addEventListener('click', () => {
-      const open = sidebar.classList.toggle('is-open');
+      const open = sidebarEl.classList.toggle('is-open');
       if (navScrim) navScrim.hidden = !open;
     });
   }
   if (navScrim) navScrim.addEventListener('click', closeNav);
 
+  // Chuyen sang khu vuc khac = sang trang khac
   function showTab(name) {
-    const target = tabButtons.some((btn) => btn.dataset.tab === name) ? name : tabButtons[0].dataset.tab;
+    const item = NAV.flatMap((g) => g.items).find((i) => i.page === name);
+    if (item && name !== PAGE) window.location.href = item.href;
+  }
 
-    tabButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === target));
-    panels.forEach((panel) => {
-      panel.hidden = panel.dataset.panel !== target;
-    });
-    closeNav();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
+  // So dem canh ten muc o sidebar; nho lai de trang khac cung hien duoc ngay
+  function setBadge(name, value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    badges[name] = text;
     try {
-      sessionStorage.setItem(TAB_KEY, target);
+      sessionStorage.setItem(BADGE_KEY, JSON.stringify(badges));
     } catch (err) {
       /* sessionStorage bi chan, bo qua */
     }
-
-    const handler = tabHandlers.get(target);
-    if (handler) handler();
-  }
-
-  tabButtons.forEach((btn) => {
-    btn.addEventListener('click', () => showTab(btn.dataset.tab));
-  });
-
-  // So dem nho canh ten tab o sidebar (vd so thanh vien, so phong)
-  function setBadge(name, value) {
     const el = document.querySelector(`[data-badge="${name}"]`);
-    if (el) el.textContent = value === null || value === undefined ? '' : String(value);
+    if (el) el.textContent = text;
   }
 
-  // Module dang ky ham tai du lieu cho tab cua minh; chay khi tab duoc mo.
+  // Module cua trang dang ky ham tai du lieu cua minh. Giu nguyen ten onTab de
+  // cac module khong phai sua gi khi chuyen tu mo hinh 1-trang-nhieu-tab sang
+  // moi khu vuc mot trang: chi ham cua DUNG trang nay moi duoc chay.
+  const pageHandlers = [];
+
   function onTab(name, handler) {
-    tabHandlers.set(name, handler);
+    if (name === PAGE) pageHandlers.push(handler);
   }
 
   function activeTab() {
-    const active = tabButtons.find((btn) => btn.classList.contains('is-active'));
-    return active ? active.dataset.tab : null;
+    return PAGE;
   }
 
-  // Tai lai tab dang mo (dung cho cac su kien realtime)
   function reloadActive() {
-    const handler = tabHandlers.get(activeTab());
-    if (handler) handler();
+    pageHandlers.forEach((fn) => {
+      try {
+        fn();
+      } catch (err) {
+        console.error(err);
+      }
+    });
   }
 
   // 1 socket dung chung cho ca trang: moi ket noi deu bi tinh vao so nguoi online
@@ -415,18 +555,10 @@ window.AdminCommon = (function () {
   // Nhac tai lai khi may chu co ban moi (xem js/version-guard.js)
   if (window.VersionGuard) window.VersionGuard.bind(socket);
 
-  // Khoi dong: mo lai dung tab admin xem lan truoc
-  let initialTab = null;
-  try {
-    initialTab = sessionStorage.getItem(TAB_KEY);
-  } catch (err) {
-    /* sessionStorage bi chan, bo qua */
-  }
-
   syncAuthDot();
 
-  // Doi cac module dang ky onTab xong (cac script phia sau) roi moi mo tab
-  window.addEventListener('DOMContentLoaded', () => showTab(initialTab || tabButtons[0].dataset.tab));
+  // Chay ham tai du lieu cua trang sau khi cac module phia sau da dang ky xong
+  window.addEventListener('DOMContentLoaded', reloadActive);
 
   return {
     socket,

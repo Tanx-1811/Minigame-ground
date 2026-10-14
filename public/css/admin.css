@@ -509,6 +509,70 @@ body {
   margin-top: 14px;
 }
 
+/* ---------- the thu gon duoc ---------- */
+
+/* Nhung viec it lam (them thu cong, sao luu, reset...) duoc gap lai cho moi tab
+   ngan va de nhin; bam vao tieu de la mo ra. */
+details.admin-card > summary.admin-card-head {
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: 46px;
+  user-select: none;
+  transition: background var(--fast);
+}
+
+details.admin-card > summary.admin-card-head::-webkit-details-marker {
+  display: none;
+}
+
+details.admin-card > summary.admin-card-head:hover {
+  background: var(--surface-3);
+}
+
+/* Mui ten chi bao dong/mo */
+details.admin-card > summary.admin-card-head::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  top: 22px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transform-origin: center;
+  transition: transform var(--fast);
+}
+
+details.admin-card[open] > summary.admin-card-head::after {
+  transform: rotate(-135deg);
+}
+
+details.admin-card:not([open]) > summary.admin-card-head {
+  border-bottom: 0;
+}
+
+/* Khi dong lai chi can thay tieu de, bo mo ta dai cho gon */
+details.admin-card:not([open]) > summary.admin-card-head p {
+  display: none;
+}
+
+details.admin-card[open] > .admin-card-body {
+  animation: card-open 200ms var(--ease);
+}
+
+@keyframes card-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ===================== o thong ke ===================== */
 
 .admin-stats {

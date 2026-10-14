@@ -331,12 +331,12 @@
         </div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="folder-plus"></i> Thêm nhóm</h3>
               <p>Để trống giới hạn số người nghĩa là nhóm nhận không giới hạn — hệ thống vẫn luôn chia đều giữa các nhóm.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-form-grid">
               <div class="admin-field">
@@ -359,7 +359,7 @@
             <button id="addGroupBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm nhóm</button>
             <p id="addGroupMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
           <div class="admin-card-head">
@@ -438,12 +438,12 @@
         </div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
               <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-form-grid">
               <div class="admin-field">
@@ -469,7 +469,7 @@
             <button id="addRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm phòng</button>
             <p id="addRoomMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
           <div class="admin-card-head">
@@ -486,12 +486,12 @@
         </div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="arrow-left-right"></i> Đổi chỗ hai người</h3>
               <p>Hai người cùng giới tính sẽ hoán đổi phòng cho nhau — không cần quan tâm phòng có còn chỗ trống hay không.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-form-grid">
               <div class="admin-field">
@@ -506,7 +506,7 @@
             <button id="swapBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="arrow-left-right"></i> Đổi chỗ</button>
             <p id="swapMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
           <div class="admin-card-head">
@@ -554,12 +554,12 @@
         <div id="memberStats" class="admin-stats"></div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="user-plus"></i> Thêm thành viên</h3>
               <p>Tên là cách hệ thống nhận ra từng người nên không được trùng với ai khác.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-form-grid">
               <div class="admin-field">
@@ -584,15 +584,15 @@
             <button id="addMemberBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm thành viên</button>
             <p id="addMemberMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="file-up"></i> Thêm nhiều người một lúc</h3>
               <p>Mỗi dòng một người: <code>Họ tên, Giới tính, Tên nhóm</code>. Hai cột sau có thể bỏ trống. Tên đã có sẵn sẽ được bỏ qua.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-field">
               <label for="memberImportText"><i data-lucide="clipboard-list"></i> Danh sách tên</label>
@@ -603,7 +603,7 @@ Lê Văn C"></textarea>
             <button id="memberImportBtn" class="admin-btn" type="button"><i data-lucide="file-up"></i> Thêm tất cả</button>
             <p id="memberImportMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
           <div class="admin-card-head">
@@ -707,12 +707,12 @@ Lê Văn C"></textarea>
         </div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="plus-circle"></i> Thêm câu hỏi</h3>
               <p>Nhập từ 2 đến 6 phương án — ô nào để trống thì bỏ qua. Danh sách đáp án đúng tự cập nhật theo phương án bạn nhập.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-field">
               <label for="newQuestionText"><i data-lucide="message-square"></i> Nội dung câu hỏi</label>
@@ -740,7 +740,7 @@ Lê Văn C"></textarea>
             <button id="addQuestionBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm câu hỏi</button>
             <p id="addQuestionMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card">
           <div class="admin-card-head">
@@ -897,12 +897,12 @@ Lê Văn C"></textarea>
         </div>
 
         <div class="admin-card">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="database-backup"></i> Sao lưu &amp; phục hồi</h3>
               <p>Tải toàn bộ dữ liệu về một file JSON trước khi sự kiện bắt đầu. Khi cần, nạp lại file đó để quay về đúng trạng thái cũ.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <div class="admin-btn-row">
               <button id="backupExportBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="hard-drive-download"></i> Tải file sao lưu</button>
@@ -912,15 +912,15 @@ Lê Văn C"></textarea>
             <p class="admin-help">Phục hồi sẽ <strong>xóa sạch</strong> thành viên, nhóm, phòng và câu hỏi đang có rồi thay bằng dữ liệu trong file. Không thể hoàn tác.</p>
             <p id="backupMsg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
 
         <div class="admin-card is-danger">
-          <div class="admin-card-head">
+          <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
             <div>
               <h3><i data-lucide="triangle-alert"></i> Reset toàn bộ</h3>
               <p>Xóa kết quả chia nhóm và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của <strong>tất cả thành viên</strong> để chơi lại từ đầu. Không thể hoàn tác.</p>
             </div>
-          </div>
+          </summary>
           <div class="admin-card-body">
             <label class="admin-checkbox">
               <input id="resetIncludeRooms" type="checkbox" />
@@ -941,7 +941,7 @@ Lê Văn C"></textarea>
             <button id="resetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Reset toàn bộ ngay</button>
             <p id="msg" class="admin-msg"></p>
           </div>
-        </div>
+        </details>
       </section>
     </main>
   </div>

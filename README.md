@@ -52,7 +52,8 @@ minigamegroup/
    ├─ rooms.html        # trang ghep phong ngu
    ├─ admin-reset.html  # bang dieu khien admin (nhieu tab)
    ├─ css/              # theme.css (he thiet ke chung), style.css, quiz.css, rooms.css, admin.css
-   └─ js/               # icons.js, ui-config.js, main.js, quiz.js, rooms.js, admin-*.js
+   └─ js/               # icons.js, ui-config.js, version-guard.js,
+                        # main.js, quiz.js, rooms.js, admin-*.js
 ```
 
 ## Database
@@ -85,6 +86,7 @@ Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, chưa đặt gi�
 
 ## Giao diện & tính năng
 
+- **Reset là về màn hình chờ**: admin bấm "Reset toàn bộ" (hoặc "Làm lại vòng Quiz") thì mọi người đang mở trang — kể cả người đang xem kết quả hay đang làm bài dở — đều được đưa ngay về màn hình chờ, xóa kết quả cũ và sẵn sàng bắt đầu lại. Tương tự khi admin kéo giai đoạn ngược từ Random về Quiz.
 - **Màn hình intro trước khi vào bốc thăm**: hero đầy hiệu ứng (particle bay, tiêu đề nhấp nháy), có nút "Bắt đầu bốc thăm". Nếu admin đặt giờ mở (xem mục Trang admin), màn intro hiện đếm ngược tới giờ mở, hết giờ mới cho bấm bắt đầu (kèm confetti); ai đang mở trang sẵn cũng thấy cập nhật ngay qua Socket.IO khi admin đổi giờ. Người đã random trước đó (lưu trong `localStorage`) sẽ bỏ qua màn intro và vào thẳng kết quả.
 - **Hiệu ứng random kiểu slot machine**: 3 cột quay dọc, dừng lệch nhau, cùng dừng ở icon nhóm trúng.
 - **Tiện ích trước khi quay**: xem trước 4 nhóm, bộ đếm số người chưa random, modal "Cách chơi".
@@ -121,6 +123,8 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 ## Trang admin
 
 `/admin-reset.html` — bảng điều khiển dạng console (thanh trên cố định + sidebar tối 4 nhóm chức năng), cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác). Có nút đổi **nền sáng/tối**, toast thông báo và hộp thoại xác nhận riêng thay cho `confirm()` của trình duyệt.
+
+Những việc ít làm (thêm thủ công, nhập danh sách, đổi chỗ, sao lưu, reset) được **gấp lại thành khối thu gọn** — bấm vào tiêu đề để mở — nên mỗi tab chỉ hiện việc chính.
 
 **Chế độ chỉ xem**: chưa nhập mã bí mật thì mọi danh sách (thành viên, nhóm, phòng, câu hỏi, phòng chờ, bảng điểm) vẫn hiện đầy đủ từ API công khai — chỉ các ô sửa và nút thao tác bị khóa, kèm dòng nhắc. Nhập mã xong là mở khóa ngay, không cần tải lại trang.
 
@@ -252,6 +256,20 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
    npm run dev
    ```
 6. Mở trình duyệt: http://localhost:3000
+
+## Nhắc tải lại khi có bản mới
+
+Sửa code giữa lúc sự kiện đang chạy là chuyện bình thường, nhưng tab mà mọi người đang mở
+vẫn chạy JS cũ đã nạp vào bộ nhớ. HTML mới + JS cũ lệch nhau cho ra triệu chứng rất khó đoán:
+bấm nút không ăn gì, một khu vực trống trơn, giao diện vỡ.
+
+Vì vậy máy chủ tính một "vân tay" (`BUILD_ID`) từ toàn bộ file trong `public/` lúc khởi động,
+gửi cho client ngay khi socket kết nối và qua `GET /api/version`. Client so với bản nó đang
+chạy, lệch thì hiện một thanh nhỏ **"Trang đã được cập nhật — Tải lại ngay"**. Cơ chế này có
+trên cả ba trang (`js/version-guard.js`).
+
+> Sau khi sửa code, **khởi động lại server** là mọi người sẽ được nhắc. Bản thân bạn thì vẫn
+> nên `Ctrl+Shift+R` ở tab đang mở.
 
 ## Cách hoạt động
 
