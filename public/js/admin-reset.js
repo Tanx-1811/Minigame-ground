@@ -95,6 +95,23 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Chua nhap ma bi mat: 2 tab nay van xem duoc (phong cho, bang diem, gio mo)
+// nhung cac nut thao tac bi khoa lai.
+const eventPanel = document.querySelector('.admin-panel[data-panel="event"]');
+const quizPanel = document.querySelector('.admin-panel[data-panel="quiz"]');
+const eventLockNote = document.getElementById('eventLockNote');
+const quizLockNote = document.getElementById('quizLockNote');
+
+function canEditNow() {
+  return window.AdminCommon ? window.AdminCommon.canEdit() : true;
+}
+
+function applyLocks() {
+  if (!window.AdminCommon) return;
+  window.AdminCommon.applyEditLock(eventPanel, eventLockNote);
+  window.AdminCommon.applyEditLock(quizPanel, quizLockNote);
+}
+
 function renderLobby(status, members) {
   const list = Array.isArray(members) ? members : [];
   lobbyStatusText.textContent =
@@ -108,7 +125,9 @@ function renderLobby(status, members) {
         )
         .join('')
     : '<li class="admin-empty">Chưa có ai vào phòng chờ</li>';
-  startQuizBtn.disabled = status === 'active';
+
+  applyLocks();
+  startQuizBtn.disabled = status === 'active' || !canEditNow();
 }
 
 async function loadLobby() {
@@ -345,9 +364,15 @@ resetBtn.addEventListener('click', async () => {
 
 // Mo lai tab thi tai lai du lieu moi nhat cua tab do
 if (window.AdminCommon) {
-  window.AdminCommon.onTab('event', loadCurrentEventTime);
+  window.AdminCommon.onTab('event', () => {
+    loadCurrentEventTime();
+    applyLocks();
+  });
   window.AdminCommon.onTab('quiz', () => {
     loadLobby();
     loadQuizLeaderboard();
+    applyLocks();
   });
+  window.AdminCommon.onSecretChange(applyLocks);
+  applyLocks();
 }

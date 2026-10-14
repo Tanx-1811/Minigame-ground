@@ -1496,3 +1496,34 @@ body {
   background: var(--ad-surface-3);
   font-size: 0.82rem;
 }
+
+/* Checkbox chon cau hoi trong header the cau hoi */
+.admin-question-top input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+/* Nut len/xuong trong header the cau hoi */
+.admin-question-top .admin-row-btn {
+  flex: 0 0 auto;
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* O nhap bi khoa o che do chi xem: nhin ro la khong sua duoc */
+.admin-card input:disabled,
+.admin-card select:disabled,
+.admin-card textarea:disabled {
+  background: var(--ad-surface-3);
+  color: var(--ad-muted);
+  cursor: not-allowed;
+}
+
+.admin-table input:disabled,
+.admin-table select:disabled {
+  background: transparent;
+  border-color: transparent;
+}
