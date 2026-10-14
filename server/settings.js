@@ -34,7 +34,7 @@ const TEXT_SETTINGS = {
       'Trả lời đúng & nhanh nhất để có cơ hội trở thành Nhóm Trưởng. Chốt xong Nhóm Trưởng thì vòng Random mới mở!',
   },
   footerText: { label: 'Dòng chân trang', fallback: 'Một ngày là anh em suốt đời anh em' },
-  accentColor: { label: 'Màu chủ đạo', fallback: '#2563eb' },
+  accentColor: { label: 'Màu chủ đạo', fallback: '#4f46e5' },
 };
 
 const BOOL_SETTINGS = {

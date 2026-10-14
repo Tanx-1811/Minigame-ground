@@ -30,7 +30,6 @@
 
   let groups = [];
   let stats = null;
-  let globalCapacity = 0;
   let randomLocked = false;
   const expanded = new Set();
 
@@ -206,7 +205,6 @@
       ]);
       groups = groupRes.groups || [];
       stats = groupRes.stats || null;
-      globalCapacity = groupRes.globalCapacity || 0;
       randomLocked = !!config.randomLocked;
 
       render();

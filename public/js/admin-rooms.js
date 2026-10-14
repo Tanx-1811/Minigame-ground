@@ -54,6 +54,7 @@
     { key: 'locked', label: 'Đang khóa', icon: 'lock', test: (r) => r.locked },
   ];
 
+  let activeFilter = 'all';
   let rooms = [];
   let stats = null;
   let members = [];
@@ -61,6 +62,22 @@
   const expanded = new Set();
 
   /* ---------- hien thi ---------- */
+
+  // Phong chia theo gioi nen tong suc chua du van co the thieu cho cho 1 ben.
+  // Tra ve danh sach gioi dang thieu kem so cho con thieu.
+  function shortage(st) {
+    return ['FEMALE', 'MALE']
+      .map((gender) => ({
+        label: gender === 'FEMALE' ? 'nữ' : 'nam',
+        missing: st.byGender[gender].members - st.byGender[gender].capacity,
+      }))
+      .filter((x) => x.missing > 0);
+  }
+
+  function shortageText(st) {
+    const gaps = shortage(st);
+    return gaps.length ? `Thiếu ${gaps.map((g) => `${g.missing} chỗ ${g.label}`).join(', ')}` : 'Đủ chỗ cho mọi người';
+  }
 
   function renderStats() {
     if (!stats) {
@@ -96,11 +113,8 @@
         icon: 'door-open',
         label: 'Tổng sức chứa',
         value: stats.totalCapacity,
-        sub:
-          stats.totalCapacity < stats.eligible
-            ? `Thiếu ${stats.eligible - stats.totalCapacity} chỗ`
-            : 'Đủ chỗ cho mọi người',
-        variant: stats.totalCapacity < stats.eligible ? 'danger' : 'ok',
+        sub: shortageText(stats),
+        variant: shortage(stats).length ? 'danger' : 'ok',
       }),
       stats.noGender
         ? A.statTile({
@@ -132,8 +146,6 @@
         </button>`;
     }).join('');
   }
-
-  let activeFilter = 'all';
 
   function visibleRooms() {
     const keyword = roomFilter.value.trim().toLowerCase();

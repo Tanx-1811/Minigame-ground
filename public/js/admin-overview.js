@@ -70,6 +70,15 @@
     btn.classList.toggle('admin-btn-secondary', locked);
   }
 
+  function roomGaps(r) {
+    return ['FEMALE', 'MALE']
+      .map((gender) => ({
+        label: gender === 'FEMALE' ? 'nữ' : 'nam',
+        missing: r.byGender[gender].members - r.byGender[gender].capacity,
+      }))
+      .filter((x) => x.missing > 0);
+  }
+
   function renderStats() {
     const m = data.members;
     const g = data.groups;
@@ -143,8 +152,11 @@
         icon: 'door-open',
         label: 'Tổng sức chứa',
         value: r.totalCapacity,
-        sub: r.totalCapacity < r.eligible ? `Thiếu ${r.eligible - r.totalCapacity} chỗ` : 'Đủ chỗ cho mọi người',
-        variant: r.totalCapacity < r.eligible ? 'danger' : 'ok',
+        // Phong chia theo gioi nen phai doi chieu tung ben, khong nhin con so tong
+        sub: roomGaps(r).length
+          ? `Thiếu ${roomGaps(r).map((g) => `${g.missing} chỗ ${g.label}`).join(', ')}`
+          : 'Đủ chỗ cho mọi người',
+        variant: roomGaps(r).length ? 'danger' : 'ok',
       }),
     ].join('');
 
@@ -186,6 +198,8 @@
       groupStats.innerHTML = '';
       roomStats.innerHTML = '';
       loadActivity();
+      A.applyEditLock(panel, null);
+      refreshBtn.disabled = false;
       return;
     }
 
