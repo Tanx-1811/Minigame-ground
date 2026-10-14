@@ -142,7 +142,7 @@
           </select>
         </td>
         <td><select data-field="groupId">${groupOptions(member.groupId)}</select></td>
-        <td><select data-field="roomId" ${member.gender ? '' : 'disabled'}>${roomOptions(member)}</select></td>
+        <td><select data-field="roomId" ${member.gender ? '' : 'disabled data-keep-disabled="1"'}>${roomOptions(member)}</select></td>
         <td class="admin-cell-center">
           <input type="checkbox" data-field="isLeader" ${member.isLeader ? 'checked' : ''} title="Đánh dấu là Nhóm Trưởng" />
         </td>

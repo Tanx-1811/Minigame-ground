@@ -111,8 +111,8 @@
             Câu
             <input type="number" min="1" data-field="order" value="${question.order}" title="Thứ tự câu hỏi" />
           </span>
-          <button type="button" class="admin-row-btn" data-action="move-up" ${index === 0 ? 'disabled' : ''} title="Lên trên">↑</button>
-          <button type="button" class="admin-row-btn" data-action="move-down" ${index === total - 1 ? 'disabled' : ''} title="Xuống dưới">↓</button>
+          <button type="button" class="admin-row-btn" data-action="move-up" ${index === 0 ? 'disabled data-keep-disabled="1"' : ''} title="Lên trên">↑</button>
+          <button type="button" class="admin-row-btn" data-action="move-down" ${index === total - 1 ? 'disabled data-keep-disabled="1"' : ''} title="Xuống dưới">↓</button>
           <span class="admin-question-badge">${answered === null ? 'Đáp án đang ẩn' : `${answered} câu trả lời`}</span>
         </div>
         <div class="admin-question-body">

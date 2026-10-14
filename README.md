@@ -83,14 +83,16 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 
 ## Trang admin
 
-`/admin-reset.html` — bảng điều khiển nhiều tab, cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác):
+`/admin-reset.html` — bảng điều khiển dạng dashboard (thanh trên cố định + sidebar 3 nhóm chức năng), cần `ADMIN_RESET_SECRET` trong `.env` (nhập 1 lần, dùng cho mọi thao tác).
 
-- **🛏️ Phòng ngủ**: tạo phòng tự động theo số người mỗi giới, thêm/sửa/xóa từng phòng (tên, giới tính, sức chứa, ghi chú), ghép phòng cho tất cả, khóa/mở vòng tự ghép, reset ghép phòng, kéo từng người ra khỏi phòng.
-- **👥 Thành viên**: thêm/xóa thành viên, sửa tên, **đặt giới tính Nam/Nữ**, xếp nhóm, xếp phòng thủ công, bật/tắt cờ Nhóm Trưởng, xem điểm quiz. Mọi ô lưu ngay khi thay đổi.
-- **🏷️ Nhóm**: thêm/sửa/xóa nhóm (tên + slogan). Xóa nhóm chỉ bỏ random của thành viên, không xóa người.
+**Chế độ chỉ xem**: chưa nhập mã bí mật thì mọi danh sách (thành viên, nhóm, phòng, câu hỏi, phòng chờ, bảng điểm) vẫn hiện đầy đủ từ API công khai — chỉ các ô sửa và nút thao tác bị khóa, kèm dòng nhắc. Nhập mã xong là mở khóa ngay, không cần tải lại trang.
+
+- **🛏️ Phòng ngủ**: tạo phòng tự động theo số người mỗi giới; thêm/sửa/xóa từng phòng (tên, giới tính, sức chứa, ghi chú); ghép phòng cho tất cả; khóa/mở vòng tự ghép; reset ghép phòng; **danh sách người chưa có phòng** kèm ô xếp tay vào phòng cụ thể; lọc/tìm phòng theo tên, người ở, còn chỗ/đã kín/đang trống; làm trống một phòng; xóa hết phòng đang trống; xuất CSV sơ đồ phòng.
+- **👥 Thành viên**: danh sách đầy đủ kèm số thứ tự và thống kê; thêm từng người hoặc **dán danh sách nhiều người** (`Tên` hoặc `Tên, Nam` / `Tên, Nữ`, bỏ qua tên trùng); sửa tên, **đặt giới tính Nam/Nữ**, xếp nhóm, xếp phòng, bật/tắt cờ Nhóm Trưởng, xóa; tìm kiếm, lọc nhanh (nữ/nam/chưa đặt giới tính/chưa có phòng/chưa có nhóm/nhóm trưởng), sắp xếp theo từng cột; **chọn nhiều người để sửa hàng loạt** (đặt giới tính, xếp nhóm, bỏ phòng, xóa); xuất CSV.
+- **🏷️ Nhóm**: thêm/sửa/xóa nhóm (tên + slogan); xem chip thành viên từng nhóm và gỡ từng người khỏi nhóm bằng nút ✕; chọn nhiều nhóm để xóa cùng lúc; sắp xếp theo tên/số người; xuất CSV. Xóa nhóm chỉ bỏ random của thành viên, không xóa người.
 - **⏰ Sự kiện**: đặt/xóa giờ mở bốc thăm (đếm ngược ở trang chủ).
-- **🧠 Quiz**: xem phòng chờ, bắt đầu làm bài, chốt Nhóm Trưởng, reset vòng chọn Nhóm Trưởng.
-- **❓ Câu hỏi**: thêm/sửa/xóa câu hỏi quiz, 2–6 phương án, chọn đáp án đúng, đổi thứ tự (đổi số thứ tự sẽ đổi chỗ với câu đang giữ số đó).
+- **🧠 Quiz**: xem phòng chờ realtime, bắt đầu làm bài, xem bảng xếp hạng, chốt Nhóm Trưởng, reset vòng chọn Nhóm Trưởng.
+- **❓ Câu hỏi**: thêm/sửa/xóa câu hỏi (2–6 phương án, chọn đáp án đúng); **đổi thứ tự bằng nút ↑ ↓** hoặc nhập trực tiếp số thứ tự; nhân bản câu hỏi; tìm kiếm; chọn nhiều câu để xóa cùng lúc; xuất CSV (đáp án đúng chỉ hiện khi đã nhập mã bí mật).
 - **⚙️ Hệ thống**: số Nhóm Trưởng chốt từ quiz (không còn cố định 4), sức chứa phòng mặc định, chuyển giai đoạn quiz/random, và reset toàn bộ (có tùy chọn xóa luôn kết quả ghép phòng).
 
 ## API
@@ -118,6 +120,7 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 | POST   | `/api/admin/rooms/random-all`    | Ghép phòng một lượt cho tất cả người chưa có phòng, trả về danh sách đã ghép và những ai chưa ghép được kèm lý do. |
 | POST   | `/api/admin/rooms/reset`         | Bỏ toàn bộ kết quả ghép phòng (vẫn giữ danh sách phòng), emit `rooms:reset`. |
 | POST   | `/api/admin/rooms/lock`          | `{ secret, locked: true/false }` — khóa/mở vòng tự ghép phòng.         |
+| POST   | `/api/admin/rooms/bulk`          | `{ secret, ids: [...], action: "delete" \| "clear" }` — xóa nhiều phòng, hoặc đưa hết người ra khỏi các phòng đã chọn. |
 
 ### API quản trị khác
 
@@ -127,13 +130,19 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 | POST   | `/api/admin/members`          | Thêm thành viên `{ secret, name, gender, groupId }`.                      |
 | PUT    | `/api/admin/members/:id`      | Sửa `{ name, gender, groupId, roomId, isLeader }` — kiểm tra giới tính và sức chứa phòng trước khi xếp. |
 | DELETE | `/api/admin/members/:id`      | Xóa thành viên (xóa luôn câu trả lời quiz của họ).                        |
+| POST   | `/api/admin/members/bulk`     | `{ secret, ids: [...], action }` với action = `gender` (+`gender`), `group` (+`groupId`), `clear-room`, `leader` (+`isLeader`), `delete`. Đổi giới tính hàng loạt sẽ tự đưa ai đang ở phòng khác giới ra ngoài. |
+| POST   | `/api/admin/members/import`   | `{ secret, items: [{ name, gender }] }` — thêm tối đa 200 người/lần, trả về danh sách đã tạo và các dòng bị bỏ qua kèm lý do. |
 | POST   | `/api/admin/groups`           | Thêm nhóm `{ secret, name, description }`.                                |
 | PUT    | `/api/admin/groups/:id`       | Sửa tên / slogan nhóm.                                                    |
 | DELETE | `/api/admin/groups/:id`       | Xóa nhóm, thành viên trong nhóm trở về chưa random.                       |
+| POST   | `/api/admin/groups/bulk`      | `{ secret, ids: [...], action: "delete" }` — xóa nhiều nhóm cùng lúc.     |
 | GET    | `/api/admin/questions`        | Danh sách câu hỏi kèm đáp án đúng (chỉ admin).                            |
 | POST   | `/api/admin/questions`        | Thêm câu hỏi `{ secret, text, options[], correctIndex }`.                 |
 | PUT    | `/api/admin/questions/:id`    | Sửa nội dung / phương án / đáp án / thứ tự (đổi thứ tự = đổi chỗ 2 câu).  |
 | DELETE | `/api/admin/questions/:id`    | Xóa câu hỏi và các câu trả lời cho câu đó.                                |
+| POST   | `/api/admin/questions/bulk`   | `{ secret, ids: [...], action: "delete" }` — xóa nhiều câu hỏi cùng lúc.  |
+| POST   | `/api/admin/questions/:id/duplicate` | Nhân bản câu hỏi xuống cuối danh sách (giữ nguyên phương án + đáp án). |
+| POST   | `/api/admin/questions/:id/move`      | `{ secret, direction: "up" \| "down" }` — đổi chỗ với câu liền kề.  |
 | GET    | `/api/admin/settings`         | Cấu hình đang áp dụng + số lượng thành viên/nhóm/phòng/câu hỏi.           |
 | POST   | `/api/admin/settings`         | Lưu `{ secret, leaderCount, roomCapacity, phase }`.                       |
 

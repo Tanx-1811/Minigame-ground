@@ -20,6 +20,9 @@ const resultRoom = document.getElementById('roomsResultRoom');
 const resultMates = document.getElementById('roomsResultMates');
 const roomsList = document.getElementById('roomsList');
 const roomsStats = document.getElementById('roomsStats');
+const pendingCard = document.getElementById('roomsPendingCard');
+const pendingCount = document.getElementById('roomsPendingCount');
+const pendingList = document.getElementById('roomsPendingList');
 const progressText = document.getElementById('roomsProgressText');
 const progressPct = document.getElementById('roomsProgressPct');
 const progressFill = document.getElementById('roomsProgressFill');
@@ -301,9 +304,32 @@ function updateDrawState() {
   noticeBox.classList.add('hidden');
 }
 
+// Nhung ai chua quay/chua duoc ghep - de moi nguoi biet con cho ai
+function renderPending() {
+  const pending = members.filter((m) => !m.roomId);
+  const me = myName();
+
+  pendingCard.hidden = pending.length === 0;
+  if (!pending.length) return;
+
+  pendingCount.textContent = `${pending.length} người`;
+  pendingList.innerHTML = `<div class="rooms-pending-list">${pending
+    .map((m) => {
+      const meta = genderMeta(m.gender);
+      return `
+        <span class="rooms-pending ${m.name === me ? 'is-me' : ''}">
+          <span class="avatar" style="background:${hashColor(m.name)}">${escapeHtml(initials(m.name))}</span>
+          <span>${escapeHtml(m.name)}${m.name === me ? ' (bạn)' : ''}</span>
+          <span class="rooms-pending-tag">${meta.icon} ${meta.label}</span>
+        </span>`;
+    })
+    .join('')}</div>`;
+}
+
 function renderAll() {
   renderStats();
   renderRooms();
+  renderPending();
   updateDrawState();
 }
 

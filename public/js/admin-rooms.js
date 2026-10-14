@@ -231,7 +231,7 @@
             </div>
           </div>
           <div class="admin-room-actions admin-btn-row">
-            <button type="button" class="admin-row-btn" data-action="clear-room" ${room.occupancy ? '' : 'disabled'}>🧍 Làm trống phòng</button>
+            <button type="button" class="admin-row-btn" data-action="clear-room" ${room.occupancy ? '' : 'disabled data-keep-disabled="1"'}>🧍 Làm trống phòng</button>
             <button type="button" class="admin-row-btn danger" data-action="delete-room">🗑️ Xóa phòng</button>
           </div>
         </details>

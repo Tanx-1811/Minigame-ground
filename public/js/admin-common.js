@@ -59,12 +59,14 @@ window.AdminCommon = (function () {
     secretWatchers.add(handler);
   }
 
-  // Khoa/mo toan bo o nhap + nut trong 1 vung, va hien dong nhac nhap ma bi mat
+  // Khoa/mo toan bo o nhap + nut trong 1 vung, va hien dong nhac nhap ma bi mat.
+  // data-always-enabled: khong bao gio khoa (tim kiem, xuat CSV...).
+  // data-keep-disabled: luon khoa du da co ma (vd nut "len" o cau hoi dau tien).
   function applyEditLock(scope, noteEl) {
     const locked = !canEdit();
     scope.querySelectorAll('input, select, textarea, button').forEach((el) => {
       if (el.dataset.alwaysEnabled === '1') return;
-      el.disabled = locked;
+      el.disabled = locked || el.dataset.keepDisabled === '1';
     });
     if (noteEl) {
       setMsg(

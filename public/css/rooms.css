@@ -643,3 +643,47 @@
     width: 100%;
   }
 }
+
+/* ---------- danh sach nguoi chua ghep phong ---------- */
+
+.rooms-pending-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rooms-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 7px;
+  border: 1px solid var(--rm-border);
+  border-radius: 999px;
+  background: var(--rm-surface-2);
+  font-size: 0.86rem;
+}
+
+.rooms-pending.is-me {
+  border-color: var(--color-primary);
+  background: var(--rm-male-soft);
+  font-weight: 700;
+}
+
+.rooms-pending .avatar {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.rooms-pending-tag {
+  font-size: 0.76rem;
+  color: var(--rm-muted);
+  white-space: nowrap;
+}
