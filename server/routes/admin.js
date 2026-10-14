@@ -225,6 +225,145 @@ router.delete('/admin/members/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/members/bulk - sua/xoa nhieu thanh vien cung luc
+router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
+  const { ids, action, gender, groupId, isLeader } = req.body || {};
+
+  const memberIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
+  if (!memberIds.length) {
+    return res.status(400).json({ error: 'Chưa chọn thành viên nào' });
+  }
+
+  try {
+    const members = await prisma.member.findMany({
+      where: { id: { in: memberIds } },
+      include: { room: { select: { gender: true } } },
+    });
+    if (!members.length) {
+      return res.status(404).json({ error: 'Không tìm thấy thành viên nào trong danh sách đã chọn' });
+    }
+
+    if (action === 'delete') {
+      await prisma.$transaction([
+        prisma.answer.deleteMany({ where: { memberId: { in: memberIds } } }),
+        prisma.member.deleteMany({ where: { id: { in: memberIds } } }),
+      ]);
+      emitMembers(req);
+      emitGroups(req);
+      await emitRooms(req);
+      return res.json({ ok: true, action, affected: members.length });
+    }
+
+    if (action === 'gender') {
+      const parsedGender = parseGender(gender);
+      if (parsedGender === undefined) {
+        return res.status(400).json({ error: 'Giới tính không hợp lệ' });
+      }
+
+      // Ai dang o phong khac gioi thi phai ra khoi phong do
+      const leaveRoomIds = members
+        .filter((m) => m.room && m.room.gender !== parsedGender)
+        .map((m) => m.id);
+
+      await prisma.$transaction([
+        prisma.member.updateMany({ where: { id: { in: memberIds } }, data: { gender: parsedGender } }),
+        ...(leaveRoomIds.length
+          ? [prisma.member.updateMany({ where: { id: { in: leaveRoomIds } }, data: { roomId: null } })]
+          : []),
+      ]);
+
+      emitMembers(req);
+      await emitRooms(req);
+      return res.json({ ok: true, action, affected: members.length, movedOutOfRoom: leaveRoomIds.length });
+    }
+
+    if (action === 'group') {
+      let targetGroupId = null;
+      if (groupId !== undefined && groupId !== null && groupId !== '') {
+        targetGroupId = parseId(groupId);
+        if (!targetGroupId) return res.status(400).json({ error: 'Nhóm không hợp lệ' });
+        const group = await prisma.group.findUnique({ where: { id: targetGroupId } });
+        if (!group) return res.status(404).json({ error: 'Không tìm thấy nhóm' });
+      }
+
+      await prisma.member.updateMany({ where: { id: { in: memberIds } }, data: { groupId: targetGroupId } });
+      emitMembers(req);
+      emitGroups(req);
+      return res.json({ ok: true, action, affected: members.length });
+    }
+
+    if (action === 'clear-room') {
+      const { count } = await prisma.member.updateMany({
+        where: { id: { in: memberIds }, roomId: { not: null } },
+        data: { roomId: null },
+      });
+      emitMembers(req);
+      await emitRooms(req);
+      return res.json({ ok: true, action, affected: count });
+    }
+
+    if (action === 'leader') {
+      await prisma.member.updateMany({ where: { id: { in: memberIds } }, data: { isLeader: !!isLeader } });
+      emitMembers(req);
+      emitGroups(req);
+      return res.json({ ok: true, action, affected: members.length });
+    }
+
+    return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xử lý hàng loạt' });
+  }
+});
+
+// POST /api/admin/members/import - them nhieu thanh vien 1 luot (dan danh sach ten)
+router.post('/admin/members/import', requireAdmin, async (req, res) => {
+  const { items } = req.body || {};
+
+  if (!Array.isArray(items) || !items.length) {
+    return res.status(400).json({ error: 'Chưa có dòng nào để thêm' });
+  }
+  if (items.length > 200) {
+    return res.status(400).json({ error: 'Mỗi lần chỉ thêm tối đa 200 người' });
+  }
+
+  const created = [];
+  const skipped = [];
+
+  try {
+    for (const item of items) {
+      const name = item && typeof item.name === 'string' ? item.name.trim() : '';
+      if (!name) {
+        skipped.push({ name: '(dòng trống)', reason: 'Thiếu tên' });
+        continue;
+      }
+
+      const parsedGender = parseGender(item.gender);
+      if (parsedGender === undefined) {
+        skipped.push({ name, reason: 'Giới tính không hợp lệ (chỉ nhận Nam/Nữ)' });
+        continue;
+      }
+
+      try {
+        const member = await prisma.member.create({ data: { name, gender: parsedGender } });
+        created.push({ id: member.id, name: member.name, gender: member.gender });
+      } catch (err) {
+        if (err.code === 'P2002') {
+          skipped.push({ name, reason: 'Đã có trong danh sách' });
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (created.length) emitMembers(req);
+    res.json({ ok: true, created, skipped });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi thêm danh sách' });
+  }
+});
+
 /* ---------- nhom ---------- */
 
 // POST /api/admin/groups - them nhom moi
@@ -315,6 +454,35 @@ router.delete('/admin/groups/:id', requireAdmin, async (req, res) => {
     emitGroups(req);
     emitMembers(req);
     res.json({ ok: true, releasedMembers: group._count.members });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xóa nhóm' });
+  }
+});
+
+// POST /api/admin/groups/bulk - xoa nhieu nhom cung luc
+router.post('/admin/groups/bulk', requireAdmin, async (req, res) => {
+  const { ids, action } = req.body || {};
+
+  const groupIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
+  if (!groupIds.length) {
+    return res.status(400).json({ error: 'Chưa chọn nhóm nào' });
+  }
+  if (action !== 'delete') {
+    return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
+  }
+
+  try {
+    const released = await prisma.member.count({ where: { groupId: { in: groupIds } } });
+
+    await prisma.$transaction([
+      prisma.member.updateMany({ where: { groupId: { in: groupIds } }, data: { groupId: null } }),
+      prisma.group.deleteMany({ where: { id: { in: groupIds } } }),
+    ]);
+
+    emitGroups(req);
+    emitMembers(req);
+    res.json({ ok: true, affected: groupIds.length, releasedMembers: released });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi xóa nhóm' });
@@ -481,6 +649,106 @@ router.delete('/admin/questions/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi xóa câu hỏi' });
+  }
+});
+
+// POST /api/admin/questions/bulk - xoa nhieu cau hoi cung luc
+router.post('/admin/questions/bulk', requireAdmin, async (req, res) => {
+  const { ids, action } = req.body || {};
+
+  const questionIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
+  if (!questionIds.length) {
+    return res.status(400).json({ error: 'Chưa chọn câu hỏi nào' });
+  }
+  if (action !== 'delete') {
+    return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.answer.deleteMany({ where: { questionId: { in: questionIds } } }),
+      prisma.question.deleteMany({ where: { id: { in: questionIds } } }),
+    ]);
+
+    req.io.emit('questions:updated', {});
+    res.json({ ok: true, affected: questionIds.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xóa câu hỏi' });
+  }
+});
+
+// POST /api/admin/questions/:id/duplicate - nhan ban 1 cau hoi xuong cuoi danh sach
+router.post('/admin/questions/:id/duplicate', requireAdmin, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) {
+    return res.status(400).json({ error: 'Câu hỏi không hợp lệ' });
+  }
+
+  try {
+    const question = await prisma.question.findUnique({ where: { id } });
+    if (!question) {
+      return res.status(404).json({ error: 'Không tìm thấy câu hỏi' });
+    }
+
+    const last = await prisma.question.findFirst({ orderBy: { order: 'desc' } });
+    const copy = await prisma.question.create({
+      data: {
+        order: last.order + 1,
+        text: `${question.text} (bản sao)`,
+        options: question.options,
+        correctIndex: question.correctIndex,
+      },
+    });
+
+    req.io.emit('questions:updated', {});
+    res.json({ ok: true, question: copy });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi nhân bản câu hỏi' });
+  }
+});
+
+// POST /api/admin/questions/:id/move - doi cho voi cau lien ke (len/xuong)
+router.post('/admin/questions/:id/move', requireAdmin, async (req, res) => {
+  const id = parseId(req.params.id);
+  const { direction } = req.body || {};
+
+  if (!id) {
+    return res.status(400).json({ error: 'Câu hỏi không hợp lệ' });
+  }
+  if (!['up', 'down'].includes(direction)) {
+    return res.status(400).json({ error: 'Hướng di chuyển không hợp lệ' });
+  }
+
+  try {
+    const question = await prisma.question.findUnique({ where: { id } });
+    if (!question) {
+      return res.status(404).json({ error: 'Không tìm thấy câu hỏi' });
+    }
+
+    // Cau ke ben theo thu tu hien tai (khong gia dinh order lien tuc 1,2,3...)
+    const neighbour = await prisma.question.findFirst({
+      where: direction === 'up' ? { order: { lt: question.order } } : { order: { gt: question.order } },
+      orderBy: { order: direction === 'up' ? 'desc' : 'asc' },
+    });
+
+    if (!neighbour) {
+      return res.status(400).json({ error: direction === 'up' ? 'Câu này đã ở đầu danh sách' : 'Câu này đã ở cuối danh sách' });
+    }
+
+    // `order` la unique nen phai di qua 1 gia tri tam
+    await prisma.$transaction([
+      prisma.question.update({ where: { id: neighbour.id }, data: { order: -neighbour.order } }),
+      prisma.question.update({ where: { id: question.id }, data: { order: neighbour.order } }),
+      prisma.question.update({ where: { id: neighbour.id }, data: { order: question.order } }),
+    ]);
+
+    req.io.emit('questions:updated', {});
+    res.json({ ok: true, order: neighbour.order });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đổi thứ tự câu hỏi' });
   }
 });
 

@@ -1,10 +1,13 @@
-// Tab "Cau hoi": soan bo cau hoi quiz dung de chon Nhom Truong.
+// Tab "Cau hoi": soan bo cau hoi quiz chon Nhom Truong - sua noi dung/phuong an,
+// doi thu tu (nut len/xuong hoac nhap so), nhan ban, xoa le hoac xoa nhieu cau,
+// tim kiem, xuat CSV. Chua nhap ma bi mat van xem duoc danh sach (an dap an).
 (function () {
   const A = window.AdminCommon;
 
   const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
   const MAX_OPTIONS = LETTERS.length;
 
+  const panel = document.querySelector('.admin-panel[data-panel="questions"]');
   const newQuestionText = document.getElementById('newQuestionText');
   const newQuestionOptions = document.getElementById('newQuestionOptions');
   const newQuestionCorrect = document.getElementById('newQuestionCorrect');
@@ -13,8 +16,15 @@
 
   const questionList = document.getElementById('questionList');
   const questionMsg = document.getElementById('questionMsg');
+  const lockNote = document.getElementById('questionLockNote');
+  const questionFilter = document.getElementById('questionFilter');
+  const bulkBar = document.getElementById('questionBulkBar');
+  const bulkCount = document.getElementById('questionBulkCount');
+  const exportBtn = document.getElementById('questionExportBtn');
 
   let questions = [];
+  let canSeeAnswers = false;
+  const selected = new Set();
 
   function optionInputsHtml(values) {
     return Array.from({ length: MAX_OPTIONS }, (_, i) => {
@@ -78,18 +88,32 @@
 
   /* ---------- danh sach cau hoi ---------- */
 
-  function questionHtml(question) {
+  function visibleQuestions() {
+    const keyword = questionFilter.value.trim().toLowerCase();
+    if (!keyword) return questions;
+    return questions.filter(
+      (q) =>
+        q.text.toLowerCase().includes(keyword) ||
+        (Array.isArray(q.options) ? q.options : []).some((opt) => String(opt).toLowerCase().includes(keyword))
+    );
+  }
+
+  function questionHtml(question, index, total) {
     const options = Array.isArray(question.options) ? question.options : [];
-    const answered = question._count ? question._count.answers : 0;
+    const answered = question._count ? question._count.answers : null;
 
     return `
       <div class="admin-question" data-question-id="${question.id}">
         <div class="admin-question-top">
+          <input type="checkbox" data-select="${question.id}" ${selected.has(question.id) ? 'checked' : ''}
+            title="Chọn câu này" data-always-enabled="1" />
           <span class="admin-question-order">
             Câu
             <input type="number" min="1" data-field="order" value="${question.order}" title="Thứ tự câu hỏi" />
           </span>
-          <span class="admin-question-badge">${answered} câu trả lời</span>
+          <button type="button" class="admin-row-btn" data-action="move-up" ${index === 0 ? 'disabled' : ''} title="Lên trên">↑</button>
+          <button type="button" class="admin-row-btn" data-action="move-down" ${index === total - 1 ? 'disabled' : ''} title="Xuống dưới">↓</button>
+          <span class="admin-question-badge">${answered === null ? 'Đáp án đang ẩn' : `${answered} câu trả lời`}</span>
         </div>
         <div class="admin-question-body">
           <div class="admin-field">
@@ -109,40 +133,76 @@
         </div>
         <div class="admin-question-foot">
           <button type="button" class="admin-row-btn" data-action="save-question">💾 Lưu câu này</button>
+          <button type="button" class="admin-row-btn" data-action="duplicate-question">📄 Nhân bản</button>
           <button type="button" class="admin-row-btn danger" data-action="delete-question">🗑️ Xóa câu này</button>
         </div>
       </div>`;
   }
 
+  function renderBulkBar() {
+    bulkBar.hidden = selected.size === 0;
+    bulkCount.textContent = `Đã chọn ${selected.size} câu`;
+  }
+
   function render() {
     if (questionList.contains(document.activeElement)) return;
 
-    questionList.innerHTML = questions.length
-      ? questions.map(questionHtml).join('')
-      : '<p class="admin-empty">Chưa có câu hỏi nào. Không có câu hỏi thì hệ thống bỏ qua vòng quiz và mở random luôn.</p>';
+    renderBulkBar();
+
+    const list = visibleQuestions();
+    questionList.innerHTML = list.length
+      ? list.map((q, i) => questionHtml(q, questions.indexOf(q), questions.length)).join('')
+      : `<p class="admin-empty">${questions.length ? 'Không có câu hỏi nào khớp từ khóa' : 'Chưa có câu hỏi nào. Không có câu hỏi thì hệ thống bỏ qua vòng quiz và mở random luôn.'}</p>`;
 
     questionList.querySelectorAll('.admin-question').forEach((card) => {
       const question = questions.find((q) => q.id === Number(card.dataset.questionId));
       const scope = card.querySelector('[data-options]');
       const select = card.querySelector('[data-field="correctIndex"]');
       syncCorrectSelect(scope, select, question.correctIndex);
-      // Danh dau truc quan phuong an dang la dap an dung
-      card.querySelectorAll('.admin-option').forEach((opt) => {
-        opt.classList.toggle('is-correct', Number(opt.dataset.optionIndex) === question.correctIndex);
-      });
+
+      // Danh dau truc quan phuong an dang la dap an dung (chi khi doc duoc dap an)
+      if (canSeeAnswers) {
+        card.querySelectorAll('.admin-option').forEach((opt) => {
+          opt.classList.toggle('is-correct', Number(opt.dataset.optionIndex) === question.correctIndex);
+        });
+      }
     });
+
+    A.applyEditLock(panel, lockNote);
+
+    if (!canSeeAnswers && questions.length) {
+      A.setMsg(
+        lockNote,
+        '🔒 Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để xem đáp án đúng và sửa câu hỏi.'
+      );
+    }
   }
 
   async function loadQuestions() {
     try {
-      questions = await A.request('GET', '/api/admin/questions');
+      if (A.canEdit()) {
+        questions = await A.request('GET', '/api/admin/questions');
+        canSeeAnswers = true;
+      } else {
+        // API cong khai khong tra ve correctIndex -> chi xem duoc noi dung
+        questions = await fetch('/api/quiz/questions').then((r) => r.json());
+        canSeeAnswers = false;
+      }
+
+      const ids = new Set(questions.map((q) => q.id));
+      [...selected].forEach((id) => {
+        if (!ids.has(id)) selected.delete(id);
+      });
+
       render();
-      A.setMsg(questionMsg, '');
+      if (canSeeAnswers) A.setMsg(questionMsg, '');
     } catch (err) {
       questionList.innerHTML = `<p class="admin-empty">${A.escapeHtml(err.message)}</p>`;
       A.setMsg(questionMsg, err.message, 'err');
     }
   }
+
+  questionFilter.addEventListener('input', render);
 
   questionList.addEventListener('focusout', () => {
     setTimeout(() => {
@@ -154,6 +214,15 @@
     if (e.target.dataset.option === undefined) return;
     const card = e.target.closest('.admin-question');
     syncCorrectSelect(card.querySelector('[data-options]'), card.querySelector('[data-field="correctIndex"]'));
+  });
+
+  questionList.addEventListener('change', (e) => {
+    const selectId = e.target.dataset.select;
+    if (!selectId) return;
+    const id = Number(selectId);
+    if (e.target.checked) selected.add(id);
+    else selected.delete(id);
+    renderBulkBar();
   });
 
   questionList.addEventListener('click', async (e) => {
@@ -181,6 +250,28 @@
       return;
     }
 
+    if (action === 'move-up' || action === 'move-down') {
+      const data = await A.run(e.target, questionMsg, 'Đang đổi thứ tự...', () =>
+        A.request('POST', `/api/admin/questions/${questionId}/move`, {
+          direction: action === 'move-up' ? 'up' : 'down',
+        })
+      );
+      if (!data) return;
+      A.setMsg(questionMsg, 'Đã đổi thứ tự câu hỏi.', 'ok');
+      loadQuestions();
+      return;
+    }
+
+    if (action === 'duplicate-question') {
+      const data = await A.run(e.target, questionMsg, 'Đang nhân bản...', () =>
+        A.request('POST', `/api/admin/questions/${questionId}/duplicate`)
+      );
+      if (!data) return;
+      A.setMsg(questionMsg, `Đã nhân bản thành câu số ${data.question.order}.`, 'ok');
+      loadQuestions();
+      return;
+    }
+
     if (action === 'delete-question') {
       const text = card.querySelector('[data-field="text"]').value;
       if (!confirm(`Xóa câu hỏi "${text}"? Câu trả lời của mọi người cho câu này cũng bị xóa.`)) return;
@@ -190,9 +281,53 @@
       );
       if (!data) return;
 
+      selected.delete(questionId);
       A.setMsg(questionMsg, 'Đã xóa câu hỏi.', 'ok');
       loadQuestions();
     }
+  });
+
+  bulkBar.addEventListener('click', async (e) => {
+    const action = e.target.dataset.bulk;
+    if (!action) return;
+
+    if (action === 'clear-selection') {
+      selected.clear();
+      render();
+      return;
+    }
+
+    if (action === 'delete') {
+      if (!selected.size) {
+        A.setMsg(questionMsg, 'Chưa chọn câu nào', 'err');
+        return;
+      }
+      if (!confirm(`Xóa ${selected.size} câu hỏi đã chọn? Câu trả lời của mọi người cho các câu đó cũng bị xóa.`)) return;
+
+      const data = await A.run(null, questionMsg, 'Đang xóa...', () =>
+        A.request('POST', '/api/admin/questions/bulk', { ids: [...selected], action: 'delete' })
+      );
+      if (!data) return;
+
+      selected.clear();
+      A.setMsg(questionMsg, `Đã xóa ${data.affected} câu hỏi.`, 'ok');
+      loadQuestions();
+    }
+  });
+
+  exportBtn.addEventListener('click', () => {
+    const rows = [['Thứ tự', 'Câu hỏi', ...LETTERS.map((l) => `Phương án ${l}`), 'Đáp án đúng']];
+    visibleQuestions().forEach((q) => {
+      const options = Array.isArray(q.options) ? q.options : [];
+      rows.push([
+        q.order,
+        q.text,
+        ...Array.from({ length: MAX_OPTIONS }, (_, i) => options[i] || ''),
+        canSeeAnswers ? `${LETTERS[q.correctIndex] || ''}. ${options[q.correctIndex] || ''}` : '(ẩn)',
+      ]);
+    });
+    A.downloadCsv('cau-hoi-quiz.csv', rows);
+    A.setMsg(questionMsg, `Đã xuất ${rows.length - 1} câu hỏi ra file CSV.`, 'ok');
   });
 
   if (A.socket) {
@@ -200,6 +335,10 @@
       if (A.activeTab() === 'questions') loadQuestions();
     });
   }
+
+  A.onSecretChange(() => {
+    if (A.activeTab() === 'questions') loadQuestions();
+  });
 
   A.onTab('questions', loadQuestions);
 })();

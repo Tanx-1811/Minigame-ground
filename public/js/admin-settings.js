@@ -2,6 +2,8 @@
 (function () {
   const A = window.AdminCommon;
 
+  const panel = document.querySelector('.admin-panel[data-panel="system"]');
+  const lockNote = document.getElementById('systemLockNote');
   const systemStats = document.getElementById('systemStats');
   const leaderCountInput = document.getElementById('leaderCountInput');
   const roomCapacityInput = document.getElementById('roomCapacityInput');
@@ -40,14 +42,42 @@
     ].join('');
   }
 
+  // Chua co ma bi mat: van dung duoc API cong khai de hien day du so lieu,
+  // chi khong doc duoc cac cau hinh rieng (so nhom truong, suc chua mac dinh).
+  async function loadPublicOverview() {
+    const [config, roomPayload, groups, members] = await Promise.all([
+      fetch('/api/config').then((r) => r.json()),
+      fetch('/api/rooms').then((r) => r.json()),
+      fetch('/api/groups').then((r) => r.json()),
+      fetch('/api/members').then((r) => r.json()),
+    ]);
+    const questions = await fetch('/api/quiz/questions').then((r) => r.json());
+
+    return {
+      leaderCount: '',
+      roomCapacity: roomPayload.defaultCapacity,
+      roomsLocked: !!roomPayload.locked,
+      phase: config.phase,
+      quizStatus: 'waiting',
+      counts: {
+        members: members.length,
+        groups: groups.length,
+        rooms: (roomPayload.rooms || []).length,
+        questions: questions.length,
+      },
+    };
+  }
+
   async function loadSettings() {
     try {
-      const settings = await A.request('GET', '/api/admin/settings');
+      const settings = A.canEdit() ? await A.request('GET', '/api/admin/settings') : await loadPublicOverview();
+
       leaderCountInput.value = settings.leaderCount;
       roomCapacityInput.value = settings.roomCapacity;
       phaseSelect.value = settings.phase === 'random' ? 'random' : 'quiz';
       renderStats(settings);
-      A.setMsg(settingsMsg, '');
+      A.applyEditLock(panel, lockNote);
+      if (A.canEdit()) A.setMsg(settingsMsg, '');
     } catch (err) {
       systemStats.innerHTML = '';
       A.setMsg(settingsMsg, err.message, 'err');
@@ -76,10 +106,18 @@
   });
 
   if (A.socket) {
-    A.socket.on('settings:updated', () => {
+    const refreshIfVisible = () => {
       if (A.activeTab() === 'system') loadSettings();
-    });
+    };
+    A.socket.on('settings:updated', refreshIfVisible);
+    A.socket.on('rooms:config', refreshIfVisible);
+    A.socket.on('phase:updated', refreshIfVisible);
+    A.socket.on('groups:reset', refreshIfVisible);
   }
+
+  A.onSecretChange(() => {
+    if (A.activeTab() === 'system') loadSettings();
+  });
 
   A.onTab('system', loadSettings);
 })();

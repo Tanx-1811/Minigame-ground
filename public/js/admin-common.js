@@ -27,16 +27,70 @@ window.AdminCommon = (function () {
       /* sessionStorage bi chan, bo qua */
     }
 
-    // Vua nhap xong ma bi mat thi tai lai du lieu cua tab dang mo (nhieu tab can secret)
+    // Vua nhap xong ma bi mat thi tai lai du lieu cua tab dang mo va mo khoa
+    // cac o sua (truoc do dang o che do chi xem)
     clearTimeout(secretDebounce);
     secretDebounce = setTimeout(() => {
+      secretWatchers.forEach((handler) => {
+        try {
+          handler(canEdit());
+        } catch (err) {
+          console.error(err);
+        }
+      });
       const handler = tabHandlers.get(activeTab());
-      if (secretInput.value.trim() && handler) handler();
+      if (handler) handler();
     }, 700);
   });
 
   function getSecret() {
     return secretInput.value.trim();
+  }
+
+  // Chua nhap ma bi mat -> cac tab van hien danh sach (doc tu API cong khai),
+  // chi khoa cac o sua/nut thao tac lai.
+  function canEdit() {
+    return getSecret().length > 0;
+  }
+
+  const secretWatchers = new Set();
+
+  function onSecretChange(handler) {
+    secretWatchers.add(handler);
+  }
+
+  // Khoa/mo toan bo o nhap + nut trong 1 vung, va hien dong nhac nhap ma bi mat
+  function applyEditLock(scope, noteEl) {
+    const locked = !canEdit();
+    scope.querySelectorAll('input, select, textarea, button').forEach((el) => {
+      if (el.dataset.alwaysEnabled === '1') return;
+      el.disabled = locked;
+    });
+    if (noteEl) {
+      setMsg(
+        noteEl,
+        locked ? '🔒 Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để thêm/sửa/xóa.' : ''
+      );
+    }
+    return !locked;
+  }
+
+  // Tai file CSV tu du lieu dang bang (co BOM de Excel doc dung tieng Viet)
+  function downloadCsv(filename, rows) {
+    const escapeCell = (value) => {
+      const text = value === null || value === undefined ? '' : String(value);
+      return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const csv = rows.map((row) => row.map(escapeCell).join(',')).join('\r\n');
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   function escapeHtml(str) {
@@ -169,6 +223,10 @@ window.AdminCommon = (function () {
   return {
     socket,
     getSecret,
+    canEdit,
+    onSecretChange,
+    applyEditLock,
+    downloadCsv,
     escapeHtml,
     genderLabel,
     genderIcon,

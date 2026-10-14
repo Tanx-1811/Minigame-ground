@@ -282,6 +282,46 @@ router.delete('/admin/rooms/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/rooms/bulk - xoa nhieu phong, hoac dua het nguoi ra khoi cac phong da chon
+router.post('/admin/rooms/bulk', requireAdmin, async (req, res) => {
+  const { ids, action } = req.body || {};
+
+  const roomIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
+  if (!roomIds.length) {
+    return res.status(400).json({ error: 'Chưa chọn phòng nào' });
+  }
+
+  try {
+    if (action === 'delete') {
+      const released = await prisma.member.count({ where: { roomId: { in: roomIds } } });
+      await prisma.$transaction([
+        prisma.member.updateMany({ where: { roomId: { in: roomIds } }, data: { roomId: null } }),
+        prisma.room.deleteMany({ where: { id: { in: roomIds } } }),
+      ]);
+
+      await emitRooms(req);
+      req.io.emit('members:updated', {});
+      return res.json({ ok: true, action, affected: roomIds.length, releasedMembers: released });
+    }
+
+    if (action === 'clear') {
+      const { count } = await prisma.member.updateMany({
+        where: { roomId: { in: roomIds } },
+        data: { roomId: null },
+      });
+
+      await emitRooms(req);
+      req.io.emit('members:updated', {});
+      return res.json({ ok: true, action, affected: count });
+    }
+
+    return res.status(400).json({ error: 'Hành động hàng loạt không hợp lệ' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xử lý hàng loạt phòng' });
+  }
+});
+
 // POST /api/admin/rooms/auto-create - tu tao du so phong cho ca 2 gioi theo suc chua mong muon
 router.post('/admin/rooms/auto-create', requireAdmin, async (req, res) => {
   const { capacity, prefix } = req.body || {};

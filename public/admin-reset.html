@@ -156,11 +156,40 @@
         <div class="admin-card">
           <div class="admin-card-head">
             <div>
+              <h3>Chưa có phòng</h3>
+              <p>Những người chưa được ghép. Chọn phòng trong ô bên cạnh để xếp tay, hoặc dùng "Ghép phòng cho tất cả" ở trên.</p>
+            </div>
+            <span id="pendingCount" class="admin-chip"></span>
+          </div>
+          <div class="admin-card-body">
+            <div id="pendingList"></div>
+            <p id="pendingMsg" class="admin-msg"></p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
               <h3>Danh sách phòng</h3>
               <p>Bấm ✕ cạnh tên để đưa người ra khỏi phòng. Mở "Sửa phòng" để đổi tên, giới tính, sức chứa hoặc xóa phòng.</p>
             </div>
+            <button id="roomExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">⬇️ Xuất CSV</button>
           </div>
           <div class="admin-card-body">
+            <p id="roomLockNote" class="admin-msg"></p>
+
+            <div class="admin-toolbar">
+              <div class="admin-field">
+                <label for="roomFilter">Tìm phòng / tên người</label>
+                <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1" />
+              </div>
+              <div class="admin-filter-chips" id="roomFilterChips"></div>
+            </div>
+
+            <div class="admin-btn-row" style="margin-bottom:14px;">
+              <button id="roomDeleteEmptyBtn" class="admin-row-btn danger" type="button">🧹 Xóa hết phòng đang trống</button>
+            </div>
+
             <div id="roomList"></div>
             <p id="roomListMsg" class="admin-msg"></p>
           </div>
@@ -182,6 +211,8 @@
             </div>
           </div>
           <div class="admin-card-body">
+            <p id="eventLockNote" class="admin-msg"></p>
+
             <div class="admin-form-grid">
               <div class="admin-field">
                 <label for="eventTimeInput">Ngày giờ mở (theo giờ máy của bạn)</label>
@@ -213,6 +244,7 @@
             <span id="lobbyStatusText" class="admin-chip"></span>
           </div>
           <div class="admin-card-body">
+            <p id="quizLockNote" class="admin-msg"></p>
             <ol id="lobbyMembersList" class="admin-list"></ol>
             <button id="startQuizBtn" class="admin-btn" type="button">🚀 Bắt đầu làm bài (đếm ngược 3 giây)</button>
             <p id="lobbyMsg" class="admin-msg"></p>
@@ -227,7 +259,7 @@
             </div>
           </div>
           <div class="admin-card-body">
-            <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button">🔄 Tải bảng xếp hạng</button>
+            <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">🔄 Tải bảng xếp hạng</button>
             <ol id="quizAdminLeaderboard" class="admin-list" style="margin-top:14px;"></ol>
 
             <label class="admin-checkbox" style="margin-top:14px;">
@@ -289,15 +321,50 @@
         <div class="admin-card">
           <div class="admin-card-head">
             <div>
-              <h3>Danh sách thành viên</h3>
-              <p>Phòng ngủ chỉ liệt kê các phòng đúng giới tính của người đó. Phòng đã kín sẽ bị khóa chọn.</p>
+              <h3>Thêm nhiều người một lúc</h3>
+              <p>Mỗi dòng một người. Có thể ghi kèm giới tính: <code>Nguyễn Văn A, Nam</code> hoặc <code>Trần Thị B, Nữ</code>. Tên đã có sẵn sẽ được bỏ qua.</p>
             </div>
           </div>
           <div class="admin-card-body">
-            <div class="admin-form-grid is-tight" style="margin-bottom:14px;">
+            <div class="admin-field">
+              <label for="memberImportText">Danh sách tên</label>
+              <textarea id="memberImportText" placeholder="Nguyễn Văn A, Nam
+Trần Thị B, Nữ
+Lê Văn C"></textarea>
+            </div>
+            <button id="memberImportBtn" class="admin-btn" type="button">📥 Thêm tất cả</button>
+            <p id="memberImportMsg" class="admin-msg"></p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-head">
+            <div>
+              <h3>Danh sách thành viên</h3>
+              <p>Bấm tiêu đề cột để sắp xếp. Tick chọn nhiều người để sửa hàng loạt. Phòng ngủ chỉ liệt kê phòng đúng giới tính và còn chỗ.</p>
+            </div>
+            <button id="memberExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">⬇️ Xuất CSV</button>
+          </div>
+          <div class="admin-card-body">
+            <p id="memberLockNote" class="admin-msg"></p>
+
+            <div class="admin-toolbar">
               <div class="admin-field">
                 <label for="memberFilter">Tìm thành viên</label>
-                <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." />
+                <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1" />
+              </div>
+              <div class="admin-filter-chips" id="memberFilterChips"></div>
+            </div>
+
+            <div id="memberBulkBar" class="admin-bulkbar" hidden>
+              <span id="memberBulkCount" class="admin-bulkbar-count"></span>
+              <div class="admin-bulkbar-actions">
+                <button type="button" class="admin-row-btn" data-bulk="gender-female">👩 Đặt Nữ</button>
+                <button type="button" class="admin-row-btn" data-bulk="gender-male">👨 Đặt Nam</button>
+                <select id="memberBulkGroup" title="Xếp những người đã chọn vào nhóm"></select>
+                <button type="button" class="admin-row-btn" data-bulk="clear-room">🛏️ Bỏ phòng</button>
+                <button type="button" class="admin-row-btn danger" data-bulk="delete">🗑️ Xóa</button>
+                <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
               </div>
             </div>
 
@@ -305,12 +372,14 @@
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>Họ tên</th>
-                    <th>Giới tính</th>
-                    <th>Nhóm</th>
-                    <th>Phòng ngủ</th>
-                    <th>Nhóm trưởng</th>
-                    <th>Quiz</th>
+                    <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" title="Chọn tất cả" /></th>
+                    <th></th>
+                    <th data-sort="name">Họ tên</th>
+                    <th data-sort="gender">Giới tính</th>
+                    <th data-sort="group">Nhóm</th>
+                    <th data-sort="room">Phòng ngủ</th>
+                    <th data-sort="leader">Nhóm trưởng</th>
+                    <th data-sort="quiz">Quiz</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -356,17 +425,30 @@
           <div class="admin-card-head">
             <div>
               <h3>Danh sách nhóm</h3>
-              <p>Xóa nhóm chỉ đưa thành viên về trạng thái chưa random — không ai bị xóa khỏi hệ thống.</p>
+              <p>Bấm ✕ cạnh tên người để đưa họ ra khỏi nhóm. Xóa nhóm chỉ đưa thành viên về trạng thái chưa random — không ai bị xóa khỏi hệ thống.</p>
             </div>
+            <button id="groupExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">⬇️ Xuất CSV</button>
           </div>
           <div class="admin-card-body">
+            <p id="groupLockNote" class="admin-msg"></p>
+
+            <div id="groupBulkBar" class="admin-bulkbar" hidden>
+              <span id="groupBulkCount" class="admin-bulkbar-count"></span>
+              <div class="admin-bulkbar-actions">
+                <button type="button" class="admin-row-btn danger" data-bulk="delete">🗑️ Xóa nhóm đã chọn</button>
+                <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
+              </div>
+            </div>
+
             <div class="admin-table-wrap">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>Tên nhóm</th>
+                    <th class="admin-cell-check"><input id="groupSelectAll" type="checkbox" title="Chọn tất cả" /></th>
+                    <th data-sort="name">Tên nhóm</th>
                     <th>Slogan / mô tả</th>
-                    <th>Số người</th>
+                    <th data-sort="count">Số người</th>
+                    <th>Thành viên</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -417,10 +499,28 @@
           <div class="admin-card-head">
             <div>
               <h3>Danh sách câu hỏi</h3>
-              <p>Sửa xong bấm "Lưu câu này". Đổi số thứ tự sẽ đổi chỗ với câu đang giữ số đó. Xóa câu hỏi sẽ xóa luôn câu trả lời của mọi người cho câu đó.</p>
+              <p>Dùng ↑ ↓ để đổi thứ tự, hoặc nhập trực tiếp số thứ tự. Sửa nội dung xong bấm "Lưu câu này". Xóa câu hỏi sẽ xóa luôn câu trả lời của mọi người cho câu đó.</p>
             </div>
+            <button id="questionExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">⬇️ Xuất CSV</button>
           </div>
           <div class="admin-card-body">
+            <p id="questionLockNote" class="admin-msg"></p>
+
+            <div class="admin-toolbar">
+              <div class="admin-field">
+                <label for="questionFilter">Tìm câu hỏi</label>
+                <input id="questionFilter" type="search" placeholder="Nhập từ khóa trong câu hỏi hoặc phương án..." data-always-enabled="1" />
+              </div>
+            </div>
+
+            <div id="questionBulkBar" class="admin-bulkbar" hidden>
+              <span id="questionBulkCount" class="admin-bulkbar-count"></span>
+              <div class="admin-bulkbar-actions">
+                <button type="button" class="admin-row-btn danger" data-bulk="delete">🗑️ Xóa câu đã chọn</button>
+                <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
+              </div>
+            </div>
+
             <div id="questionList"></div>
             <p id="questionMsg" class="admin-msg"></p>
           </div>
@@ -444,6 +544,8 @@
             </div>
           </div>
           <div class="admin-card-body">
+            <p id="systemLockNote" class="admin-msg"></p>
+
             <div class="admin-form-grid">
               <div class="admin-field">
                 <label for="leaderCountInput">Số Nhóm Trưởng chốt từ quiz</label>
