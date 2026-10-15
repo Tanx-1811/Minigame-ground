@@ -1990,12 +1990,15 @@ details.admin-card[open] > .admin-card-body {
   flex-wrap: wrap;
 }
 
+/* Khoi nay chua chu "Cau" VA mot o nhap so thu tu, nen khong the ep thanh
+   hinh vuong 28px - o nhap se bi dinh sat ca hai mep. */
 .admin-question-order {
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--control-sm);
+  padding: 0 10px;
   border-radius: var(--r-sm);
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
@@ -2003,6 +2006,16 @@ details.admin-card[open] > .admin-card-body {
   font-size: 0.8rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* .admin-content input[type='number'] dat width:100% va co do uu tien cao hon,
+   nen phai viet du .admin-content o day moi de len duoc. */
+.admin-content .admin-question-order input {
+  width: 52px;
+  height: 26px !important;
+  padding: 0 6px !important;
+  text-align: center;
+  font-weight: 700;
 }
 
 .admin-question-badge {
