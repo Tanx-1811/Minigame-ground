@@ -1237,13 +1237,13 @@ function renderGroups() {
                   <h2>${escapeHtml(group.name)}</h2>
                   ${group.description ? `<p class="group-desc">${escapeHtml(group.description)}</p>` : ''}
                 </div>
-                <button type="button" class="group-flip-btn" aria-pressed="false" aria-label="Xem slogan của ${escapeHtml(group.name)}">
-                  <i data-lucide="message-square-quote"></i>
-                </button>
               </div>
               <div class="group-card-meta">
                 <span class="member-count-badge num">${capText} thành viên</span>
                 ${group.locked ? '<span class="group-lock-badge"><i data-lucide="lock"></i> Đang khóa</span>' : ''}
+                <button type="button" class="group-flip-btn" aria-pressed="false" aria-label="Xem slogan của ${escapeHtml(group.name)}" title="Xem slogan">
+                  <i data-lucide="message-square-quote"></i>
+                </button>
               </div>
               <ul class="member-list">${memberItems}</ul>
             </div>

@@ -645,7 +645,7 @@ svg.lucide {
 .site-nav-online {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   height: 38px;
   padding: 0 13px;
   border: 1px solid var(--line);

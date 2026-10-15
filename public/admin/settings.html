@@ -36,13 +36,13 @@
                 </div>
               </div>
 
-              <div id="systemStats" class="admin-stats"></div>
+              <div id="systemStats" class="admin-stats is-six"></div>
 
               <div class="admin-card">
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="sliders-horizontal"></i> Luật chơi</h3>
-                    <p>Chuyển giai đoạn sang "Random" là cách mở vòng chia nhóm ngay mà không cần làm quiz.</p>
+                    <p>Chuyển giai đoạn sang "Random" là cách mở vòng chia nhóm ngay mà không cần làm quiz. Chỉ những ô bạn đã sửa (viền màu) mới được gửi đi.</p>
                   </div>
                 </div>
                 <div class="admin-card-body">
@@ -51,27 +51,31 @@
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="leaderCountInput"><i data-lucide="crown"></i> Số Nhóm Trưởng chốt từ quiz</label>
-                      <input id="leaderCountInput" type="number" min="1" max="100" />
+                      <input id="leaderCountInput" type="number" min="1" max="100" inputmode="numeric" />
                     </div>
                     <div class="admin-field">
                       <label for="roomCapacityInput"><i data-lucide="bed-double"></i> Sức chứa phòng mặc định</label>
-                      <input id="roomCapacityInput" type="number" min="1" max="50" />
+                      <input id="roomCapacityInput" type="number" min="1" max="50" inputmode="numeric" />
                     </div>
                     <div class="admin-field">
                       <label for="groupCapacityInput"><i data-lucide="users-round"></i> Giới hạn người mỗi nhóm</label>
-                      <input id="groupCapacityInput" type="number" min="0" max="500" />
-                      <span class="admin-field-hint">0 = không giới hạn (vẫn chia đều giữa các nhóm)</span>
+                      <input id="groupCapacityInput" type="number" min="0" max="500" inputmode="numeric" aria-describedby="groupCapacityHint" />
+                      <span class="admin-field-hint" id="groupCapacityHint">0 = không giới hạn (vẫn chia đều giữa các nhóm)</span>
                     </div>
                     <div class="admin-field">
                       <label for="phaseSelect"><i data-lucide="git-branch"></i> Giai đoạn hiện tại</label>
-                      <select id="phaseSelect">
+                      <select id="phaseSelect" aria-describedby="phaseHint">
                         <option value="quiz">Quiz (chọn nhóm trưởng)</option>
                         <option value="random">Random chia nhóm</option>
                       </select>
+                      <span class="admin-field-hint" id="phaseHint"></span>
                     </div>
                   </div>
-                  <button id="saveSettingsBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu cấu hình</button>
-                  <p id="settingsMsg" class="admin-msg"></p>
+                  <div class="admin-btn-row">
+                    <button id="saveSettingsBtn" class="admin-btn" type="button" data-keep-disabled="1"><i data-lucide="save"></i> Lưu cấu hình</button>
+                    <button id="resetSettingsFormBtn" class="admin-btn admin-btn-secondary" type="button" data-keep-disabled="1"><i data-lucide="rotate-ccw"></i> Bỏ thay đổi</button>
+                  </div>
+                  <p id="settingsMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 

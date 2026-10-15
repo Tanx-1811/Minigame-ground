@@ -1199,13 +1199,3 @@
     display: flex;
   }
 }
-
-/* "2  dang xem": khoang gap cua flex cong them &nbsp; trong nhan -> 2 khoang trang.
-   Sua tam o day cho trang nay (markup site-nav dung chung trong theme.css). */
-.rooms-body .site-nav-online {
-  gap: 0;
-}
-
-.rooms-body .site-nav-online .dot {
-  margin-right: 7px;
-}
