@@ -5,6 +5,18 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex, nofollow" />
+<script>
+  // Dat che do sang/toi TRUOC lan ve dau tien, khong bi nhay nen trang roi moi toi.
+  // Chua tung chon thi theo he dieu hanh (admin-common.js dong bo lai nut bam sau).
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('randomTeam_adminTheme'); } catch (e) {}
+    if (t !== 'dark' && t !== 'light') {
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 <title>Thành viên · Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -29,7 +41,7 @@
                 </div>
               </div>
 
-              <div id="memberStats" class="admin-stats"></div>
+              <div id="memberStats" class="admin-stats is-six"></div>
 
               <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
@@ -41,12 +53,12 @@
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="newMemberName"><i data-lucide="user"></i> Họ tên</label>
-                      <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" />
+                      <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" autocomplete="off" />
                     </div>
                     <div class="admin-field">
                       <label for="newMemberGender"><i data-lucide="venus-and-mars"></i> Giới tính</label>
                       <select id="newMemberGender">
-                        <option value="">-- Chưa đặt --</option>
+                        <option value="">— Chưa đặt</option>
                         <option value="MALE">Nam</option>
                         <option value="FEMALE">Nữ</option>
                       </select>
@@ -54,11 +66,13 @@
                     <div class="admin-field">
                       <label for="newMemberGroup"><i data-lucide="users-round"></i> Nhóm</label>
                       <select id="newMemberGroup">
-                        <option value="">-- Chưa có nhóm --</option>
+                        <option value="">— Chưa có nhóm</option>
                       </select>
                     </div>
                   </div>
-                  <button id="addMemberBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm thành viên</button>
+                  <div class="admin-btn-row">
+                    <button id="addMemberBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm thành viên</button>
+                  </div>
                   <p id="addMemberMsg" class="admin-msg"></p>
                 </div>
               </details>
@@ -73,10 +87,12 @@
                   <div class="admin-field">
                     <label for="memberImportText"><i data-lucide="clipboard-list"></i> Danh sách tên</label>
                     <textarea id="memberImportText" placeholder="Nguyễn Văn A, Nam
-      Trần Thị B, Nữ, Nhóm Gà
-      Lê Văn C"></textarea>
+Trần Thị B, Nữ, Nhóm Gà
+Lê Văn C"></textarea>
                   </div>
-                  <button id="memberImportBtn" class="admin-btn" type="button"><i data-lucide="file-up"></i> Thêm tất cả</button>
+                  <div class="admin-btn-row">
+                    <button id="memberImportBtn" class="admin-btn" type="button"><i data-lucide="file-up"></i> Thêm tất cả</button>
+                  </div>
                   <p id="memberImportMsg" class="admin-msg"></p>
                 </div>
               </details>
@@ -85,8 +101,9 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="table"></i> Danh sách thành viên</h3>
-                    <p>Bấm tiêu đề cột để sắp xếp. Tick chọn nhiều người để sửa hàng loạt. Cột "Tham gia" quyết định ai được bốc thăm chia nhóm, ghép phòng hay làm quiz.</p>
+                    <p>Bấm tiêu đề cột để sắp xếp. Tick chọn nhiều người để sửa hàng loạt. Sửa tên xong bấm Enter (Esc để hủy).</p>
                   </div>
+                  <span id="memberResultCount" class="admin-chip"></span>
                 </div>
                 <div class="admin-card-body">
                   <p id="memberLockNote" class="admin-msg"></p>
@@ -96,35 +113,35 @@
                     <i data-lucide="dices"></i> chia nhóm ·
                     <i data-lucide="bed-double"></i> ghép phòng ·
                     <i data-lucide="brain"></i> làm quiz ·
-                    <i data-lucide="pin"></i> ghim kết quả (không bị xáo lại).
+                    <i data-lucide="pin"></i> ghim kết quả (không bị xáo lại; viền nét đứt = mới ghim nhóm hoặc phòng).
                     Tắt một vòng thì người đó không thấy tên mình trong ô chọn của vòng đó và kết quả cũ của vòng đó cũng bị gỡ.
                   </div>
 
                   <div class="admin-toolbar">
                     <div class="admin-field">
                       <label for="memberFilter"><i data-lucide="search"></i> Tìm thành viên</label>
-                      <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1" />
+                      <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1" autocomplete="off" />
                     </div>
-                    <div class="admin-filter-chips" id="memberFilterChips"></div>
+                    <div class="admin-filter-chips" id="memberFilterChips" role="group" aria-label="Lọc thành viên"></div>
                   </div>
 
                   <div id="memberBulkBar" class="admin-bulkbar" hidden>
-                    <span id="memberBulkCount" class="admin-bulkbar-count"><i data-lucide="check-check"></i></span>
+                    <span id="memberBulkCount" class="admin-bulkbar-count" aria-live="polite"><i data-lucide="check-check"></i></span>
                     <div class="admin-bulkbar-actions">
-                      <button type="button" class="admin-row-btn" data-bulk="gender-female">Đặt Nữ</button>
-                      <button type="button" class="admin-row-btn" data-bulk="gender-male">Đặt Nam</button>
-                      <span class="admin-bulkbar-sep"></span>
-                      <select id="memberBulkGroup" title="Xếp những người đã chọn vào nhóm"></select>
-                      <select id="memberBulkRoom" title="Xếp những người đã chọn vào phòng"></select>
-                      <span class="admin-bulkbar-sep"></span>
+                      <button type="button" class="admin-row-btn" data-bulk="gender-female"><i data-lucide="venus"></i> Đặt Nữ</button>
+                      <button type="button" class="admin-row-btn" data-bulk="gender-male"><i data-lucide="mars"></i> Đặt Nam</button>
+                      <span class="admin-bulkbar-sep" aria-hidden="true"></span>
+                      <select id="memberBulkGroup" aria-label="Xếp những người đã chọn vào nhóm"></select>
+                      <select id="memberBulkRoom" aria-label="Xếp những người đã chọn vào phòng"></select>
+                      <span class="admin-bulkbar-sep" aria-hidden="true"></span>
                       <button type="button" class="admin-row-btn" data-bulk="join-on" title="Cho tham gia tất cả các vòng">
                         <i data-lucide="user-round-check"></i> Cho tham gia
                       </button>
                       <button type="button" class="admin-row-btn danger" data-bulk="join-off" title="Loại khỏi tất cả các vòng">
                         <i data-lucide="user-round-x"></i> Loại khỏi vòng
                       </button>
-                      <select id="memberBulkFlag" title="Bật/tắt từng quyền riêng lẻ">
-                        <option value="">Bật/tắt riêng...</option>
+                      <select id="memberBulkFlag" aria-label="Bật/tắt từng quyền riêng lẻ">
+                        <option value="">Bật/tắt riêng…</option>
                         <option value="joinRandom:1">Cho chia nhóm</option>
                         <option value="joinRandom:0">Cấm chia nhóm</option>
                         <option value="joinRoom:1">Cho ghép phòng</option>
@@ -136,34 +153,44 @@
                         <option value="pinnedRoom:1">Ghim phòng</option>
                         <option value="pinnedRoom:0">Bỏ ghim phòng</option>
                       </select>
-                      <span class="admin-bulkbar-sep"></span>
+                      <span class="admin-bulkbar-sep" aria-hidden="true"></span>
                       <button type="button" class="admin-row-btn" data-bulk="clear-group">Bỏ nhóm</button>
                       <button type="button" class="admin-row-btn" data-bulk="clear-room">Bỏ phòng</button>
                       <button type="button" class="admin-row-btn danger" data-bulk="delete"><i data-lucide="trash-2"></i> Xóa</button>
-                      <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1">Bỏ chọn</button>
+                      <button type="button" class="admin-row-btn" data-bulk="clear-selection" data-always-enabled="1"><i data-lucide="x"></i> Bỏ chọn</button>
                     </div>
                   </div>
 
                   <div class="admin-table-wrap">
-                    <table class="admin-table">
+                    <table class="admin-table admin-members-table">
+                      <colgroup>
+                        <col class="col-check" />
+                        <col class="col-name" />
+                        <col class="col-gender" />
+                        <col class="col-flags" />
+                        <col class="col-pick" />
+                        <col class="col-pick" />
+                        <col class="col-leader" />
+                        <col class="col-quiz" />
+                        <col class="col-actions" />
+                      </colgroup>
                       <thead>
                         <tr>
-                          <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" title="Chọn tất cả" data-always-enabled="1" /></th>
-                          <th></th>
-                          <th data-sort="name">Họ tên</th>
+                          <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" aria-label="Chọn tất cả người đang hiện" data-always-enabled="1" /></th>
+                          <th class="admin-cell-name" data-sort="name" aria-sort="ascending">Họ tên</th>
                           <th data-sort="gender">Giới tính</th>
                           <th data-sort="join" class="admin-cell-flags">Tham gia</th>
                           <th data-sort="group">Nhóm</th>
                           <th data-sort="room">Phòng ngủ</th>
-                          <th data-sort="leader">NT</th>
+                          <th data-sort="leader" class="admin-cell-center" title="Nhóm Trưởng">NT</th>
                           <th data-sort="quiz">Quiz</th>
-                          <th></th>
+                          <th><span class="visually-hidden">Thao tác</span></th>
                         </tr>
                       </thead>
                       <tbody id="memberTableBody"></tbody>
                     </table>
                   </div>
-                  <p id="memberMsg" class="admin-msg"></p>
+                  <p id="memberMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
             </section>

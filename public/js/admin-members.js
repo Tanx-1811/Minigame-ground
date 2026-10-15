@@ -42,7 +42,7 @@
   const importMsg = document.getElementById('memberImportMsg');
   const exportBtn = document.getElementById('memberExportBtn');
 
-  const COLSPAN = 10;
+  const COLSPAN = 9;
 
   // Cac o tick trong cot "Tham gia" - thu tu nay cung la thu tu hien tren bang
   const FLAGS = [
@@ -207,11 +207,11 @@
   function quizCell(member) {
     const answered = member._count && member._count.answers;
     return `<td class="admin-cell-quiz" title="${member.quizScore} điểm${answered ? ` · đã trả lời ${answered} câu` : ''}">
-      <strong>${member.quizScore}</strong><span>đ</span>${answered ? `<small>${answered} câu</small>` : ''}
+      <strong>${member.quizScore}</strong> điểm${answered ? `<small>${answered} câu</small>` : ''}
     </td>`;
   }
 
-  function rowHtml(member, index) {
+  function rowHtml(member) {
     const excluded = !member.joinRandom || !member.joinRoom || !member.joinQuiz;
     const name = A.escapeHtml(member.name);
 
@@ -232,7 +232,6 @@
           <input type="checkbox" data-select="${member.id}" ${selected.has(member.id) ? 'checked' : ''} data-always-enabled="1"
             aria-label="Chọn ${name}" />
         </td>
-        <td class="admin-cell-index">${index + 1}</td>
         <td class="admin-cell-name">
           <input type="text" data-field="name" value="${name}" aria-label="Họ tên" autocomplete="off" />
         </td>
@@ -370,7 +369,7 @@
 
     A.patchList(
       memberTableBody,
-      list.map((m, i) => ({ key: m.id, html: rowHtml(m, i) })),
+      list.map((m) => ({ key: m.id, html: rowHtml(m) })),
       {
         keep: (row) => rowIsBusy(row, force),
         empty: `<tr><td colspan="${COLSPAN}" class="admin-empty">${
@@ -378,11 +377,6 @@
         }</td></tr>`,
       }
     );
-
-    // So thu tu cua dong giu nguyen co the lech sau khi sap xep lai
-    [...memberTableBody.querySelectorAll('.admin-cell-index')].forEach((cell, i) => {
-      if (cell.textContent !== String(i + 1)) cell.textContent = String(i + 1);
-    });
 
     syncSelectAll(list);
     setOptions(newMemberGroup, groupOptions(null));
