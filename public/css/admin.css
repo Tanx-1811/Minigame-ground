@@ -74,7 +74,7 @@ body {
   border-radius: var(--r);
   background: linear-gradient(145deg, var(--accent), var(--accent-strong));
   border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 1rem;
 }
 
@@ -349,7 +349,7 @@ body {
 .admin-tab.is-active .admin-tab-badge {
   background: var(--accent);
   border-color: transparent;
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .admin-nav-foot {
@@ -617,7 +617,7 @@ details.admin-card[open] > .admin-card-body {
   flex-direction: column;
   gap: 3px;
   padding: 14px 16px;
-  background: linear-gradient(160deg, var(--surface-2), var(--surface) 55%);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
@@ -936,7 +936,7 @@ details.admin-card[open] > .admin-card-body {
   border: 1px solid transparent;
   border-radius: var(--r-sm);
   background: linear-gradient(145deg, var(--accent), var(--accent-strong));
-  color: #fff;
+  color: var(--on-accent);
   font-family: inherit;
   font-size: 0.87rem;
   font-weight: 650;
@@ -1131,7 +1131,7 @@ details.admin-card[open] > .admin-card-body {
 .admin-filter-chip.is-active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .admin-filter-count {
@@ -1148,7 +1148,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-filter-chip.is-active .admin-filter-count {
   background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* ===================== thanh thao tac hang loat ===================== */
@@ -2200,13 +2200,14 @@ details.admin-card[open] > .admin-card-body {
 .admin-flow-step.is-active .admin-flow-badge {
   background: var(--accent);
   border-color: transparent;
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .admin-flow-step.is-done .admin-flow-badge {
   background: var(--ok);
   border-color: transparent;
-  color: #fff;
+  /* --on-accent doi theo che do sang/toi, dung chung cho moi nen dam mau */
+  color: var(--on-accent);
 }
 
 .admin-split {
@@ -2414,8 +2415,11 @@ details.admin-card[open] > .admin-card-body {
 }
 
 @media (max-width: 560px) {
-  /* Khong du cho cho ca ten trang lan o nhap ma -> giu lai thu can thao tac */
-  .admin-brand > div {
+  /* Khong du cho cho ca ten trang lan o nhap ma -> giu lai thu can thao tac.
+     Logo cung an luon: de canh nut menu thi hai hinh vuong giong nhau khien
+     nguoi dung khong biet cai nao mo duoc menu. */
+  .admin-brand > div,
+  .admin-brand-mark {
     display: none;
   }
 

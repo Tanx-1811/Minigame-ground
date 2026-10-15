@@ -29,9 +29,15 @@ const progressFill = document.getElementById('roomsProgressFill');
 const onlineBadge = document.getElementById('onlineBadge');
 
 const GENDER_SECTIONS = [
-  { gender: 'FEMALE', icon: '👩', label: 'Nữ', accent: '#ec4899' },
-  { gender: 'MALE', icon: '👨', label: 'Nam', accent: '#3b82f6' },
+  // icon: emoji dung trong cau thong bao ("Bạn ở phòng... 👩")
+  // lucide: ky hieu net dung trong phan giao dien, cho dong bo voi cac icon khac
+  { gender: 'FEMALE', icon: '👩', lucide: 'venus', label: 'Nữ', accent: '#ec4899' },
+  { gender: 'MALE', icon: '👨', lucide: 'mars', label: 'Nam', accent: '#3b82f6' },
 ];
+
+function ic(name) {
+  return `<i data-lucide="${name}"></i>`;
+}
 
 let members = [];
 let rooms = [];
@@ -117,13 +123,13 @@ function renderStats() {
       variant: allDone ? 'ok' : '',
     }),
     statTile({
-      label: '👩 Nữ',
+      label: `${ic('venus')} Nữ`,
       value: `${female.assigned}/${female.members}`,
       sub: `${female.rooms} phòng · ${female.capacity} chỗ`,
       variant: 'female',
     }),
     statTile({
-      label: '👨 Nam',
+      label: `${ic('mars')} Nam`,
       value: `${male.assigned}/${male.members}`,
       sub: `${male.rooms} phòng · ${male.capacity} chỗ`,
       variant: 'male',
@@ -132,7 +138,12 @@ function renderStats() {
 
   if (locked) {
     tiles.push(
-      statTile({ label: 'Trạng thái', value: '🔒 Tạm khóa', sub: 'Chờ admin mở vòng ghép phòng', variant: 'warn' })
+      statTile({
+        label: `${ic('lock')} Trạng thái`,
+        value: 'Tạm khóa',
+        sub: 'Chờ admin mở vòng ghép phòng',
+        variant: 'warn',
+      })
     );
   }
 
@@ -169,7 +180,7 @@ function roomCardHtml(room, meta) {
   return `
     <article class="room-card ${isMine ? 'is-mine' : ''} ${isFull ? 'is-full' : ''}" style="--accent:${meta.accent}">
       <div class="room-card-top">
-        <h3>${meta.icon} ${escapeHtml(room.name)}</h3>
+        <h3>${ic(meta.lucide)} ${escapeHtml(room.name)}</h3>
         <span class="room-card-count">${room.occupancy}/${room.capacity}</span>
       </div>
       <div class="room-card-meter"><span style="width:${fillPct}%"></span></div>
@@ -200,14 +211,14 @@ function renderRooms() {
     return `
       <section class="rooms-section is-${meta.gender.toLowerCase()}">
         <div class="rooms-section-head">
-          <span class="rooms-section-icon" aria-hidden="true">${meta.icon}</span>
+          <span class="rooms-section-icon" aria-hidden="true">${ic(meta.lucide)}</span>
           <div>
             <h2>Phòng ${meta.label}</h2>
             <p>${sectionRooms.length} phòng · ${people}/${capacity} chỗ đã có người</p>
           </div>
           <div class="rooms-section-meta">
-            <span class="rooms-chip ${fullRooms === sectionRooms.length ? 'is-ok' : ''}">✅ ${fullRooms} phòng đã kín</span>
-            <span class="rooms-chip">🛏️ Còn ${freeSlots} chỗ trống</span>
+            <span class="rooms-chip ${fullRooms === sectionRooms.length ? 'is-ok' : ''}">${ic('check')} ${fullRooms} phòng đã kín</span>
+            <span class="rooms-chip">${ic('door-open')} Còn ${freeSlots} chỗ trống</span>
           </div>
         </div>
         <div class="rooms-grid">${sectionRooms.map((room) => roomCardHtml(room, meta)).join('')}</div>
@@ -320,7 +331,7 @@ function renderPending() {
         <span class="rooms-pending ${m.name === me ? 'is-me' : ''}">
           <span class="avatar" style="background:${hashColor(m.name)}">${escapeHtml(initials(m.name))}</span>
           <span>${escapeHtml(m.name)}${m.name === me ? ' (bạn)' : ''}</span>
-          <span class="rooms-pending-tag">${meta.icon} ${meta.label}</span>
+          <span class="rooms-pending-tag">${ic(meta.lucide)} ${meta.label}</span>
         </span>`;
     })
     .join('')}</div>`;

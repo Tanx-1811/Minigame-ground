@@ -1737,7 +1737,10 @@ body {
 .quiz-header h1,
 .rooms-hero h1 {
   letter-spacing: -0.035em;
-  line-height: 1.12;
+  /* Tieng Viet co dau chong (vd "Trưởng", "Nhóm") cao hon chu Latin,
+     line-height qua chat se cat mat phan dau o dong tren. */
+  line-height: 1.25;
+  padding-block: 0.08em;
   /* Chu tieu de chuyen sac nhe theo mau chu dao cho sang hon mau phang */
   background: linear-gradient(135deg, var(--ink) 18%, var(--accent) 115%);
   -webkit-background-clip: text;
@@ -1794,13 +1797,11 @@ body {
 
 /* ---------- cac khoi noi dung ---------- */
 
+/* Chu y: cac khoi .quiz-* nam BEN TRONG .quiz-container (da la mot the co vien
+   va nen roi), nen khong duoc cho chung vien + nen nua - se thanh the long the. */
 .random-panel,
 .stats-card,
-.rooms-card,
-.quiz-question-card,
-.quiz-name-pick,
-.quiz-waiting,
-.quiz-done {
+.rooms-card {
   position: relative;
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
@@ -1810,8 +1811,7 @@ body {
 /* Vien sang o canh tren - thay cho do bong de khoi "noi" khoi nen */
 .random-panel::before,
 .stats-card::before,
-.rooms-card::before,
-.quiz-question-card::before {
+.rooms-card::before {
   content: '';
   position: absolute;
   inset: 0;

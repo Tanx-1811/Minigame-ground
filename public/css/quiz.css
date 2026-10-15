@@ -54,8 +54,10 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
-  background: linear-gradient(90deg, var(--quiz-opt-a), var(--quiz-opt-c), var(--quiz-opt-d), var(--quiz-opt-b));
+  height: 4px;
+  /* Truoc day day la dai 4 mau cua 4 dap an A/B/C/D - nhung o man chon ten thi
+     chua co dap an nao, nen dai cau vong vua vo nghia vua lac khoi he mau. */
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
 }
 
 .quiz-name-pick {

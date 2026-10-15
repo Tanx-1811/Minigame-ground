@@ -272,6 +272,35 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
    ```
 6. Mở trình duyệt: http://localhost:3000
 
+## Quy ước giao diện
+
+Hệ thiết kế nằm ở `public/css/theme.css`, nạp trước mọi file CSS khác. Mọi màu đều
+đi qua biến ở `:root` để chế độ sáng/tối dùng chung một bộ quy tắc.
+
+**Không dùng `box-shadow` ở bất kỳ đâu.** Chiều sâu tạo bằng viền 1px, nền chồng lớp
+và khoảng trắng.
+
+Bốn quy ước giúp giao diện không bị vỡ hay tràn:
+
+- **Lưới co được.** Mọi lưới tự xuống dòng viết là `minmax(min(Npx, 100%), 1fr)`,
+  không phải `minmax(Npx, 1fr)`. Dạng sau giữ nguyên `Npx` cả khi khung hẹp hơn thế,
+  nên màn hình nhỏ là tràn ngang.
+- **Flex item phải được phép co.** Mỗi ô trong hàng ngang đều có `min-width: 0`.
+  Mặc định flex item không co nhỏ hơn nội dung của nó — thiếu dòng này là thanh trên
+  đẩy rộng hơn màn hình.
+- **Hai vai trò của màu nhấn là hai biến khác nhau.** `--accent` dùng làm *nền*,
+  `--on-accent` là màu *chữ đặt trên nền đó*. Ở chế độ tối, nền nhấn sáng lên nên chữ
+  phải tối lại; để chữ trắng cố định là chìm vào nền.
+- **Chừa chỗ cho dấu tiếng Việt.** Tiêu đề lớn để `line-height` tối thiểu 1.25 — chữ
+  như "Trưởng", "Nhóm" có dấu chồng, `line-height` chặt sẽ cắt mất phần dấu.
+
+Về ký hiệu: phần **giao diện** (nhãn, nút, thống kê, chip trạng thái) dùng icon nét
+Lucide cho đồng bộ; phần **nội dung vui** (kết quả bốc thăm, thông báo, huy chương
+bảng xếp hạng) vẫn dùng emoji để giữ không khí sự kiện.
+
+Tương phản chữ/nền đạt tối thiểu 3:1 ở cả chế độ sáng lẫn tối trên toàn bộ 10 trang
+admin, kiểm bằng trình duyệt thật.
+
 ## Tối ưu tốc độ
 
 Trang admin ban đầu gom cả 10 khu vực vào một file và ẩn/hiện bằng tab. Mở bất kỳ khu
