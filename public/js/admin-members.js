@@ -218,7 +218,7 @@ function isTyping(scope) {
         </td>
         <td class="admin-cell-index">${index + 1}</td>
         <td class="admin-cell-name"><input type="text" data-field="name" value="${A.escapeHtml(member.name)}" /></td>
-        <td class="admin-cell-pick is-narrow">
+        <td>
           <select data-field="gender">
             <option value="" ${!member.gender ? 'selected' : ''}>-- Chưa đặt --</option>
             <option value="MALE" ${member.gender === 'MALE' ? 'selected' : ''}>Nam</option>
