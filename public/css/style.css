@@ -1041,7 +1041,8 @@ body {
 
 .toast-container {
   position: fixed;
-  top: 6px;
+  /* Nam ngay duoi thanh dieu huong dinh, khong de len cac nut tren thanh do */
+  top: 66px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;
@@ -1236,7 +1237,7 @@ body {
 
 @media (max-width: 560px) {
   .toast-container {
-    top: 2px;
+    top: 60px;
     width: calc(100vw - 20px);
   }
 
