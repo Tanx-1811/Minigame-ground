@@ -529,7 +529,7 @@ function updateDrawState() {
   if (myRoom) {
     drawBtn.disabled = true;
     setDrawLabel('check-check', 'Bạn đã có phòng');
-    setMeLine(`${genderChip(member ? member.gender : myRoom.gender)} <span>Bạn đã quay rồi — kết quả ở ngay bên dưới.</span>`);
+    setMeLine(''); // khung ket qua ngay ben duoi da noi du
     setNotice('');
     renderResult(name);
     return;

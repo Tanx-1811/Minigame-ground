@@ -476,20 +476,6 @@ body {
 
 /* ---------- result / error ---------- */
 
-.result-box {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border-radius: var(--radius-sm);
-  background: #eefaf1;
-  border: 1px solid var(--color-success);
-  color: #15803d;
-  font-size: 1.05rem;
-}
-
-.result-box.pop {
-  animation: pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 @keyframes pop {
   from {
     transform: scale(0.94);
@@ -676,11 +662,10 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 32px 16px 48px;
+  min-height: calc(100vh - 60px);
+  min-height: calc(100dvh - 60px);
+  padding: 28px 16px 48px;
   overflow: hidden;
-  background: radial-gradient(circle at 20% 20%, #eef2ff 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, #dbe6fd 0%, transparent 55%),
-    linear-gradient(135deg, #f1f5fb 0%, #e4ebfa 55%, #d9e3fa 100%);
   transition: opacity 0.45s ease, visibility 0.45s ease;
 }
 
@@ -762,16 +747,6 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: titlePulse 2.6s ease-in-out infinite;
-}
-
-@keyframes titlePulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.035);
-  }
 }
 
 .intro-subtitle {
@@ -802,17 +777,6 @@ body {
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
-.start-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 2px solid var(--color-primary);
-  opacity: 0.6;
-  animation: startPing 2s ease-out infinite;
-  pointer-events: none;
-}
-
 .start-btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
   filter: brightness(1.08);
@@ -822,22 +786,6 @@ body {
   cursor: not-allowed;
   background: var(--color-text-muted);
   opacity: 0.75;
-}
-
-.start-btn:disabled::after {
-  animation: none;
-  opacity: 0;
-}
-
-@keyframes startPing {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(1.25);
-    opacity: 0;
-  }
 }
 
 /* ---------- countdown ---------- */
