@@ -11,6 +11,7 @@ const {
   getPublicUi,
 } = require('../settings');
 const { loadGroupSlots, pickGroup, loadGroupsPayload } = require('../groups');
+const { withLock } = require('../lock');
 
 const router = express.Router();
 
@@ -201,25 +202,42 @@ router.post('/random', async (req, res) => {
     // Chua random -> chon nhom theo luat trong server/groups.js: bo qua nhom dang
     // khoa / da day, uu tien nhom it nguoi nhat (chia deu), random giua cac nhom
     // bang nhau nen thu tu nhom nao duoc chon van hoan toan ngau nhien.
-    const { randomGroup, updatedMember } = await prisma.$transaction(async (tx) => {
-      const slots = await loadGroupSlots(tx, globalCapacity);
-      if (slots.length === 0) {
-        throw new Error('NO_GROUPS');
-      }
+    // Chay trong hang doi 'groups' (server/lock.js) de 2 nguoi bam cung luc khong
+    // cung doc ra "nhom X con 1 cho"; kiem lai groupId vi bam dup gui 2 request.
+    const { randomGroup, updatedMember, fresh } = await withLock('groups', () =>
+      prisma.$transaction(async (tx) => {
+        const current = await tx.member.findUnique({ where: { id: member.id }, include: { group: true } });
+        if (current && current.group) {
+          return { randomGroup: current.group, updatedMember: current, fresh: false };
+        }
 
-      const chosen = pickGroup(slots, { isLeader: member.isLeader });
-      if (!chosen) {
-        throw new Error('GROUPS_FULL');
-      }
+        const slots = await loadGroupSlots(tx, globalCapacity);
+        if (slots.length === 0) {
+          throw new Error('NO_GROUPS');
+        }
 
-      const updated = await tx.member.update({
-        where: { id: member.id },
-        data: { groupId: chosen.id },
-        include: { group: true },
+        const chosen = pickGroup(slots, { isLeader: member.isLeader });
+        if (!chosen) {
+          throw new Error('GROUPS_FULL');
+        }
+
+        const updated = await tx.member.update({
+          where: { id: member.id },
+          data: { groupId: chosen.id },
+          include: { group: true },
+        });
+
+        return { randomGroup: updated.group, updatedMember: updated, fresh: true };
+      })
+    );
+
+    if (!fresh) {
+      return res.json({
+        member: { id: updatedMember.id, name: updatedMember.name, isLeader: updatedMember.isLeader },
+        group: randomGroup,
+        alreadyRandomized: true,
       });
-
-      return { randomGroup: updated.group, updatedMember: updated };
-    });
+    }
 
     const activityEntry = {
       member: { id: updatedMember.id, name: updatedMember.name, isLeader: updatedMember.isLeader },

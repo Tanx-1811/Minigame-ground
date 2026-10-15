@@ -20,6 +20,7 @@ const {
 } = require('../settings');
 const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
 const { loadGroupsPayload, assignAllPendingGroups } = require('../groups');
+const { withLock } = require('../lock');
 
 const router = express.Router();
 
@@ -724,9 +725,10 @@ router.post('/admin/groups/random-all', requireAdmin, async (req, res) => {
 
   try {
     const globalCapacity = await getGroupCapacity();
-    const result = await prisma.$transaction(
-      (tx) => assignAllPendingGroups(tx, globalCapacity, { includeAssigned: !!reshuffle }),
-      { timeout: 20000 }
+    const result = await withLock('groups', () =>
+      prisma.$transaction((tx) => assignAllPendingGroups(tx, globalCapacity, { includeAssigned: !!reshuffle }), {
+        timeout: 20000,
+      })
     );
 
     emitGroups(req);

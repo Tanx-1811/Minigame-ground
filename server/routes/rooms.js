@@ -2,7 +2,8 @@ const express = require('express');
 const prisma = require('../prisma');
 const requireAdmin = require('../adminAuth');
 const activity = require('../activity');
-const { getRoomCapacity, isRoomsLocked, setSetting } = require('../settings');
+const { getRoomCapacity, isRoomsLocked, setSetting, getPublicUi } = require('../settings');
+const { withLock } = require('../lock');
 const {
   GENDERS,
   parseGender,
@@ -17,38 +18,30 @@ const {
 
 const router = express.Router();
 
-const MAX_DRAW_ATTEMPTS = 3;
+// Moi luot quay chay trong hang doi 'rooms' (xem server/lock.js): doc so cho ->
+// chon phong -> ghi la mot khoi lien, khong ai chen vao giua duoc. Kiem lai roomId
+// ngay trong hang doi vi bam dup 2 lan se gui 2 request cho cung mot nguoi.
+// Tra ve { roomId, fresh } - fresh = false nghia la nguoi nay vua duoc xep o luot truoc.
+function drawRoomFor(member) {
+  return withLock('rooms', () =>
+    prisma.$transaction(async (tx) => {
+      const current = await tx.member.findUnique({ where: { id: member.id }, select: { roomId: true } });
+      if (current && current.roomId) return { roomId: current.roomId, fresh: false };
 
-// Hai nguoi bam quay cung luc co the cung doc ra "phong X con 1 cho" roi ghi de
-// len nhau. Nen sau khi ghi phai dem lai trong cung transaction: neu vuot suc
-// chua thi roll back va chon lai phong khac.
-async function drawRoomFor(member) {
-  for (let attempt = 1; attempt <= MAX_DRAW_ATTEMPTS; attempt++) {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const slots = await loadRoomSlots(tx);
-        if (!slots.some((r) => r.gender === member.gender)) {
-          throw new Error('NO_ROOM_FOR_GENDER');
-        }
+      const slots = await loadRoomSlots(tx);
+      if (!slots.some((r) => r.gender === member.gender)) {
+        throw new Error('NO_ROOM_FOR_GENDER');
+      }
 
-        const room = pickRoom(slots, member.gender);
-        if (!room) {
-          throw new Error('ROOMS_FULL');
-        }
+      const room = pickRoom(slots, member.gender);
+      if (!room) {
+        throw new Error('ROOMS_FULL');
+      }
 
-        await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
-
-        const occupancy = await tx.member.count({ where: { roomId: room.id } });
-        if (occupancy > room.capacity) {
-          throw new Error('RACE');
-        }
-
-        return room.id;
-      });
-    } catch (err) {
-      if (err.message !== 'RACE' || attempt === MAX_DRAW_ATTEMPTS) throw err;
-    }
-  }
+      await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
+      return { roomId: room.id, fresh: true };
+    })
+  );
 }
 
 // Sau moi thay doi tu admin (them/sua/xoa phong, ghep hang loat, reset) thi phat
@@ -104,7 +97,11 @@ router.post('/room/random', async (req, res) => {
   }
 
   try {
-    if (await isRoomsLocked()) {
+    const [locked, ui] = await Promise.all([isRoomsLocked(), getPublicUi()]);
+    if (!ui.showRoomsPage) {
+      return res.status(403).json({ error: 'Trang ghép phòng đang tạm đóng — chờ admin mở lại' });
+    }
+    if (locked) {
       return res.status(403).json({ error: 'Vòng ghép phòng đang tạm khóa — chờ admin mở' });
     }
 
@@ -133,13 +130,17 @@ router.post('/room/random', async (req, res) => {
       }
     }
 
-    const chosenId = await drawRoomFor(member);
+    const { roomId: chosenId, fresh } = await drawRoomFor(member);
     const room = await findRoomWithMembers(chosenId);
     const payload = {
       member: { id: member.id, name: member.name, gender: member.gender },
       room,
       at: new Date().toISOString(),
     };
+
+    if (!fresh) {
+      return res.json({ ...payload, alreadyAssigned: true });
+    }
 
     await activity.log({
       type: 'room',
@@ -157,7 +158,7 @@ router.post('/room/random', async (req, res) => {
         .status(409)
         .json({ error: 'Chưa có phòng nào dành cho giới tính của bạn — nhờ admin tạo thêm phòng' });
     }
-    if (err.message === 'ROOMS_FULL' || err.message === 'RACE') {
+    if (err.message === 'ROOMS_FULL') {
       return res
         .status(409)
         .json({ error: 'Các phòng cùng giới tính đã kín chỗ hoặc đang khóa — nhờ admin mở thêm phòng' });
@@ -445,9 +446,9 @@ router.post('/admin/rooms/random-all', requireAdmin, async (req, res) => {
   const { reshuffle } = req.body || {};
 
   try {
-    const result = await prisma.$transaction((tx) => assignAllPending(tx, { includeAssigned: !!reshuffle }), {
-      timeout: 20000,
-    });
+    const result = await withLock('rooms', () =>
+      prisma.$transaction((tx) => assignAllPending(tx, { includeAssigned: !!reshuffle }), { timeout: 20000 })
+    );
     const payload = await emitRooms(req);
     req.io.emit('rooms:bulk-randomized', { assigned: result.assigned.length });
     req.io.emit('members:updated', {});
