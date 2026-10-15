@@ -767,7 +767,8 @@ router.post('/admin/groups/reset', requireAdmin, async (req, res) => {
 
     emitGroups(req);
     emitMembers(req);
-    req.io.emit('groups:reset', {});
+    // scope 'groups': chi xoa ket qua chia nhom - nguoi dang lam quiz khong bi day ra
+    req.io.emit('groups:reset', { scope: 'groups' });
     await activity.log({ type: 'admin', icon: 'rotate-ccw', message: `Reset chia nhóm (${count} người)` }, req.io);
     res.json({ ok: true, cleared: count });
   } catch (err) {
@@ -1007,6 +1008,15 @@ router.put('/admin/questions/:id', requireAdmin, async (req, res) => {
       await prisma.question.update({ where: { id }, data });
     }
 
+    // Doi dap an dung -> cham lai cac cau da tra loi; doi diem -> tinh lai tong diem
+    if (data.correctIndex !== undefined && data.correctIndex !== question.correctIndex) {
+      await prisma.answer.updateMany({ where: { questionId: id }, data: { correct: false } });
+      await prisma.answer.updateMany({ where: { questionId: id, selectedIndex: data.correctIndex }, data: { correct: true } });
+    }
+    if (data.correctIndex !== undefined || data.points !== undefined) {
+      await quizLobby.recomputeScores();
+    }
+
     req.io.emit('questions:updated', {});
     res.json({ ok: true });
   } catch (err) {
@@ -1032,6 +1042,7 @@ router.delete('/admin/questions/:id', requireAdmin, async (req, res) => {
       prisma.answer.deleteMany({ where: { questionId: id } }),
       prisma.question.delete({ where: { id } }),
     ]);
+    await quizLobby.recomputeScores();
 
     req.io.emit('questions:updated', {});
     res.json({ ok: true });
@@ -1058,6 +1069,7 @@ router.post('/admin/questions/bulk', requireAdmin, async (req, res) => {
       prisma.answer.deleteMany({ where: { questionId: { in: questionIds } } }),
       prisma.question.deleteMany({ where: { id: { in: questionIds } } }),
     ]);
+    await quizLobby.recomputeScores();
 
     req.io.emit('questions:updated', {});
     res.json({ ok: true, affected: questionIds.length });
@@ -1083,7 +1095,7 @@ router.post('/admin/questions/:id/duplicate', requireAdmin, async (req, res) => 
     const last = await prisma.question.findFirst({ orderBy: { order: 'desc' } });
     const copy = await prisma.question.create({
       data: {
-        order: last.order + 1,
+        order: (last ? last.order : 0) + 1,
         text: `${question.text} (bản sao)`,
         options: question.options,
         correctIndex: question.correctIndex,
@@ -1224,17 +1236,22 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
       changes.push(`giới hạn mỗi nhóm = ${parsed === 0 ? 'không giới hạn' : parsed}`);
     }
 
+    // Chi phat phase:updated khi giai doan THUC SU doi: form cau hinh luon gui kem
+    // phase, va moi lan phat la moi nguoi dang mo trang bi day ve man hinh tuong ung.
     if (phase !== undefined && phase !== '') {
       if (!['quiz', 'random'].includes(phase)) {
         return res.status(400).json({ error: 'Phase chỉ nhận giá trị quiz hoặc random' });
       }
-      await setSetting('phase', phase);
-      changes.push(`giai đoạn = ${phase}`);
-      const leaders =
-        phase === 'random'
-          ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
-          : [];
-      req.io.emit('phase:updated', { phase, leaders });
+      const currentPhase = (await getSetting('phase')) || 'quiz';
+      if (phase !== currentPhase) {
+        await setSetting('phase', phase);
+        changes.push(`giai đoạn = ${phase === 'quiz' ? 'Quiz' : 'Random'}`);
+        const leaders =
+          phase === 'random'
+            ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
+            : [];
+        req.io.emit('phase:updated', { phase, leaders });
+      }
     }
 
     // Noi dung + cong tac hien thi cua 2 trang cong khai
@@ -1303,7 +1320,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
   try {
     const globalCapacity = await getGroupCapacity();
 
-    const [members, groupsPayload, roomsPayload, questionCount, answerCount, phase, quizStatus, leaderCount, locks] =
+    const [members, groupsPayload, roomsPayload, questionCount, answersByMember, phase, quizStatus, leaderCount, locks] =
       await Promise.all([
         prisma.member.findMany({
           select: {
@@ -1321,7 +1338,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         loadGroupsPayload(prisma, globalCapacity),
         loadRoomsPayload(prisma),
         prisma.question.count(),
-        prisma.answer.count(),
+        prisma.answer.groupBy({ by: ['memberId'], _count: { _all: true } }),
         getSetting('phase'),
         quizLobby.getQuizStatus(),
         getLeaderCount(),
@@ -1348,14 +1365,19 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
       rooms: roomsPayload.stats,
       quiz: {
         questions: questionCount,
-        answers: answerCount,
+        answers: answersByMember.reduce((sum, row) => sum + row._count._all, 0),
         status: quizStatus,
         lobby: quizLobby.getLobbyMembers().length,
         leaderCount,
-        finished: count((m) => m.quizScore > 0),
+        // So nguoi da tra loi het bo cau hoi (truoc day dem nguoi co diem > 0 -
+        // ai lam het ma sai het thi khong duoc tinh, ai moi lam 1 cau dung lai duoc tinh)
+        started: answersByMember.length,
+        finished: questionCount ? answersByMember.filter((row) => row._count._all >= questionCount).length : 0,
       },
       flow: {
-        phase: phase || 'quiz',
+        // Giai doan THUC TE nguoi choi dang thay: chua co cau hoi nao thi bo qua quiz
+        phase: (phase || 'quiz') === 'quiz' && questionCount === 0 ? 'random' : phase || 'quiz',
+        storedPhase: phase || 'quiz',
         roomsLocked: locks[0],
         randomLocked: locks[1],
       },
@@ -1393,27 +1415,32 @@ router.post('/admin/activity/clear', requireAdmin, async (req, res) => {
 // GET /api/admin/export - tai toan bo du lieu ra 1 file JSON de sao luu
 router.get('/admin/export', requireAdmin, async (req, res) => {
   try {
-    const [members, groups, rooms, questions, settings] = await Promise.all([
+    const [members, groups, rooms, questions, settings, answers] = await Promise.all([
       prisma.member.findMany({ orderBy: { id: 'asc' } }),
       prisma.group.findMany({ orderBy: { id: 'asc' } }),
       prisma.room.findMany({ orderBy: { id: 'asc' } }),
       prisma.question.findMany({ orderBy: { order: 'asc' } }),
       prisma.setting.findMany(),
+      prisma.answer.findMany({ orderBy: { id: 'asc' } }),
     ]);
 
     res.json({
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       counts: {
         members: members.length,
         groups: groups.length,
         rooms: rooms.length,
         questions: questions.length,
+        answers: answers.length,
       },
       groups,
       rooms,
       members,
       questions,
+      // Kem cau tra loi quiz: thieu no thi phuc hoi xong bang xep hang rong trong khi
+      // diem va Nhom Truong van con, khong chot lai duoc vong quiz.
+      answers,
       settings,
     });
   } catch (err) {
@@ -1475,9 +1502,10 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
         }
 
         let memberCount = 0;
+        const memberIdMap = new Map();
         for (const m of data.members) {
           if (!m || !m.name) continue;
-          await tx.member.create({
+          const createdMember = await tx.member.create({
             data: {
               name: String(m.name),
               gender: m.gender === 'MALE' || m.gender === 'FEMALE' ? m.gender : null,
@@ -1494,14 +1522,16 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
               note: m.note || null,
             },
           });
+          memberIdMap.set(m.id, createdMember.id);
           memberCount += 1;
         }
 
         let questionCount = 0;
+        const questionIdMap = new Map();
         for (const q of data.questions || []) {
           if (!q || !q.text || !Array.isArray(q.options)) continue;
           questionCount += 1;
-          await tx.question.create({
+          const createdQuestion = await tx.question.create({
             data: {
               order: questionCount,
               text: String(q.text),
@@ -1511,6 +1541,24 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
               timeLimitSec: Number.isInteger(q.timeLimitSec) ? q.timeLimitSec : null,
             },
           });
+          questionIdMap.set(q.id, createdQuestion.id);
+        }
+
+        let answerCount = 0;
+        for (const a of Array.isArray(data.answers) ? data.answers : []) {
+          const memberId = a && memberIdMap.get(a.memberId);
+          const questionId = a && questionIdMap.get(a.questionId);
+          if (!memberId || !questionId) continue;
+          await tx.answer.create({
+            data: {
+              memberId,
+              questionId,
+              selectedIndex: Number.isInteger(a.selectedIndex) ? a.selectedIndex : -1,
+              correct: !!a.correct,
+              timeMs: Number.isInteger(a.timeMs) && a.timeMs >= 0 ? a.timeMs : 0,
+            },
+          });
+          answerCount += 1;
         }
 
         for (const st of data.settings || []) {
@@ -1527,17 +1575,33 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
           rooms: roomIdMap.size,
           members: memberCount,
           questions: questionCount,
+          answers: answerCount,
         };
       },
       { timeout: 60000 }
     );
 
     quizLobby.clearLobby();
+    if (Array.isArray(data.answers)) await quizLobby.recomputeScores();
+
+    // Phat lai moi thu trang cong khai dang giu: noi dung giao dien, khoa vong, gio mo
+    const [ui, roomsLocked, randomLocked, eventStartAt] = await Promise.all([
+      getPublicUi(),
+      isRoomsLocked(),
+      isRandomLocked(),
+      getSetting('eventStartAt'),
+    ]);
+    req.io.emit('settings:updated', { leaderCount: await getLeaderCount(), roomCapacity: await getRoomCapacity(), ui });
+    req.io.emit('random:config', { locked: randomLocked });
+    req.io.emit('rooms:config', { locked: roomsLocked });
+    req.io.emit('config:updated', { eventStartAt: eventStartAt || null });
+
     emitMembers(req);
     emitGroups(req);
     await emitRooms(req);
     req.io.emit('questions:updated', {});
-    req.io.emit('groups:reset', {});
+    const restoredPhase = (await getSetting('phase')) || 'quiz';
+    req.io.emit('groups:reset', { scope: 'all', phase: restoredPhase });
 
     await activity.log(
       {

@@ -37,9 +37,10 @@ const TEXT_SETTINGS = {
   accentColor: { label: 'Màu chủ đạo', fallback: '#4f46e5' },
 };
 
+// Khoa vong (roomsLocked / randomLocked) KHONG nam o day: chung co endpoint rieng
+// (/admin/rooms/lock, /admin/settings/lock) phat dung su kien realtime. De chung
+// chung form "Giao dien" thi mot tab admin cu bam luu chu se am tham mo khoa vong.
 const BOOL_SETTINGS = {
-  roomsLocked: { label: 'Khóa vòng ghép phòng', fallback: false },
-  randomLocked: { label: 'Khóa vòng random chia nhóm', fallback: false },
   showLeaderboard: { label: 'Hiện bảng xếp hạng nhóm', fallback: true },
   showActivity: { label: 'Hiện hoạt động gần đây', fallback: true },
   showMemberNames: { label: 'Hiện tên thành viên trong thẻ nhóm', fallback: true },

@@ -66,7 +66,7 @@ function serialize(row) {
 async function list({ limit = MAX_FEED, type } = {}) {
   const take = Math.min(Math.max(Number.parseInt(limit, 10) || MAX_FEED, 1), 200);
   const rows = await prisma.activityLog.findMany({
-    where: type && type !== 'all' ? { type } : undefined,
+    where: Array.isArray(type) ? { type: { in: type } } : type && type !== 'all' ? { type } : undefined,
     orderBy: { id: 'desc' },
     take,
   });

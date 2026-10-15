@@ -2,9 +2,18 @@ const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
 const activity = require('../activity');
-const { getLeaderCount } = require('../settings');
+const { getLeaderCount, getSetting } = require('../settings');
+const { withLock } = require('../lock');
 
 const router = express.Router();
+
+// Tre mang + thoi gian ve giao dien: cho phep lech them chut it so voi gioi han
+// thoi gian truoc khi coi la het gio, de nguoi bam o giay cuoi khong bi oan.
+const TIME_GRACE_MS = 2500;
+
+function quizIsOpen(phase, status) {
+  return (phase || 'quiz') === 'quiz' && status === 'active';
+}
 
 function serializeQuestion(q) {
   return {
@@ -60,12 +69,14 @@ router.get('/quiz/state', async (req, res) => {
   }
 
   try {
-    const [member, total] = await Promise.all([
+    const [member, total, status, leaderCount] = await Promise.all([
       prisma.member.findUnique({
         where: { name },
         include: { answers: { select: { questionId: true } } },
       }),
       prisma.question.count(),
+      quizLobby.getQuizStatus(),
+      getLeaderCount(),
     ]);
 
     if (!member) {
@@ -80,6 +91,8 @@ router.get('/quiz/state', async (req, res) => {
       timeMs: member.quizTimeMs,
       finished: total > 0 && answeredIds.length >= total,
       isLeader: member.isLeader,
+      status,
+      leaderCount,
     });
   } catch (err) {
     console.error(err);
@@ -141,7 +154,27 @@ router.get('/quiz/leaderboard', async (req, res) => {
   }
 });
 
-// POST /api/quiz/answer - ghi nhan 1 cau tra loi (idempotent theo memberId+questionId)
+// POST /api/quiz/seen - client bao "dang hien cau nay". May chu ghi moc lan dau va
+// tra ve so ms da troi qua, de F5 giua chung thi dong ho dem nguoc van tiep tuc
+// dung cho cu thay vi chay lai tu dau.
+router.post('/quiz/seen', async (req, res) => {
+  const { name, questionId } = req.body || {};
+  if (!name || typeof name !== 'string' || !Number.isInteger(questionId)) {
+    return res.status(400).json({ error: 'Thiếu thông tin câu hỏi' });
+  }
+
+  try {
+    const member = await prisma.member.findUnique({ where: { name: name.trim() }, select: { id: true } });
+    if (!member) return res.status(404).json({ error: 'Không tìm thấy thành viên' });
+    res.json({ elapsedMs: quizLobby.markSeen(member.id, questionId) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể ghi nhận câu hỏi' });
+  }
+});
+
+// POST /api/quiz/answer - ghi nhan 1 cau tra loi (idempotent theo memberId+questionId).
+// selectedIndex = -1 nghia la het gio ma chua chon (tinh la sai, 0 diem).
 router.post('/quiz/answer', async (req, res) => {
   const { name, questionId, selectedIndex, timeMs } = req.body || {};
 
@@ -151,10 +184,10 @@ router.post('/quiz/answer', async (req, res) => {
   if (!Number.isInteger(questionId)) {
     return res.status(400).json({ error: 'Thiếu câu hỏi' });
   }
-  if (!Number.isInteger(selectedIndex) || selectedIndex < 0) {
+  if (!Number.isInteger(selectedIndex) || selectedIndex < -1) {
     return res.status(400).json({ error: 'Đáp án không hợp lệ' });
   }
-  const safeTimeMs = Number.isFinite(timeMs) && timeMs >= 0 ? Math.round(timeMs) : 0;
+  const clientTimeMs = Number.isFinite(timeMs) && timeMs >= 0 ? Math.round(timeMs) : 0;
 
   try {
     const member = await prisma.member.findUnique({ where: { name: name.trim() } });
@@ -165,76 +198,111 @@ router.post('/quiz/answer', async (req, res) => {
       return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng Quiz lần này' });
     }
 
+    // Chi nhan bai khi admin da bam bat dau va chua chot Nhom Truong - truoc day
+    // goi thang API la tra loi duoc ca truoc gio lan sau khi da chot.
+    const [phase, status] = await Promise.all([getSetting('phase'), quizLobby.getQuizStatus()]);
+    if (!quizIsOpen(phase, status)) {
+      return res.status(403).json({
+        error: (phase || 'quiz') === 'quiz' ? 'Vòng Quiz chưa bắt đầu — chờ admin bấm bắt đầu' : 'Vòng Quiz đã kết thúc',
+      });
+    }
+
     const question = await prisma.question.findUnique({ where: { id: questionId } });
     if (!question) {
       return res.status(404).json({ error: 'Không tìm thấy câu hỏi' });
     }
-
-    const existing = await prisma.answer.findUnique({
-      where: { memberId_questionId: { memberId: member.id, questionId: question.id } },
-    });
-
-    if (existing) {
-      return res.json({
-        correct: existing.correct,
-        correctIndex: question.correctIndex,
-        alreadyAnswered: true,
-        myScore: member.quizScore,
-        myTimeMs: member.quizTimeMs,
-      });
+    const optionCount = Array.isArray(question.options) ? question.options.length : 0;
+    if (selectedIndex >= optionCount) {
+      return res.status(400).json({ error: 'Đáp án không hợp lệ' });
     }
 
-    const correct = selectedIndex === question.correctIndex;
+    // Thoi gian lay theo may chu neu co moc (tru hao tre mang), khong de client tu khai
+    // nho hon thuc te. Qua gioi han thoi gian cua cau -> tinh nhu het gio.
+    const serverElapsed = quizLobby.elapsedSince(member.id, question.id);
+    let safeTimeMs = serverElapsed === null ? clientTimeMs : Math.max(clientTimeMs, serverElapsed - TIME_GRACE_MS);
+    let timedOut = selectedIndex === -1;
+    if (question.timeLimitSec) {
+      const limitMs = question.timeLimitSec * 1000;
+      if (serverElapsed !== null && serverElapsed > limitMs + TIME_GRACE_MS) timedOut = true;
+      safeTimeMs = Math.min(safeTimeMs, limitMs);
+    }
 
-    const { updatedMember } = await prisma.$transaction(async (tx) => {
-      await tx.answer.create({
-        data: {
-          memberId: member.id,
-          questionId: question.id,
-          selectedIndex,
-          correct,
-          timeMs: safeTimeMs,
-        },
-      });
-
-      const updated = await tx.member.update({
-        where: { id: member.id },
-        data: {
-          quizScore: { increment: correct ? question.points : 0 },
-          quizTimeMs: { increment: safeTimeMs },
-        },
-      });
-
-      return { updatedMember: updated };
-    });
-
-    const [total, answeredCount, leaderboard] = await Promise.all([
-      prisma.question.count(),
-      prisma.answer.count({ where: { memberId: member.id } }),
-      getLeaderboard(),
-    ]);
-
-    // Gui kem leaderboard san de client khong phai tu goi lai /api/quiz/leaderboard
-    // moi lan co nguoi tra loi (tranh N client x M cau tra loi = qua nhieu request cung luc).
-    req.io.emit('quiz:progress', {
-      name: updatedMember.name,
-      score: updatedMember.quizScore,
-      finished: total > 0 && answeredCount >= total,
-      leaderboard,
-    });
-
-    res.json({
-      correct,
-      correctIndex: question.correctIndex,
-      alreadyAnswered: false,
-      myScore: updatedMember.quizScore,
-      myTimeMs: updatedMember.quizTimeMs,
-    });
+    // Bam dup / mang cham gui 2 lan: xep theo tung nguoi de lan sau thay ban ghi
+    // cua lan truoc, thay vi dam vao khoa unique va bao loi 500.
+    return await withLock(`quiz:${member.id}`, () =>
+      recordAnswer(req, res, member, question, selectedIndex, safeTimeMs, timedOut)
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi ghi nhận câu trả lời' });
   }
 });
+
+async function recordAnswer(req, res, member, question, selectedIndex, safeTimeMs, timedOut) {
+  const existing = await prisma.answer.findUnique({
+    where: { memberId_questionId: { memberId: member.id, questionId: question.id } },
+  });
+
+  if (existing) {
+    const fresh = await prisma.member.findUnique({ where: { id: member.id } });
+    return res.json({
+      correct: existing.correct,
+      correctIndex: question.correctIndex,
+      alreadyAnswered: true,
+      timedOut: existing.selectedIndex === -1,
+      myScore: fresh ? fresh.quizScore : member.quizScore,
+      myTimeMs: fresh ? fresh.quizTimeMs : member.quizTimeMs,
+    });
+  }
+
+  const correct = !timedOut && selectedIndex === question.correctIndex;
+
+  const { updatedMember } = await prisma.$transaction(async (tx) => {
+    await tx.answer.create({
+      data: {
+        memberId: member.id,
+        questionId: question.id,
+        selectedIndex: timedOut ? -1 : selectedIndex,
+        correct,
+        timeMs: safeTimeMs,
+      },
+    });
+
+    const updated = await tx.member.update({
+      where: { id: member.id },
+      data: {
+        quizScore: { increment: correct ? question.points : 0 },
+        quizTimeMs: { increment: safeTimeMs },
+      },
+    });
+
+    return { updatedMember: updated };
+  });
+
+  const [total, answeredCount, leaderboard] = await Promise.all([
+    prisma.question.count(),
+    prisma.answer.count({ where: { memberId: member.id } }),
+    getLeaderboard(),
+  ]);
+
+  // Gui kem leaderboard san de client khong phai tu goi lai /api/quiz/leaderboard
+  // moi lan co nguoi tra loi (tranh N client x M cau tra loi = qua nhieu request cung luc).
+  req.io.emit('quiz:progress', {
+    name: updatedMember.name,
+    score: updatedMember.quizScore,
+    finished: total > 0 && answeredCount >= total,
+    leaderboard,
+  });
+
+  res.json({
+    correct,
+    correctIndex: question.correctIndex,
+    alreadyAnswered: false,
+    timedOut,
+    myScore: updatedMember.quizScore,
+    myTimeMs: updatedMember.quizTimeMs,
+  });
+}
 
 // POST /api/admin/quiz/start - admin bam bat dau, khoa phong cho va bao tat ca dem nguoc 3 giay
 // truoc khi vao lam bai (idempotent - bam lai khi da active thi khong dem nguoc lai tu dau)
@@ -246,14 +314,30 @@ router.post('/admin/quiz/start', async (req, res) => {
   }
 
   try {
-    const status = await quizLobby.getQuizStatus();
+    const [status, phase, total] = await Promise.all([
+      quizLobby.getQuizStatus(),
+      getSetting('phase'),
+      prisma.question.count(),
+    ]);
+    if ((phase || 'quiz') !== 'quiz') {
+      return res.status(400).json({ error: 'Đã chốt Nhóm Trưởng — bấm "Làm lại vòng Quiz" nếu muốn chơi lại' });
+    }
+    if (total === 0) {
+      return res.status(400).json({ error: 'Chưa có câu hỏi nào — thêm câu hỏi ở trang Câu hỏi trước' });
+    }
     if (status === 'active') {
       return res.json({ ok: true, alreadyStarted: true });
     }
 
     await quizLobby.setQuizStatus('active');
     const startAt = new Date(Date.now() + 3000).toISOString();
-    req.io.emit('quiz:started', { startAt });
+    // delayMs: client tu dem bang dong ho cua chinh no - dien thoai lech gio 30 giay
+    // ma so voi startAt tuyet doi thi se dem nguoc 33 giay thay vi 3.
+    req.io.emit('quiz:started', { startAt, delayMs: 3000 });
+    await activity.log(
+      { type: 'quiz', icon: 'play', message: `Bắt đầu vòng Quiz (${quizLobby.getLobbyMembers().length} người trong phòng chờ)` },
+      req.io
+    );
 
     res.json({ ok: true, startAt });
   } catch (err) {
@@ -323,6 +407,8 @@ router.post('/admin/quiz/finish', async (req, res) => {
 
     const leaders = winners.map((w) => ({ id: w.id, name: w.name }));
     req.io.emit('phase:updated', { phase: 'random', leaders });
+    req.io.emit('groups:updated', {});
+    req.io.emit('members:updated', {});
 
     await activity.log(
       {
@@ -366,7 +452,10 @@ router.post('/admin/quiz/reset', async (req, res) => {
     quizLobby.clearLobby();
     await quizLobby.setQuizStatus('waiting');
 
-    req.io.emit('groups:reset', { phase: newPhase });
+    req.io.emit('groups:reset', { scope: 'quiz', phase: newPhase });
+    req.io.emit('groups:updated', {});
+    req.io.emit('members:updated', {});
+    await activity.log({ type: 'quiz', icon: 'rotate-ccw', message: 'Làm lại vòng Quiz từ đầu' }, req.io);
 
     res.json({ ok: true, phase: newPhase });
   } catch (err) {

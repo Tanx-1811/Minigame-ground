@@ -148,7 +148,7 @@ router.post('/room/random', async (req, res) => {
       actor: member.name,
       message: `${member.name} vào ${room.name}`,
       meta: { roomId: room.id, memberId: member.id },
-    });
+    }, req.io);
 
     req.io.emit('member:room-randomized', payload);
     res.json({ ...payload, alreadyAssigned: false });

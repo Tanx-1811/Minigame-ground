@@ -6,6 +6,7 @@ const {
   getSetting,
   setSetting,
   getGroupCapacity,
+  getLeaderCount,
   isRoomsLocked,
   isRandomLocked,
   getPublicUi,
@@ -28,13 +29,15 @@ async function resolvePhase() {
 // GET /api/config - cau hinh cho man hinh intro (gio mo, phase, noi dung admin tu dat)
 router.get('/config', async (req, res) => {
   try {
-    const [eventStartAt, phase, roomsLocked, randomLocked, roomCount, ui] = await Promise.all([
+    const [eventStartAt, phase, roomsLocked, randomLocked, roomCount, ui, leaderCount, quizStatus] = await Promise.all([
       getSetting('eventStartAt'),
       resolvePhase(),
       isRoomsLocked(),
       isRandomLocked(),
       prisma.room.count(),
       getPublicUi(),
+      getLeaderCount(),
+      quizLobby.getQuizStatus(),
     ]);
 
     const leaders =
@@ -49,6 +52,8 @@ router.get('/config', async (req, res) => {
       roomsLocked,
       randomLocked,
       roomCount,
+      leaderCount,
+      quizStatus,
       ui,
     });
   } catch (err) {
@@ -91,9 +96,14 @@ router.post('/admin/event-time', async (req, res) => {
 });
 
 // GET /api/activity - hoat dong gan day (dung cho activity feed tren trang chu)
+// Trang cong khai chi xem duoc luot boc tham / ghep phong / quiz - nhat ky thao tac
+// admin ("Luu cau hinh", "Reset"...) chi hien o trang admin (/api/admin/activity).
+const PUBLIC_ACTIVITY_TYPES = ['random', 'room', 'quiz'];
+
 router.get('/activity', async (req, res) => {
+  const type = PUBLIC_ACTIVITY_TYPES.includes(req.query.type) ? req.query.type : PUBLIC_ACTIVITY_TYPES;
   try {
-    res.json(await activity.list({ limit: req.query.limit || activity.MAX_FEED, type: req.query.type }));
+    res.json(await activity.list({ limit: req.query.limit || activity.MAX_FEED, type }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải hoạt động' });
@@ -172,10 +182,6 @@ router.post('/random', async (req, res) => {
     if (phase !== 'random') {
       return res.status(403).json({ error: 'Vòng random chưa mở — cần chốt xong Nhóm Trưởng trước' });
     }
-    if (await isRandomLocked()) {
-      return res.status(403).json({ error: 'Vòng random đang tạm khóa — chờ admin mở lại' });
-    }
-
     const member = await prisma.member.findUnique({
       where: { name: name.trim() },
       include: { group: true },
@@ -188,13 +194,18 @@ router.post('/random', async (req, res) => {
       return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng chia nhóm lần này' });
     }
 
-    // Da random truoc do -> tra ve nhom cu
+    // Da random truoc do -> tra ve nhom cu (ke ca khi vong dang khoa: khoa chi chan
+    // luot quay MOI, nguoi da co nhom F5 lai van phai thay nhom cua minh)
     if (member.groupId && member.group) {
       return res.json({
         member: { id: member.id, name: member.name, isLeader: member.isLeader },
         group: member.group,
         alreadyRandomized: true,
       });
+    }
+
+    if (await isRandomLocked()) {
+      return res.status(403).json({ error: 'Vòng random đang tạm khóa — chờ admin mở lại', locked: true });
     }
 
     const globalCapacity = await getGroupCapacity();
@@ -251,7 +262,7 @@ router.post('/random', async (req, res) => {
       actor: updatedMember.name,
       message: `${updatedMember.name} vào ${randomGroup.name}`,
       meta: { groupId: randomGroup.id, memberId: updatedMember.id },
-    });
+    }, req.io);
 
     // Emit realtime cho tat ca client
     req.io.emit('member:randomized', activityEntry);
@@ -308,7 +319,7 @@ router.post('/admin/reset', async (req, res) => {
 
     if (includeActivity) await activity.clear();
 
-    req.io.emit('groups:reset', { phase: newPhase });
+    req.io.emit('groups:reset', { scope: 'all', phase: newPhase });
     req.io.emit('groups:updated', {});
     if (includeRooms) {
       req.io.emit('rooms:reset', {});
