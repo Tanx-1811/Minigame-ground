@@ -205,6 +205,12 @@
   border-top: 3px solid var(--accent);
 }
 
+/* style.css ve them 1 vien sang o canh tren (::before) cho .rooms-card - the nay da
+   co vien nhan 3px nen bo di de khong thanh 2 duong ke */
+.rooms-spin-card::before {
+  display: none;
+}
+
 .rooms-spin-card .rooms-card-head {
   background: linear-gradient(135deg, var(--accent-soft), var(--surface) 72%);
   border-bottom-color: var(--accent-line);

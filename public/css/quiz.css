@@ -1,345 +1,470 @@
-/* ---------- quiz phase: chon 4 nhom truong ---------- */
+/* ===================================================================
+   quiz.css - vong Quiz chon Nhom Truong (man hinh trong index.html).
+   Dung token cua theme.css, khong dung box-shadow (quy uoc du an).
+   =================================================================== */
 
 :root {
-  --quiz-opt-a: #ef4444;
-  --quiz-opt-b: #3b82f6;
-  --quiz-opt-c: #f59e0b;
-  --quiz-opt-d: #22c55e;
+  /* Mau rieng tung dap an A-F: giup nhin nhanh, nhung KHONG dung lam nen chu */
+  --quiz-opt-0: #ef4444;
+  --quiz-opt-1: #3b82f6;
+  --quiz-opt-2: #f59e0b;
+  --quiz-opt-3: #22c55e;
+  --quiz-opt-4: #a855f7;
+  --quiz-opt-5: #0891b2;
 }
 
 .quiz-screen {
-  min-height: 100vh;
+  min-height: calc(100dvh - 60px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 16px 60px;
+  padding: 28px 16px 64px;
 }
 
 .quiz-header {
   text-align: center;
   max-width: 640px;
-  margin-bottom: 26px;
+  margin-bottom: 22px;
 }
 
 .quiz-header h1 {
-  margin: 10px 0 6px;
-}
-
-.quiz-mascot {
-  font-size: 2.4rem;
-  display: inline-block;
-  margin-bottom: 4px;
-  animation: quizMascotFloat 3.4s ease-in-out infinite;
-}
-
-@keyframes quizMascotFloat {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-8px) rotate(4deg); }
+  margin: 12px 0 8px;
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  background: linear-gradient(135deg, var(--ink) 18%, var(--accent) 115%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .quiz-container {
-  position: relative;
   width: 100%;
-  max-width: 560px;
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  padding: 28px 24px 24px;
-  overflow: hidden;
+  max-width: 600px;
 }
 
-.quiz-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  /* Truoc day day la dai 4 mau cua 4 dap an A/B/C/D - nhung o man chon ten thi
-     chua co dap an nao, nen dai cau vong vua vo nghia vua lac khoi he mau. */
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-}
+/* ---------- khung chung cho buoc chon ten / phong cho / xong bai ---------- */
 
-.quiz-name-pick {
+.quiz-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
+  padding: 30px clamp(18px, 5vw, 32px) 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
   text-align: center;
+  overflow: hidden;
 }
 
-/* Icon duoc dat trong mot huy hieu tron nen accent nhat, thay vi tha troi
-   giua khoang trang - nho vay no gan ket voi phan form ben duoi. */
-.quiz-name-pick-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
+.quiz-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+
+.quiz-card-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
+  border: 1px solid var(--accent-line);
   background: var(--accent-soft);
   color: var(--accent);
+  font-size: 1.5rem;
 }
 
-.quiz-name-pick-icon svg,
-.quiz-name-pick-icon i {
-  width: 30px;
-  height: 30px;
+.quiz-card-icon.is-gold {
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--gold);
 }
+
+.quiz-card-icon.is-pulse {
+  animation: quizPulse 1.8s var(--ease) infinite;
+}
+
+@keyframes quizPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+.quiz-card-title {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.quiz-card-desc {
+  margin: -4px 0 4px;
+  max-width: 440px;
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+/* ---------- chon ten ---------- */
 
 .quiz-name-pick .field {
-  flex: none;
   width: 100%;
   text-align: left;
 }
 
 .quiz-name-pick label {
   display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  margin-bottom: 8px;
-}
-
-/* Bo dang mac dinh cua trinh duyet va tu ve mui ten, neu khong o Windows
-   select se hien ra nen xam + mui ten he thong, lac han khoi phan con lai. */
-.quiz-name-pick-select {
-  position: relative;
-  display: block;
-  width: 100%;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-2);
 }
 
 #quizMemberSelect {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 44px 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 14px center;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
   appearance: none;
   -webkit-appearance: none;
-  -moz-appearance: none;
-  width: 100%;
-  height: 52px;
-  padding: 0 44px 0 16px;
-  border-radius: var(--r);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  line-height: 52px;
   cursor: pointer;
-  transition: border-color var(--fast), background var(--fast);
-}
-
-/* Chrome tren Windows ve danh sach option bang mau he thong, phai chi dinh
-   ro nen/chu thi che do toi moi khong bi chu trang tren nen trang. */
-#quizMemberSelect option {
-  background: var(--surface);
-  color: var(--color-text);
+  transition: border-color var(--fast);
 }
 
 #quizMemberSelect:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--accent-line);
 }
 
 #quizMemberSelect:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
   border-color: var(--accent);
 }
 
-#quizMemberSelect:disabled {
-  cursor: not-allowed;
-  background: var(--surface-3);
-  color: var(--muted-2);
-}
-
-/* Mui ten tu ve: chi la hai net cheo, khong chan chuot de van bam mo select. */
-.quiz-name-pick-select::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  width: 9px;
-  height: 9px;
-  margin-top: -6px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(45deg);
-  pointer-events: none;
-}
-
-.quiz-name-pick .start-btn {
+.quiz-rules {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 14px 0 0;
   width: 100%;
+  display: grid;
+  gap: 8px;
+  border-top: 1px dashed var(--line);
+  text-align: left;
+}
+
+.quiz-rules li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 0.88rem;
+}
+
+.quiz-rules li > [data-lucide],
+.quiz-rules li > svg {
+  color: var(--accent);
+}
+
+/* ---------- phong cho ---------- */
+
+.quiz-waiting-count {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quiz-waiting-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
-@media (max-width: 480px) {
-  .quiz-name-pick {
-    gap: 14px;
-  }
-
-  .quiz-name-pick-icon {
-    width: 56px;
-    height: 56px;
-  }
-
-  .quiz-name-pick .start-btn {
-    padding: 14px 20px;
-    font-size: 1rem;
-  }
+.quiz-waiting-chip {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  animation: quizChipIn 260ms var(--ease) both;
 }
 
-/* ---------- thanh tien do dang cham tron ---------- */
-
-.quiz-progress {
-  margin-bottom: 20px;
+.quiz-waiting-chip.is-me {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
-.quiz-progress-top {
+.quiz-waiting-chip small {
+  font-weight: 500;
+}
+
+@keyframes quizChipIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+.quiz-waiting-empty {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.86rem;
+}
+
+/* ---------- dang lam bai ---------- */
+
+.quiz-play {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-hud {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 10px;
 }
 
-.quiz-progress-label {
+.quiz-hud-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.86rem;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.quiz-progress-score {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
+.quiz-hud-pill.is-score {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.quiz-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 74px;
+  min-height: 40px;
+  padding: 0 14px;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.quiz-timer.is-warn {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger);
+  animation: quizTimerBeat 1s var(--ease) infinite;
+}
+
+@keyframes quizTimerBeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.08); }
 }
 
 .quiz-progress-dots {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .quiz-progress-dot {
   flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--color-surface-alt);
-  border: 1px solid var(--color-border);
-  transition: background 0.25s ease, border-color 0.25s ease;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  transition: background var(--slow);
 }
 
 .quiz-progress-dot.done {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.quiz-progress-dot.current {
-  background: linear-gradient(90deg, var(--quiz-opt-c), var(--quiz-opt-a));
+  background: var(--accent);
   border-color: transparent;
 }
 
+.quiz-progress-dot.current {
+  background: var(--accent-line);
+  border-color: var(--accent);
+}
+
+.quiz-timebar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.quiz-timebar > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ok), #22c55e);
+  transition: width 200ms linear;
+}
+
+.quiz-timebar.is-warn > span {
+  background: linear-gradient(90deg, var(--danger), #f97316);
+}
+
 .quiz-question-card {
-  animation: quizQuestionIn 0.35s ease;
+  padding: 24px clamp(16px, 4vw, 26px) 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  animation: quizQuestionIn 320ms var(--ease) both;
 }
 
 @keyframes quizQuestionIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.quiz-question-meta {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .quiz-question-text {
-  margin: 4px 0 20px;
-  font-size: 1.2rem;
-  font-weight: 700;
+  margin: 0 0 18px;
+  font-size: clamp(1.1rem, 3.2vw, 1.35rem);
   line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .quiz-options {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .quiz-option-btn {
+  --opt: var(--quiz-opt-0);
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  text-align: left;
+  min-height: 60px;
   padding: 10px 14px 10px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
-  color: var(--color-text);
-  font-size: 0.95rem;
-  font-family: inherit;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.97rem;
+  font-weight: 600;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.1s ease, background 0.15s ease;
+  transition: border-color var(--fast), background var(--fast), transform var(--fast);
 }
 
+.quiz-option-btn:nth-child(2) { --opt: var(--quiz-opt-1); }
+.quiz-option-btn:nth-child(3) { --opt: var(--quiz-opt-2); }
+.quiz-option-btn:nth-child(4) { --opt: var(--quiz-opt-3); }
+.quiz-option-btn:nth-child(5) { --opt: var(--quiz-opt-4); }
+.quiz-option-btn:nth-child(6) { --opt: var(--quiz-opt-5); }
+
 .quiz-option-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  transform: translateX(2px);
+  border-color: var(--opt);
+  background: color-mix(in srgb, var(--opt) 7%, var(--surface));
 }
 
 .quiz-option-btn:active:not(:disabled) {
-  transform: scale(0.99);
+  transform: scale(0.985);
 }
 
 .quiz-option-btn:disabled {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .quiz-option-letter {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.9rem;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--opt);
   color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
 }
-
-.quiz-option-btn[data-index='0'] .quiz-option-letter { background: var(--quiz-opt-a); }
-.quiz-option-btn[data-index='1'] .quiz-option-letter { background: var(--quiz-opt-b); }
-.quiz-option-btn[data-index='2'] .quiz-option-letter { background: var(--quiz-opt-c); }
-.quiz-option-btn[data-index='3'] .quiz-option-letter { background: var(--quiz-opt-d); }
 
 .quiz-option-text {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .quiz-option-mark {
-  flex: none;
-  font-size: 1.1rem;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  flex: 0 0 auto;
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
-.quiz-option-btn.correct,
-.quiz-option-btn.wrong {
-  border-width: 2px;
+.quiz-option-btn.is-picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .quiz-option-btn.correct {
-  border-color: var(--color-success);
-  font-weight: 700;
+  border-color: var(--ok);
+  background: var(--ok-soft);
+  color: var(--ink);
 }
 
 .quiz-option-btn.correct .quiz-option-mark {
-  opacity: 1;
+  color: var(--ok);
 }
 
 .quiz-option-btn.wrong {
-  border-color: var(--color-error);
-  animation: quizWrongShake 0.4s ease;
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  animation: quizWrongShake 360ms var(--ease);
 }
 
 .quiz-option-btn.wrong .quiz-option-mark {
-  opacity: 1;
+  color: var(--danger);
+}
+
+/* Cac dap an khong lien quan lam mo bot sau khi da cham */
+.quiz-options:has(.correct) .quiz-option-btn:not(.correct):not(.wrong) {
+  opacity: 0.55;
 }
 
 @keyframes quizWrongShake {
@@ -349,188 +474,191 @@
 }
 
 .quiz-feedback {
-  margin-top: 16px;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  margin: 16px 0 0;
+  padding: 11px 14px;
+  border-radius: var(--r);
   font-weight: 700;
+  font-size: 0.95rem;
   text-align: center;
 }
 
 .quiz-feedback.ok {
-  color: var(--color-success);
-  border: 1px solid var(--color-success);
-  background: var(--color-surface-alt);
+  border: 1px solid var(--ok-line);
+  background: var(--ok-soft);
+  color: var(--ok);
 }
 
 .quiz-feedback.error {
-  color: var(--color-error);
-  border: 1px solid var(--color-error);
-  background: var(--color-surface-alt);
+  border: 1px solid var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
-.quiz-done {
-  text-align: center;
+/* ---------- xong bai ---------- */
+
+.quiz-done-stats {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.quiz-done-icon {
-  font-size: 2.6rem;
-  display: block;
-  margin-bottom: 6px;
+.quiz-done-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
 }
 
-.quiz-done-headline {
-  font-size: 1.15rem;
+.quiz-done-stats span {
+  font-size: 1.6rem;
   font-weight: 800;
-  margin: 0 0 4px;
+  line-height: 1.2;
+  color: var(--ink);
 }
 
-.quiz-done-score {
-  color: var(--color-text-muted);
-  margin: 0 0 18px;
+.quiz-done-stats > div:first-child span {
+  color: var(--accent);
 }
 
-.quiz-done-score strong {
-  color: var(--color-text);
-  font-size: 1.2rem;
+.quiz-done-stats small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
 }
 
 .quiz-leaderboard-title {
-  font-size: 0.95rem;
-  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+
+.quiz-leaderboard-title > [data-lucide],
+.quiz-leaderboard-title > svg {
+  color: var(--gold);
+}
+
+.quiz-leaderboard-note {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .quiz-leaderboard-list {
   list-style: none;
+  margin: 0;
   padding: 0;
-  margin: 0 0 18px;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
 }
 
 .quiz-leaderboard-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.quiz-leaderboard-row.is-top {
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+}
+
+.quiz-leaderboard-row.is-me {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .quiz-leaderboard-rank {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
 }
 
 .quiz-leaderboard-name {
-  flex: 1;
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+}
+
+.quiz-leaderboard-name small {
+  color: var(--accent-ink);
+}
+
+.quiz-leaderboard-time {
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .quiz-leaderboard-score {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .quiz-leaderboard-empty {
-  color: var(--color-text-muted);
+  padding: 12px;
+  color: var(--muted);
+  font-style: italic;
   text-align: center;
-  padding: 10px 0;
 }
 
 .quiz-hint {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-/* ---------- phong cho: dang cho admin bam bat dau ---------- */
-
-.quiz-waiting {
-  text-align: center;
-  padding: 8px 0 4px;
-}
-
-.quiz-waiting-icon {
-  font-size: 2.4rem;
-  display: block;
-  margin-bottom: 8px;
-  animation: quizMascotFloat 3.4s ease-in-out infinite;
-}
-
-.quiz-waiting-headline {
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 0 0 4px;
-}
-
-.quiz-waiting-count {
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
-  margin: 0 0 16px;
-}
-
-.quiz-waiting-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
-.quiz-waiting-chip {
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.quiz-waiting-empty {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-/* ---------- overlay dem nguoc 3-2-1 truoc khi vao lam bai ---------- */
+/* ---------- overlay dem nguoc 3-2-1 ---------- */
 
 .quiz-countdown-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 120;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(2px);
+  gap: 14px;
+  background: color-mix(in srgb, #0b1020 78%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .quiz-countdown-number {
-  font-size: 5.5rem;
-  font-weight: 800;
-  color: #fff;
-  border: 4px solid #fff;
-  border-radius: 50%;
-  width: 160px;
-  height: 160px;
+  width: 168px;
+  height: 168px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
   animation: quizCountdownPulse 1s ease;
+}
+
+.quiz-countdown-number.is-text {
+  font-size: 1.6rem;
 }
 
 @keyframes quizCountdownPulse {
@@ -540,18 +668,43 @@
 }
 
 .quiz-countdown-hint {
+  margin: 0;
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
 }
 
-/* ---------- icon rieng cho nhom truong ---------- */
+/* ---------- huy hieu nhom truong (dung chung o the nhom) ---------- */
 
 .leader-badge {
   margin-left: 4px;
 }
 
 .member-chip.is-leader .avatar {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--gold);
   outline-offset: 2px;
+}
+
+/* ---------- man hinh hep ---------- */
+
+@media (max-width: 520px) {
+  .quiz-options {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-option-btn {
+    min-height: 56px;
+  }
+
+  .quiz-leaderboard-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+
+  .quiz-leaderboard-time {
+    display: none;
+  }
+
+  .quiz-done-stats span {
+    font-size: 1.3rem;
+  }
 }

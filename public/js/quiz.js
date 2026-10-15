@@ -218,6 +218,7 @@
       if (secondsLeft !== lastShown) {
         lastShown = secondsLeft;
         quizCountdownNumber.textContent = secondsLeft > 0 ? String(secondsLeft) : 'Bắt đầu!';
+        quizCountdownNumber.classList.toggle('is-text', secondsLeft <= 0);
         // chay lai animation moi giay de so "nhay" lai tu dau
         quizCountdownNumber.style.animation = 'none';
         void quizCountdownNumber.offsetWidth;

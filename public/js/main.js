@@ -468,8 +468,8 @@ function setStep(step, state, status) {
 function renderEventSteps() {
   const config = lastConfig || {};
   if (currentPhase === 'quiz') {
-    setStep('quiz', 'current', config.quizStatus === 'active' ? 'Đang diễn ra' : 'Đang mở phòng chờ');
-    setStep('random', '', 'Mở sau khi có Nhóm Trưởng');
+    setStep('quiz', 'current', config.quizStatus === 'active' ? 'Đang diễn ra' : 'Đang mở');
+    setStep('random', '', 'Sau vòng Quiz');
   } else {
     setStep('quiz', 'done', (leaders.length ? `${leaders.length} Nhóm Trưởng` : 'Đã xong'));
     setStep('random', randomLocked ? 'locked' : 'current', randomLocked ? 'Đang tạm khóa' : 'Đang mở');

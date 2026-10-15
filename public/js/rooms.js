@@ -900,6 +900,8 @@ async function draw() {
   // Kiem lai tren du lieu MOI NHAT: admin co the da reset/xoa phong trong luc quay
   const room = roomOf(name);
   if (!room) {
+    // Admin reset ca vong -> toast reset da giai thich, khong bao trung
+    if (Date.now() - lastResetAt < 10000) return;
     showToast('Kết quả vừa bị admin thay đổi trong lúc quay — kiểm tra lại rồi quay lại nhé.', 'info', 6000, {
       key: 'rooms-mine',
       priority: 2,
