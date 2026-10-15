@@ -1,18 +1,6 @@
 const socket = io();
 window.socket = socket;
 
-let hasConnectedOnce = false;
-socket.on('connect', () => {
-  if (hasConnectedOnce) {
-    // Ket noi lai sau khi mat mang: dong bo lai toan bo de tranh lech du lieu
-    // do bo lo cac su kien phat trong luc mat ket noi.
-    loadGroups();
-    loadMembers();
-    loadActivity();
-  }
-  hasConnectedOnce = true;
-});
-
 const introScreen = document.getElementById('introScreen');
 const quizScreen = document.getElementById('quizScreen');
 const appScreen = document.getElementById('appScreen');
@@ -23,18 +11,35 @@ const cdMinutes = document.getElementById('cdMinutes');
 const cdSeconds = document.getElementById('cdSeconds');
 const startBtn = document.getElementById('startBtn');
 const startBtnText = document.getElementById('startBtnText');
+const startBtnIcon = document.getElementById('startBtnIcon');
+const introHint = document.getElementById('introHint');
+const eventSteps = document.getElementById('eventSteps');
 
 const memberSelect = document.getElementById('memberSelect');
 const randomBtn = document.getElementById('randomBtn');
+const randomBtnText = document.getElementById('randomBtnText');
+const notMeBtn = document.getElementById('notMeBtn');
+const lockNotice = document.getElementById('lockNotice');
+const leaderNotice = document.getElementById('leaderNotice');
+const leaderNoticeText = document.getElementById('leaderNoticeText');
 const resultBox = document.getElementById('resultBox');
-const resultText = document.getElementById('resultText');
+const resultIcon = document.getElementById('resultIcon');
+const resultGroup = document.getElementById('resultGroup');
+const resultName = document.getElementById('resultName');
+const resultMotto = document.getElementById('resultMotto');
+const resultMatesWrap = document.getElementById('resultMatesWrap');
+const resultMates = document.getElementById('resultMates');
+const resultMatesCount = document.getElementById('resultMatesCount');
 const shareBtn = document.getElementById('shareBtn');
 const shareCanvas = document.getElementById('shareCanvas');
+const copyResultBtn = document.getElementById('copyResultBtn');
+const nativeShareBtn = document.getElementById('nativeShareBtn');
 const errorText = document.getElementById('errorText');
 const groupsGrid = document.getElementById('groupsGrid');
 const groupsPreview = document.getElementById('groupsPreview');
 const progressText = document.getElementById('progressText');
 const progressPct = document.getElementById('progressPct');
+const progressBar = document.getElementById('progressBar');
 const progressFill = document.getElementById('progressFill');
 const remainingText = document.getElementById('remainingText');
 const confettiCanvas = document.getElementById('confettiCanvas');
@@ -46,17 +51,16 @@ const reelStripEls = [0, 1, 2].map((i) => document.getElementById(`reelStrip${i}
 const rulesBtn = document.getElementById('rulesBtn');
 const rulesModal = document.getElementById('rulesModal');
 const rulesCloseBtn = document.getElementById('rulesCloseBtn');
+const srLive = document.getElementById('srLive');
 
 const soundToggleBtn = document.getElementById('soundToggleBtn');
 const fxToggleBtn = document.getElementById('fxToggleBtn');
-const onlineBadge = document.getElementById('onlineBadge');
+const onlineCount = document.getElementById('onlineCount');
 const backToTopBtn = document.getElementById('backToTopBtn');
 const memberSearch = document.getElementById('memberSearch');
-const resultMotto = document.getElementById('resultMotto');
-const copyResultBtn = document.getElementById('copyResultBtn');
-const nativeShareBtn = document.getElementById('nativeShareBtn');
 
 const STORAGE_KEY = 'randomTeam_myName';
+const QUIZ_NAME_KEY = 'randomTeam_quizName';
 const SOUND_KEY = 'randomTeam_soundMuted';
 const FX_KEY = 'randomTeam_fxEnabled';
 const MAX_ACTIVITY = 20;
@@ -81,25 +85,54 @@ let errorTimer = null;
 let isSpinning = false;
 let lastResult = null;
 let dataReady = false;
-let countdownReady = true;
+// false cho toi khi doc xong /api/config: truoc day mac dinh true nen nut "Bat dau"
+// bam duoc truoc khi biet gio mo, va vao nham man quiz/random.
+let countdownReady = false;
 let countdownTimer = null;
 let pendingRandomName = null;
 let currentPhase = 'quiz';
-const QUIZ_NAME_KEY = 'randomTeam_quizName';
+let randomLocked = false;
+let leaders = [];
+let lastConfig = null;
+// Tang len moi lan admin reset / dua ve man hinh cho. Moi tac vu bat dong bo (quay
+// random ~3.4s) ghi lai epoch luc bat dau; xong ma epoch da doi thi bo ket qua,
+// khong de phao giay + "Chuc mung" no ra tren man hinh cho.
+let epoch = 0;
 
+function reducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// Escape ca dau nhay: ten co dau " dat vao value="..." truoc day bi cat cut
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function announce(text) {
+  if (!srLive) return;
+  srLive.textContent = '';
+  // Doi 1 nhip de trinh doc man hinh nhan ra noi dung moi ke ca khi trung chu cu
+  setTimeout(() => {
+    srLive.textContent = text;
+  }, 60);
 }
 
 function slugify(str) {
-  return str
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'ket-qua';
+  return (
+    str
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'ket-qua'
+  );
 }
 
 function hashColor(str) {
@@ -123,10 +156,11 @@ function themeForIndex(idx) {
   return GROUP_THEMES[idx % GROUP_THEMES.length];
 }
 
+// Mau admin dat cho nhom (tab Chia nhom) duoc uu tien o MOI noi: the nhom, xem
+// truoc, slot machine, anh ket qua. Truoc day the nhom va xem truoc bo qua mau nay.
 function themeForGroup(group) {
   const idx = groups.findIndex((g) => g.id === group.id);
   const base = themeForIndex(idx === -1 ? 0 : idx);
-  // Admin dat mau rieng cho nhom thi uu tien mau do
   return group && group.color ? { ...base, color: group.color } : base;
 }
 
@@ -162,14 +196,44 @@ function showError(msg) {
   errorText.textContent = msg;
   errorText.classList.remove('hidden');
   clearTimeout(errorTimer);
-  errorTimer = setTimeout(() => errorText.classList.add('hidden'), 4000);
+  errorTimer = setTimeout(() => errorText.classList.add('hidden'), 5000);
   playError();
 }
 
-/* ---------- sound fx (Web Audio, no external assets) ---------- */
+function hideError() {
+  clearTimeout(errorTimer);
+  errorText.classList.add('hidden');
+}
+
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (err) {
+    data = null;
+  }
+  if (!res.ok) {
+    const error = new Error((data && data.error) || `HTTP ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+/* ---------- am thanh (Web Audio, khong can file ngoai) ---------- */
 
 let audioCtx = null;
-let soundMuted = localStorage.getItem(SOUND_KEY) === '1';
+// Nguoi dung tu bat/tat thi nho lua chon do; chua tung chon thi theo mac dinh admin dat
+function storedSoundChoice() {
+  try {
+    return localStorage.getItem(SOUND_KEY);
+  } catch (err) {
+    return null;
+  }
+}
+let soundMuted = storedSoundChoice() === '1';
 
 function getAudioCtx() {
   if (!audioCtx) {
@@ -199,7 +263,7 @@ function beep({ freq = 440, duration = 0.12, type = 'sine', gain = 0.06, delay =
     osc.start(startAt);
     osc.stop(startAt + duration + 0.02);
   } catch (err) {
-    /* audio not available, ignore */
+    /* trinh duyet khong ho tro am thanh, bo qua */
   }
 }
 
@@ -221,41 +285,58 @@ function playError() {
   beep({ freq: 150, duration: 0.22, type: 'square', gain: 0.05 });
 }
 
+function playTick() {
+  beep({ freq: 880, duration: 0.04, type: 'square', gain: 0.025 });
+}
+
 function updateSoundBtn() {
   soundToggleBtn.innerHTML = `<i data-lucide="${soundMuted ? 'volume-x' : 'volume-2'}"></i>`;
-  soundToggleBtn.classList.toggle('is-off', soundMuted);
+  soundToggleBtn.setAttribute('aria-pressed', soundMuted ? 'false' : 'true');
 }
 
 soundToggleBtn.addEventListener('click', () => {
   soundMuted = !soundMuted;
-  localStorage.setItem(SOUND_KEY, soundMuted ? '1' : '0');
+  try {
+    localStorage.setItem(SOUND_KEY, soundMuted ? '1' : '0');
+  } catch (err) {
+    /* localStorage bi chan */
+  }
   updateSoundBtn();
   if (!soundMuted) playClick();
 });
 
 updateSoundBtn();
 
-/* ---------- toast notifications ---------- */
-/* Toan bo logic nam trong js/toast.js (load truoc file nay): gioi han so toast
-   hien cung luc, gop toast trung noi dung, gop su kien realtime. */
+/* ---------- toast ---------- */
+/* Toan bo logic nam trong js/toast.js (nap truoc file nay). */
 
 function showToast(message, type, duration, opts) {
   return window.Toast.show(message, type, duration, opts);
 }
 
-/* ---------- cursor sparkle fx toggle ---------- */
+/* ---------- hieu ung con tro ---------- */
 
-let fxEnabled = localStorage.getItem(FX_KEY) !== '0';
+let fxEnabled = (() => {
+  try {
+    return localStorage.getItem(FX_KEY) !== '0';
+  } catch (err) {
+    return true;
+  }
+})();
 const SPARK_EMOJIS = ['✨', '⭐', '💫'];
 let lastSparkAt = 0;
 
 function updateFxBtn() {
-  fxToggleBtn.classList.toggle('is-off', !fxEnabled);
+  fxToggleBtn.setAttribute('aria-pressed', fxEnabled ? 'true' : 'false');
 }
 
 fxToggleBtn.addEventListener('click', () => {
   fxEnabled = !fxEnabled;
-  localStorage.setItem(FX_KEY, fxEnabled ? '1' : '0');
+  try {
+    localStorage.setItem(FX_KEY, fxEnabled ? '1' : '0');
+  } catch (err) {
+    /* localStorage bi chan */
+  }
   updateFxBtn();
   playClick();
 });
@@ -263,12 +344,13 @@ fxToggleBtn.addEventListener('click', () => {
 updateFxBtn();
 
 document.addEventListener('pointermove', (e) => {
-  if (!fxEnabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!fxEnabled || e.pointerType === 'touch' || reducedMotion()) return;
   const now = performance.now();
   if (now - lastSparkAt < 70 || Math.random() > 0.25) return;
   lastSparkAt = now;
   const span = document.createElement('span');
   span.className = 'cursor-spark';
+  span.setAttribute('aria-hidden', 'true');
   span.textContent = SPARK_EMOJIS[Math.floor(Math.random() * SPARK_EMOJIS.length)];
   span.style.left = `${e.clientX}px`;
   span.style.top = `${e.clientY}px`;
@@ -276,24 +358,28 @@ document.addEventListener('pointermove', (e) => {
   setTimeout(() => span.remove(), 700);
 });
 
-/* ---------- online viewer count ---------- */
+/* ---------- so nguoi dang xem ---------- */
 
 socket.on('online:count', (count) => {
-  onlineBadge.innerHTML = `<span class="dot is-live"></span> ${count} đang xem`;
+  onlineCount.textContent = String(count);
 });
 
-/* ---------- back to top ---------- */
+/* ---------- len dau trang ---------- */
 
-window.addEventListener('scroll', () => {
-  backToTopBtn.classList.toggle('hidden', window.scrollY < 400);
-});
+window.addEventListener(
+  'scroll',
+  () => {
+    backToTopBtn.classList.toggle('hidden', window.scrollY < 400);
+  },
+  { passive: true }
+);
 
 backToTopBtn.addEventListener('click', () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
   playClick();
 });
 
-/* ---------- konami code easter egg ---------- */
+/* ---------- easter egg konami ---------- */
 
 const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 let konamiIndex = 0;
@@ -305,8 +391,8 @@ document.addEventListener('keydown', (e) => {
     konamiIndex++;
     if (konamiIndex === KONAMI_CODE.length) {
       konamiIndex = 0;
-      fireConfetti();
-      fireFireworks(4500);
+      fireConfetti(undefined, undefined, { force: true });
+      fireFireworks(4500, { force: true });
       playWin();
       showToast('🥳 Bạn vừa tìm thấy Easter Egg bí mật!', 'success', 5000);
     }
@@ -315,11 +401,11 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ---------- intro screen: particles + countdown ---------- */
+/* ---------- man hinh cho: hat bay + dem nguoc + 3 buoc ---------- */
 
 function setupIntroParticles() {
   const container = document.querySelector('.intro-particles');
-  if (!container) return;
+  if (!container || container.childElementCount) return;
   const emojis = ['🎉', '✨', '🎊', '⭐', '💫'];
   const frag = document.createDocumentFragment();
   for (let i = 0; i < 10; i++) {
@@ -335,20 +421,68 @@ function setupIntroParticles() {
   container.appendChild(frag);
 }
 
+function setStartIcon(name) {
+  if (startBtnIcon.dataset.icon === name) return;
+  startBtnIcon.dataset.icon = name;
+  startBtnIcon.innerHTML = `<i data-lucide="${name}"></i>`;
+}
+
+// Chu tren nut "Bat dau" phu thuoc giai doan: dang quiz thi nut dan vao quiz,
+// truoc day van ghi "Bat dau boc tham" nen nguoi choi tuong la boc tham ngay.
 function updateStartBtnState() {
   startBtn.disabled = !(dataReady && countdownReady);
-  // San sang roi thi hien dung chu admin dat trong tab Giao dien & noi dung
   const ui = window.UiConfig ? window.UiConfig.current : null;
-  startBtnText.textContent = !countdownReady
-    ? 'Sắp bắt đầu...'
-    : !dataReady
-      ? 'Đang tải...'
-      : (ui && ui.startButtonText) || 'Bắt đầu bốc thăm';
+
+  if (!countdownReady) {
+    startBtnText.textContent = dataReady ? 'Sắp bắt đầu...' : 'Đang tải...';
+    setStartIcon('hourglass');
+  } else if (!dataReady) {
+    startBtnText.textContent = 'Đang tải...';
+    setStartIcon('hourglass');
+  } else if (currentPhase === 'quiz') {
+    startBtnText.textContent = 'Vào vòng Quiz';
+    setStartIcon('brain');
+  } else {
+    startBtnText.textContent = (ui && ui.startButtonText) || 'Bắt đầu bốc thăm';
+    setStartIcon('dices');
+  }
+
+  introHint.textContent =
+    currentPhase === 'quiz'
+      ? 'Bước 1: trả lời quiz để chọn ra các Nhóm Trưởng, sau đó mới tới bốc thăm.'
+      : randomLocked
+        ? 'Vòng bốc thăm đang tạm khóa — bạn vẫn có thể vào xem các nhóm.'
+        : 'Các nhóm đang chờ bạn tham gia!';
+}
+
+function setStep(step, state, status) {
+  const li = eventSteps.querySelector(`[data-step="${step}"]`);
+  if (!li) return;
+  li.classList.remove('is-done', 'is-current', 'is-locked');
+  if (state) li.classList.add(`is-${state}`);
+  if (state === 'current') li.setAttribute('aria-current', 'step');
+  else li.removeAttribute('aria-current');
+  li.querySelector('.event-step-status').textContent = status;
+}
+
+function renderEventSteps() {
+  const config = lastConfig || {};
+  if (currentPhase === 'quiz') {
+    setStep('quiz', 'current', config.quizStatus === 'active' ? 'Đang diễn ra' : 'Đang mở phòng chờ');
+    setStep('random', '', 'Mở sau khi có Nhóm Trưởng');
+  } else {
+    setStep('quiz', 'done', (leaders.length ? `${leaders.length} Nhóm Trưởng` : 'Đã xong'));
+    setStep('random', randomLocked ? 'locked' : 'current', randomLocked ? 'Đang tạm khóa' : 'Đang mở');
+  }
+  if (config.roomsLocked) setStep('rooms', 'locked', 'Đang tạm khóa');
+  else if (!config.roomCount) setStep('rooms', '', 'Chưa có phòng');
+  else setStep('rooms', currentPhase === 'random' ? 'current' : '', 'Đang mở');
 }
 
 function startCountdown(targetIso) {
   const target = new Date(targetIso).getTime();
   if (Number.isNaN(target) || target <= Date.now()) {
+    countdownBlock.classList.add('hidden');
     countdownReady = true;
     updateStartBtnState();
     return;
@@ -362,11 +496,13 @@ function startCountdown(targetIso) {
     const diff = target - Date.now();
     if (diff <= 0) {
       clearInterval(countdownTimer);
+      countdownTimer = null;
       countdownBlock.classList.add('hidden');
       countdownReady = true;
       updateStartBtnState();
       fireConfetti();
       fireFireworks();
+      announce('Sự kiện đã bắt đầu, mời bạn bấm nút bắt đầu.');
       return;
     }
     const days = Math.floor(diff / 86400000);
@@ -383,12 +519,35 @@ function startCountdown(targetIso) {
   countdownTimer = setInterval(tick, 1000);
 }
 
-// Doc lai /api/config -> cap nhat giai doan va dong ho dem nguoc.
-// Dung ca luc khoi dong lan moi khi admin reset, de man hinh cho hien dung trang thai.
+function applyRandomLock(locked) {
+  randomLocked = !!locked;
+  lockNotice.classList.toggle('hidden', !randomLocked || !!lastResult);
+  updateRandomForm();
+  renderEventSteps();
+  updateStartBtnState();
+}
+
+function renderLeaderNotice() {
+  if (currentPhase !== 'random' || !leaders.length) {
+    leaderNotice.classList.add('hidden');
+    return;
+  }
+  leaderNoticeText.innerHTML = `<strong>${leaders.length} Nhóm Trưởng:</strong> ${leaders
+    .map((l) => escapeHtml(l.name))
+    .join(', ')} — mỗi người sẽ dẫn dắt một nhóm khác nhau.`;
+  leaderNotice.classList.remove('hidden');
+}
+
+// Doc lai /api/config -> cap nhat giai doan, khoa vong, gio mo, Nhom Truong.
+// Dung luc khoi dong, sau khi admin reset va moi lan ket noi lai.
 async function syncConfig() {
   try {
-    const config = await (window.UiConfig ? window.UiConfig.refresh() : fetch('/api/config').then((r) => r.json()));
+    const config = await (window.UiConfig ? window.UiConfig.refresh() : fetchJson('/api/config'));
+    if (!config) throw new Error('Không tải được cấu hình');
+    lastConfig = config;
     currentPhase = config.phase || 'quiz';
+    leaders = Array.isArray(config.leaders) ? config.leaders : [];
+    randomLocked = !!config.randomLocked;
 
     if (countdownTimer) {
       clearInterval(countdownTimer);
@@ -400,34 +559,41 @@ async function syncConfig() {
       countdownBlock.classList.add('hidden');
       countdownReady = true;
     }
+    applyRandomLock(randomLocked);
+    renderLeaderNotice();
     return config;
   } catch (err) {
     console.error(err);
+    // Khong doc duoc cau hinh thi van cho vao, may chu se tu chan neu chua toi luot
     countdownReady = true;
     return null;
   } finally {
+    renderEventSteps();
     updateStartBtnState();
   }
+}
+
+function currentScreen() {
+  if (!appScreen.classList.contains('hidden')) return 'app';
+  if (!quizScreen.classList.contains('hidden')) return 'quiz';
+  return 'intro';
 }
 
 // Dua trang ve MAN HINH CHO (intro): dung sau khi admin reset, hoac khi admin
 // chuyen giai doan nguoc tu random ve quiz.
 function backToWaitingScreen() {
-  resultBox.classList.add('hidden');
-  shareBtn.classList.add('hidden');
-  copyResultBtn.classList.add('hidden');
-  nativeShareBtn.classList.add('hidden');
+  epoch += 1;
+  if (rulesModal.open) rulesModal.close();
+  hideResult();
   slotMachine.classList.add('hidden');
-  errorText.classList.add('hidden');
-  lastResult = null;
+  hideError();
   pendingRandomName = null;
   isSpinning = false;
 
   memberSelect.value = '';
-  memberSelect.disabled = false;
-  randomBtn.disabled = false;
-  randomBtn.classList.remove('spinning');
   memberSearch.value = '';
+  randomBtn.classList.remove('spinning');
+  updateRandomForm();
 
   appScreen.classList.add('hidden');
   quizScreen.classList.add('hidden');
@@ -438,22 +604,28 @@ function backToWaitingScreen() {
     window.QuizUI.reset();
   }
   updateStartBtnState();
+  window.scrollTo(0, 0);
+}
+
+function leaveIntro() {
+  introScreen.classList.add('fade-out');
+  setTimeout(() => {
+    if (introScreen.classList.contains('fade-out')) introScreen.style.display = 'none';
+  }, reducedMotion() ? 0 : 450);
+  window.scrollTo(0, 0);
 }
 
 function enterAppScreen() {
-  introScreen.classList.add('fade-out');
+  leaveIntro();
+  quizScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
-  setTimeout(() => {
-    introScreen.style.display = 'none';
-  }, 450);
+  if (window.QuizUI && typeof window.QuizUI.leave === 'function') window.QuizUI.leave();
 }
 
 function enterQuizScreen() {
-  introScreen.classList.add('fade-out');
+  leaveIntro();
+  appScreen.classList.add('hidden');
   quizScreen.classList.remove('hidden');
-  setTimeout(() => {
-    introScreen.style.display = 'none';
-  }, 450);
   if (window.QuizUI && typeof window.QuizUI.enter === 'function') {
     window.QuizUI.enter();
   }
@@ -462,40 +634,126 @@ function enterQuizScreen() {
 function enterNextScreen() {
   if (currentPhase === 'random') {
     enterAppScreen();
+    restoreSavedResult();
   } else {
     enterQuizScreen();
   }
 }
 
-/* ---------- result reveal + confetti ---------- */
+/* ---------- ket qua ---------- */
+
+function myGroupFromState(name) {
+  if (!name) return null;
+  for (const g of groups) {
+    const m = (g.members || []).find((x) => x.name === name);
+    if (m) return { group: g, member: m };
+  }
+  return null;
+}
+
+function renderResultMates(member, group) {
+  const fresh = groups.find((g) => g.id === group.id);
+  const mates = ((fresh && fresh.members) || []).filter((m) => m.name !== member.name);
+  const showNames = !window.UiConfig || window.UiConfig.flag('showMemberNames', true);
+  resultMatesWrap.classList.toggle('hidden', !showNames);
+  resultMatesCount.textContent = mates.length ? `(${mates.length})` : '';
+  resultMates.innerHTML = mates.length
+    ? mates
+        .map(
+          (m) => `
+          <li class="mate-chip${m.isLeader ? ' is-leader' : ''}">
+            <span class="avatar" style="background:${hashColor(m.name)}">${escapeHtml(initials(m.name))}</span>
+            <span class="name">${escapeHtml(m.name)}</span>${m.isLeader ? '<span class="leader-badge" title="Nhóm trưởng">👑</span>' : ''}
+          </li>`
+        )
+        .join('')
+    : '<li class="mate-chip is-empty">Bạn là người đầu tiên của nhóm — chờ đồng đội nhé!</li>';
+}
 
 function showResult(member, group, celebrate) {
   const theme = themeForGroup(group);
   lastResult = { member, group, theme };
 
+  resultBox.style.setProperty('--group-color', theme.color);
+  resultIcon.textContent = theme.icon;
+  resultGroup.textContent = group.name;
+  resultName.innerHTML = `${escapeHtml(member.name)}${member.isLeader ? ' <span class="leader-tag">👑 Nhóm Trưởng</span>' : ''}`;
+  resultMotto.textContent = `“${group.description || mottoForGroup(group)}”`;
+  renderResultMates(member, group);
+
   resultBox.classList.remove('hidden', 'pop');
-  const leaderTag = member.isLeader ? ' 👑' : '';
-  resultText.innerHTML = `${theme.icon} <strong>${escapeHtml(member.name)}</strong>${leaderTag} thuộc về <strong>${escapeHtml(group.name)}</strong>!`;
-  resultMotto.textContent = `"${mottoForGroup(group)}"`;
-  shareBtn.classList.remove('hidden');
-  copyResultBtn.classList.remove('hidden');
-  nativeShareBtn.classList.remove('hidden');
-  // force reflow so the pop animation replays on repeated results
   void resultBox.offsetWidth;
   resultBox.classList.add('pop');
+  lockNotice.classList.add('hidden');
+  updateRandomForm();
 
   if (celebrate) {
-    fireConfetti();
+    fireConfetti(theme.color);
     fireFireworks();
     playWin();
-    appScreen.classList.add('shake');
-    setTimeout(() => appScreen.classList.remove('shake'), 500);
+    if (!reducedMotion()) {
+      appScreen.classList.add('shake');
+      setTimeout(() => appScreen.classList.remove('shake'), 500);
+    }
     showToast(`🎉 Chúc mừng ${member.name} đã vào ${group.name}!`, 'success');
+    resultBox.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
+  }
+  announce(`${member.name} thuộc về ${group.name}.`);
+}
+
+function hideResult() {
+  lastResult = null;
+  resultBox.classList.add('hidden');
+  lockNotice.classList.toggle('hidden', !randomLocked);
+}
+
+// Form boc tham: da co ket qua thi khoa lai voi dung ten cua minh, kem nut
+// "Chon ten khac" - truoc day xong luot van bam tiep duoc cho ten nguoi khac.
+function updateRandomForm() {
+  const hasResult = !!lastResult;
+  const busy = isSpinning || !!pendingRandomName;
+  memberSelect.disabled = hasResult || busy;
+  randomBtn.disabled = hasResult || busy || randomLocked;
+  randomBtnText.textContent = hasResult
+    ? 'Bạn đã có nhóm'
+    : busy
+      ? 'Đang quay...'
+      : randomLocked
+        ? 'Đang tạm khóa'
+        : 'Random ngay';
+  notMeBtn.classList.toggle('hidden', !hasResult || busy);
+}
+
+// Sau moi lan tai lai danh sach nhom: doi chieu ket qua dang hien voi du lieu moi.
+// Admin chuyen nhom / xao lai / xoa ket qua thi o ket qua cung phai doi theo.
+function reconcileResult() {
+  if (isSpinning || pendingRandomName) return;
+  const myName = localStorage.getItem(STORAGE_KEY);
+  if (!myName || currentScreen() !== 'app') return;
+
+  const found = myGroupFromState(myName);
+  if (found) {
+    const changed = !lastResult || lastResult.group.id !== found.group.id;
+    if (lastResult && changed) {
+      showToast(`ℹ️ Admin đã chuyển bạn sang ${found.group.name}`, 'info', 5000);
+    }
+    if (changed || lastResult) {
+      showResult({ name: myName, isLeader: !!found.member.isLeader, id: found.member.id }, found.group, false);
+    }
+    return;
+  }
+
+  if (lastResult) {
+    hideResult();
+    localStorage.removeItem(STORAGE_KEY);
+    memberSelect.value = myName;
+    updateRandomForm();
+    showToast('ℹ️ Kết quả bốc thăm của bạn vừa được Admin xóa — bấm Random để bốc lại nhé.', 'info', 6000);
   }
 }
 
 function buildReelIcons(targetIcon) {
-  const pool = groups.length ? groups.map((g, i) => themeForIndex(i).icon) : GROUP_THEMES.map((t) => t.icon);
+  const pool = groups.length ? groups.map((g) => themeForGroup(g).icon) : GROUP_THEMES.map((t) => t.icon);
   const seq = [];
   for (let i = 0; i < REEL_STRIP_LENGTH - 1; i++) {
     seq.push(pool[Math.floor(Math.random() * pool.length)]);
@@ -513,13 +771,11 @@ function spinReel(stripEl, targetIcon, totalDurationMs) {
     stripEl.style.transform = 'translateY(0)';
     stripEl.innerHTML = icons.map((icon) => `<div class="slot-reel-item">${icon}</div>`).join('');
     reelBox.classList.remove('landed');
-    // force reflow so the reset above applies before the animated transform kicks in
     void stripEl.offsetHeight;
 
     const finalOffset = (icons.length - 1) * REEL_ITEM_HEIGHT;
-    // phase 1: fast constant-speed scroll through most of the strip (clearly "spinning")
-    // phase 2: slow, readable deceleration onto the winning icon
-    const phase1Offset = Math.round(finalOffset * 0.55 / REEL_ITEM_HEIGHT) * REEL_ITEM_HEIGHT;
+    // pha 1: quay nhanh deu tay qua phan lon dai icon; pha 2: cham dan va dung o icon trung
+    const phase1Offset = Math.round((finalOffset * 0.55) / REEL_ITEM_HEIGHT) * REEL_ITEM_HEIGHT;
     const phase1Duration = Math.round(totalDurationMs * 0.4);
     const phase2Duration = totalDurationMs - phase1Duration;
     let phase1Done = false;
@@ -547,7 +803,6 @@ function spinReel(stripEl, targetIcon, totalDurationMs) {
         stripEl.removeEventListener('transitionend', onPhase2End);
         settle();
       });
-      // fallback in case transitionend doesn't fire (e.g. reduced-motion 0-duration transition)
       setTimeout(settle, phase2Duration + 300);
     };
 
@@ -561,23 +816,31 @@ function spinReel(stripEl, targetIcon, totalDurationMs) {
       stripEl.style.transform = `translateY(-${phase1Offset}px)`;
     });
     stripEl.addEventListener('transitionend', onPhase1End);
-    // fallback in case phase 1's transitionend doesn't fire
     setTimeout(startPhase2, phase1Duration + 300);
   });
 }
 
 function runSlotMachine(theme) {
   slotMachine.classList.remove('hidden');
-  return Promise.all(reelStripEls.map((el, i) => spinReel(el, theme.icon, REEL_DURATIONS[i])));
+  // Giam chuyen dong: van hien 3 cot nhung dung gan nhu ngay lap tuc
+  const durations = reducedMotion() ? [240, 280, 320] : REEL_DURATIONS;
+  return Promise.all(reelStripEls.map((el, i) => spinReel(el, theme.icon, durations[i])));
 }
 
-function fireConfetti(color1, color2) {
+function effectsAllowed(opts) {
+  if (opts && opts.force) return true;
+  if (reducedMotion()) return false;
+  return !window.UiConfig || window.UiConfig.flag('confettiEnabled', true);
+}
+
+function fireConfetti(color1, color2, opts) {
+  if (!effectsAllowed(opts)) return;
   const ctx = confettiCanvas.getContext('2d');
   confettiCanvas.width = window.innerWidth;
   confettiCanvas.height = window.innerHeight;
   confettiCanvas.classList.remove('hidden');
 
-  const colors = [color1 || '#2563eb', color2 || '#3b82f6', '#1d4ed8', '#60a5fa', '#93c5fd', '#ffffff'];
+  const colors = [color1 || '#2563eb', color2 || '#f59e0b', '#1d4ed8', '#60a5fa', '#f472b6', '#ffffff'];
   const particles = Array.from({ length: 140 }, () => ({
     x: confettiCanvas.width / 2 + (Math.random() - 0.5) * confettiCanvas.width * 0.4,
     y: confettiCanvas.height * 0.25,
@@ -620,8 +883,8 @@ function fireConfetti(color1, color2) {
   tick();
 }
 
-function fireFireworks(durationMs = 3200) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+function fireFireworks(durationMs = 3200, opts) {
+  if (!effectsAllowed(opts)) return;
   const ctx = fireworksCanvas.getContext('2d');
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -714,7 +977,11 @@ function fireFireworks(durationMs = 3200) {
   requestAnimationFrame(tick);
 }
 
-/* ---------- shareable result card ---------- */
+// Cho quiz.js dung chung (chuc mung khi xong bai / khi duoc chon lam Nhom Truong)
+window.fireConfetti = fireConfetti;
+window.fireFireworks = fireFireworks;
+
+/* ---------- anh ket qua de chia se ---------- */
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
@@ -738,31 +1005,35 @@ function drawShareCard({ member, group, theme }) {
   const ctx = shareCanvas.getContext('2d');
   const W = shareCanvas.width;
   const H = shareCanvas.height;
+  const font = '"Be Vietnam Pro", "Segoe UI", sans-serif';
 
   const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#1d4ed8');
+  grad.addColorStop(0, '#1e1b4b');
   grad.addColorStop(1, theme.color);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.textAlign = 'center';
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(36, 36, W - 72, H - 72);
 
-  ctx.font = '160px "Segoe UI Emoji", "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.font = '160px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
   ctx.fillText(theme.icon, W / 2, 280);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 30px "Segoe UI", sans-serif';
+  ctx.font = `700 28px ${font}`;
   ctx.fillText('BẠN THUỘC VỀ', W / 2, 380);
 
-  ctx.font = '800 54px "Segoe UI", sans-serif';
-  wrapText(ctx, group.name, W / 2, 460, W - 140, 62);
+  ctx.font = `800 52px ${font}`;
+  wrapText(ctx, group.name, W / 2, 460, W - 160, 62);
 
-  ctx.font = '600 34px "Segoe UI", sans-serif';
-  ctx.fillText(member.name, W / 2, 630);
+  ctx.font = `600 34px ${font}`;
+  ctx.fillText(`${member.name}${member.isLeader ? ' 👑' : ''}`, W / 2, 630);
 
-  ctx.font = '400 22px "Segoe UI", sans-serif';
+  ctx.font = `400 22px ${font}`;
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText('DIMACO • Random Chia Nhóm', W / 2, H - 60);
+  ctx.fillText('DIMACO • Random Chia Nhóm', W / 2, H - 70);
 }
 
 shareBtn.addEventListener('click', () => {
@@ -777,15 +1048,35 @@ shareBtn.addEventListener('click', () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Thu hoi ngay sau click() co the huy tai xuong tren Safari/Firefox
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
   }, 'image/png');
 });
+
+// Clipboard API chi co tren https/localhost. Mo qua IP mang noi bo (http) thi
+// dung cach cu: chon chu trong 1 o an roi copy.
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(area);
+  if (!ok) throw new Error('copy failed');
+}
 
 copyResultBtn.addEventListener('click', async () => {
   if (!lastResult) return;
   const text = `${lastResult.member.name} thuộc về ${lastResult.group.name} 🎉 (DIMACO Random Chia Nhóm)`;
   try {
-    await navigator.clipboard.writeText(text);
+    await copyText(text);
     showToast('Đã copy kết quả!', 'success', 2200);
     playClick();
   } catch (err) {
@@ -800,19 +1091,19 @@ nativeShareBtn.addEventListener('click', async () => {
     try {
       await navigator.share({ title: 'Kết quả bốc thăm chia nhóm', text, url: window.location.href });
     } catch (err) {
-      /* user cancelled share sheet, nothing to do */
+      /* nguoi dung dong bang chia se */
     }
     return;
   }
   try {
-    await navigator.clipboard.writeText(`${text} - ${window.location.href}`);
+    await copyText(`${text} - ${window.location.href}`);
     showToast('Trình duyệt không hỗ trợ chia sẻ, đã copy link!', 'success');
   } catch (err) {
     showToast('Không thể chia sẻ', 'error');
   }
 });
 
-/* ---------- leaderboard + activity feed ---------- */
+/* ---------- bang xep hang + hoat dong ---------- */
 
 function renderLeaderboard() {
   const sorted = [...groups].sort((a, b) => (b.members?.length || 0) - (a.members?.length || 0));
@@ -823,15 +1114,16 @@ function renderLeaderboard() {
     .map((g, i) => {
       const count = g.members ? g.members.length : 0;
       const pct = Math.round((count / max) * 100);
+      const color = themeForGroup(g).color;
       return `
         <li class="leaderboard-row">
-          <span class="leaderboard-rank">${medals[i] || i + 1}</span>
+          <span class="leaderboard-rank">${count ? medals[i] || i + 1 : i + 1}</span>
           <div class="leaderboard-info">
             <div class="leaderboard-top">
               <span class="leaderboard-name">${escapeHtml(g.name)}</span>
-              <span class="leaderboard-count">${count} người</span>
+              <span class="leaderboard-count num">${count}${g.effectiveCapacity ? `/${g.effectiveCapacity}` : ''} người</span>
             </div>
-            <div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width:${pct}%"></div></div>
+            <div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width:${pct}%;background:${color}"></div></div>
           </div>
         </li>`;
     })
@@ -849,15 +1141,14 @@ function renderActivity() {
     .map(
       (a) => `
         <li class="activity-item">
-          <span class="activity-time">${formatTime(a.at)}</span>
+          <span class="activity-time num">${formatTime(a.at)}</span>
           <span>${escapeHtml(a.message)}</span>
         </li>`
     )
     .join('');
 }
 
-// Socket van gui dang {member, group, at} cho goi nhe; doi sang dang cua
-// nhat ky trong DB ({message, at}) de renderActivity dung chung 1 khuon.
+// Socket gui dang {member, group, at}; doi sang dang nhat ky trong DB ({message, at})
 function addActivity(entry) {
   if (!entry || !entry.member || !entry.group) return;
   activityData.unshift({
@@ -872,15 +1163,16 @@ function addActivity(entry) {
   renderActivity();
 }
 
-/* ---------- groups + progress ---------- */
+/* ---------- nhom + tien do ---------- */
 
 function updateProgress() {
   const assigned = groups.reduce((sum, g) => sum + (g.members ? g.members.length : 0), 0);
-  const total = totalMembersCount;
+  const total = Math.max(totalMembersCount, assigned);
   const pct = total ? Math.round((assigned / total) * 100) : 0;
-  progressText.textContent = `Đã random ${assigned}/${total} người`;
+  progressText.textContent = `Đã bốc thăm ${assigned}/${total} người`;
   progressPct.textContent = `${pct}%`;
   progressFill.style.width = `${pct}%`;
+  progressBar.setAttribute('aria-valuenow', String(pct));
 
   const remaining = Math.max(0, total - assigned);
   remainingText.textContent = !total
@@ -892,68 +1184,86 @@ function updateProgress() {
 
 function renderGroupsPreview() {
   groupsPreview.innerHTML = groups
-    .map((g, idx) => {
-      const theme = themeForIndex(idx);
-      return `<span class="preview-chip"><span class="preview-dot" style="background:${theme.color}"></span><span>${theme.icon}</span><span>${escapeHtml(g.name)}</span></span>`;
+    .map((g) => {
+      const theme = themeForGroup(g);
+      const full = g.isFull && g.effectiveCapacity;
+      return `<span class="preview-chip${g.locked || full ? ' is-closed' : ''}"><span class="preview-dot" style="background:${theme.color}"></span><span aria-hidden="true">${theme.icon}</span><span>${escapeHtml(g.name)}</span>${
+        g.locked ? '<span class="preview-flag">khóa</span>' : full ? '<span class="preview-flag">đủ người</span>' : ''
+      }</span>`;
     })
     .join('');
 }
 
 function renderGroups() {
   const myName = localStorage.getItem(STORAGE_KEY);
+  const showNames = !window.UiConfig || window.UiConfig.flag('showMemberNames', true);
   const flippedIds = new Set(
     [...groupsGrid.querySelectorAll('.group-card.flipped')].map((card) => card.dataset.groupId)
   );
 
   groupsGrid.innerHTML = groups
-    .map((group, idx) => {
-      const theme = themeForIndex(idx);
+    .map((group) => {
+      const theme = themeForGroup(group);
       const members = group.members || [];
-      const memberItems = members.length
-        ? members
-            .map((m) => {
-              const isMe = m.name === myName;
-              const leaderBadge = m.isLeader ? '<span class="leader-badge" title="Nhóm trưởng">👑</span>' : '';
-              return `
+      const capText = group.effectiveCapacity ? `${members.length}/${group.effectiveCapacity}` : `${members.length}`;
+      const memberItems = !showNames
+        ? '<li class="member-chip empty">Danh sách thành viên đang được ẩn</li>'
+        : members.length
+          ? members
+              .map((m) => {
+                const isMe = m.name === myName;
+                const leaderBadge = m.isLeader ? '<span class="leader-badge" title="Nhóm trưởng">👑</span>' : '';
+                return `
                 <li class="member-chip ${isMe ? 'me' : ''} ${m.isLeader ? 'is-leader' : ''}">
                   <span class="avatar" style="background:${hashColor(m.name)}">${escapeHtml(initials(m.name))}</span>
-                  <span class="name">${escapeHtml(m.name)}${leaderBadge}</span>
+                  <span class="name">${escapeHtml(m.name)}${isMe ? ' <small>(bạn)</small>' : ''}${leaderBadge}</span>
                 </li>`;
-            })
-            .join('')
-        : '<li class="member-chip empty">Chưa có thành viên</li>';
+              })
+              .join('')
+          : '<li class="member-chip empty">Chưa có thành viên</li>';
 
       return `
-        <div class="group-card" style="--accent:${theme.color}" data-group-id="${group.id}">
+        <article class="group-card${group.locked ? ' is-locked' : ''}" style="--accent:${theme.color}" data-group-id="${group.id}">
           <div class="group-card-inner">
             <div class="group-card-face front">
               <div class="group-card-top">
-                <span class="group-icon" style="background:${theme.color}1f;border-color:${theme.color}66">${theme.icon}</span>
-                <div>
+                <span class="group-icon" aria-hidden="true">${theme.icon}</span>
+                <div class="group-card-heading">
                   <h2>${escapeHtml(group.name)}</h2>
                   ${group.description ? `<p class="group-desc">${escapeHtml(group.description)}</p>` : ''}
                 </div>
+                <button type="button" class="group-flip-btn" aria-pressed="false" aria-label="Xem slogan của ${escapeHtml(group.name)}">
+                  <i data-lucide="message-square-quote"></i>
+                </button>
               </div>
-              <span class="member-count-badge">${members.length} thành viên</span>
+              <div class="group-card-meta">
+                <span class="member-count-badge num">${capText} thành viên</span>
+                ${group.locked ? '<span class="group-lock-badge"><i data-lucide="lock"></i> Đang khóa</span>' : ''}
+              </div>
               <ul class="member-list">${memberItems}</ul>
             </div>
-            <div class="group-card-face back">
+            <div class="group-card-face back" aria-hidden="true">
               <span class="group-card-back-icon">${theme.icon}</span>
-              <p class="group-card-motto">"${escapeHtml(mottoForGroup(group))}"</p>
+              <p class="group-card-motto">“${escapeHtml(mottoForGroup(group))}”</p>
               <p class="group-card-back-hint">Bấm lại để quay về</p>
             </div>
           </div>
-        </div>
+        </article>
       `;
     })
     .join('');
 
   groupsGrid.querySelectorAll('.group-card').forEach((card) => {
-    if (flippedIds.has(card.dataset.groupId)) {
-      card.classList.add('flipped');
-    }
+    const btn = card.querySelector('.group-flip-btn');
+    const back = card.querySelector('.group-card-face.back');
+    const setFlipped = (flipped) => {
+      card.classList.toggle('flipped', flipped);
+      btn.setAttribute('aria-pressed', flipped ? 'true' : 'false');
+      back.setAttribute('aria-hidden', flipped ? 'false' : 'true');
+    };
+    if (flippedIds.has(card.dataset.groupId)) setFlipped(true);
     card.addEventListener('click', () => {
-      card.classList.toggle('flipped');
+      setFlipped(!card.classList.contains('flipped'));
       playClick();
     });
   });
@@ -964,7 +1274,7 @@ function renderGroups() {
   applySearchFilter();
 }
 
-/* ---------- member search / filter ---------- */
+/* ---------- tim thanh vien ---------- */
 
 function applySearchFilter() {
   const q = memberSearch.value.trim().toLowerCase();
@@ -972,11 +1282,7 @@ function applySearchFilter() {
     let hasMatch = false;
     card.querySelectorAll('.member-chip').forEach((chip) => {
       const nameEl = chip.querySelector('.name');
-      if (!nameEl) {
-        chip.classList.remove('search-match', 'search-dim');
-        return;
-      }
-      if (!q) {
+      if (!nameEl || !q) {
         chip.classList.remove('search-match', 'search-dim');
         return;
       }
@@ -991,11 +1297,8 @@ function applySearchFilter() {
 
 memberSearch.addEventListener('input', applySearchFilter);
 
-// Cap nhat state cuc bo tu payload realtime thay vi goi lai /api/groups.
-// Voi su kien duoc broadcast cho TAT CA client, neu moi client deu fetch lai
-// toan bo danh sach nhom + thanh vien thi so request se tang theo binh phuong
-// so nguoi dang mo trang (N nguoi random x N client dang xem) -> server/trinh
-// duyet deu bi ngop khi co dong nguoi dung cung luc.
+// Cap nhat state cuc bo tu payload realtime thay vi goi lai /api/groups:
+// N nguoi random x N client cung fetch lai thi server va trinh duyet deu ngop.
 function applyMemberRandomized(payload) {
   if (!payload || !payload.member || !payload.group) return false;
   const group = groups.find((g) => g.id === payload.group.id);
@@ -1003,7 +1306,7 @@ function applyMemberRandomized(payload) {
 
   group.members = group.members || [];
   if (group.members.some((m) => m.id === payload.member.id)) {
-    return true; // da co san (vd nhan lai su kien), khong can render lai
+    return true;
   }
 
   group.members.push({
@@ -1011,109 +1314,171 @@ function applyMemberRandomized(payload) {
     name: payload.member.name,
     isLeader: !!payload.member.isLeader,
   });
-  group.members.sort((a, b) => a.name.localeCompare(b.name));
+  group.members.sort((a, b) => (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0) || a.name.localeCompare(b.name));
+  if (group.effectiveCapacity) group.isFull = group.members.length >= group.effectiveCapacity;
   renderGroups();
+  if (lastResult && lastResult.group.id === group.id) renderResultMates(lastResult.member, lastResult.group);
   return true;
 }
 
+// So thu tu request: phan hoi cua request cu ve sau request moi thi bo qua
+let groupsSeq = 0;
 async function loadGroups() {
-  const res = await fetch('/api/groups');
-  groups = await res.json();
-  renderGroups();
+  const seq = ++groupsSeq;
+  try {
+    const data = await fetchJson('/api/groups');
+    if (seq !== groupsSeq || !Array.isArray(data)) return;
+    groups = data;
+    renderGroups();
+    reconcileResult();
+  } catch (err) {
+    console.error(err);
+    if (seq === groupsSeq && !groups.length) {
+      groupsGrid.innerHTML = '<p class="groups-error">Không tải được danh sách nhóm — đang thử lại khi có kết nối.</p>';
+    }
+  }
 }
 
+let membersSeq = 0;
 async function loadMembers() {
-  // scope=random: server loc san, ai bi admin tat quyen se khong thay ten minh o day
-  const res = await fetch('/api/members?scope=random');
-  const members = await res.json();
-  totalMembersCount = members.length;
+  const seq = ++membersSeq;
+  try {
+    // scope=random: server loc san, ai bi admin tat quyen se khong thay ten minh o day
+    const members = await fetchJson('/api/members?scope=random');
+    if (seq !== membersSeq || !Array.isArray(members)) return;
+    totalMembersCount = members.length;
 
-  const myName = localStorage.getItem(STORAGE_KEY);
-  memberSelect.innerHTML =
-    '<option value="">-- Chọn tên --</option>' +
-    members
-      .map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)}</option>`)
-      .join('');
+    // Giu lua chon dang do cua nguoi dung khi danh sach duoc tai lai
+    const keep = memberSelect.value || localStorage.getItem(STORAGE_KEY) || '';
+    memberSelect.replaceChildren(new Option('-- Chọn tên --', ''), ...members.map((m) => new Option(m.name, m.name)));
+    if (keep && members.some((m) => m.name === keep)) memberSelect.value = keep;
 
-  if (myName) {
-    memberSelect.value = myName;
+    updateProgress();
+  } catch (err) {
+    console.error(err);
   }
-
-  updateProgress();
 }
 
 async function loadActivity() {
   try {
-    const res = await fetch('/api/activity');
-    activityData = await res.json();
+    const data = await fetchJson('/api/activity?type=random');
+    activityData = Array.isArray(data) ? data : [];
     renderActivity();
   } catch (err) {
     console.error(err);
   }
 }
 
-/* ---------- random flow ---------- */
+function loadAll() {
+  return Promise.all([loadGroups(), loadMembers(), loadActivity()]);
+}
+
+// Nhieu su kien admin den cung luc (groups:updated + members:updated) -> gop 1 lan tai
+let reloadTimer = null;
+function scheduleReload({ members = false } = {}) {
+  scheduleReload.members = scheduleReload.members || members;
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    const withMembers = scheduleReload.members;
+    scheduleReload.members = false;
+    loadGroups();
+    if (withMembers) loadMembers();
+  }, 180);
+}
+
+/* ---------- luot boc tham ---------- */
 
 async function doRandom(name, { isInit = false } = {}) {
-  randomBtn.disabled = true;
-  memberSelect.disabled = true;
-  if (!isInit) {
-    randomBtn.classList.add('spinning');
-  }
-  errorText.classList.add('hidden');
+  const myEpoch = epoch;
   pendingRandomName = name;
+  hideError();
+  updateRandomForm();
+  if (!isInit) randomBtn.classList.add('spinning');
 
   try {
-    const res = await fetch('/api/random', {
+    const data = await fetchJson('/api/random', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     });
-    const data = await res.json();
+    if (myEpoch !== epoch) return;
 
-    if (!res.ok) {
-      resultBox.classList.add('hidden');
-      slotMachine.classList.add('hidden');
-      showError(data.error || 'Có lỗi xảy ra');
-      return;
-    }
-
-    if (!isInit) {
+    const celebrate = !isInit && !data.alreadyRandomized;
+    if (celebrate) {
       isSpinning = true;
-      resultBox.classList.add('hidden');
-      shareBtn.classList.add('hidden');
-      copyResultBtn.classList.add('hidden');
-      nativeShareBtn.classList.add('hidden');
+      hideResult();
+      updateRandomForm();
       const theme = themeForGroup(data.group);
       playSpin();
       await runSlotMachine(theme);
+      if (myEpoch !== epoch) return; // admin reset giua luc dang quay
     }
 
     localStorage.setItem(STORAGE_KEY, data.member.name);
-    await loadGroups();
-    showResult(data.member, data.group, !isInit);
-  } catch (err) {
-    console.error(err);
-    resultBox.classList.add('hidden');
-    slotMachine.classList.add('hidden');
-    showError('Không thể kết nối máy chủ');
-  } finally {
     isSpinning = false;
     pendingRandomName = null;
-    randomBtn.disabled = false;
-    randomBtn.classList.remove('spinning');
-    memberSelect.disabled = false;
+    await loadGroups();
+    if (myEpoch !== epoch) return;
+    // Admin vua xoa ket qua trong luc quay thi khong chuc mung mot nhom da mat
+    const found = myGroupFromState(data.member.name);
+    const group = found ? found.group : data.group;
+    showResult({ ...data.member, isLeader: found ? !!found.member.isLeader : data.member.isLeader }, group, celebrate);
+    if (!celebrate && !isInit) {
+      showToast(`Bạn đã bốc thăm trước đó — vẫn là ${group.name} nhé!`, 'info', 4000);
+    }
+  } catch (err) {
+    if (myEpoch !== epoch) return;
+    slotMachine.classList.add('hidden');
+    if (isInit) {
+      // Ten da luu khong con dung (bi xoa / bi loai khoi vong) -> quen di, cho chon lai
+      if (err.status === 404 || err.status === 403) localStorage.removeItem(STORAGE_KEY);
+      if (err.status === 404) return;
+    }
+    if (err.data && err.data.locked) applyRandomLock(true);
+    showError(err.status ? err.message : 'Không thể kết nối máy chủ');
+  } finally {
+    if (myEpoch === epoch) {
+      isSpinning = false;
+      pendingRandomName = null;
+      randomBtn.classList.remove('spinning');
+      updateRandomForm();
+    }
   }
+}
+
+// Mo lai ket qua da boc (luu theo ten trong localStorage) - may chu tra lai dung nhom cu
+function restoreSavedResult() {
+  const myName = localStorage.getItem(STORAGE_KEY);
+  if (!myName || currentPhase !== 'random') return false;
+  memberSelect.value = myName;
+  doRandom(myName, { isInit: true });
+  return true;
 }
 
 randomBtn.addEventListener('click', () => {
   const name = memberSelect.value;
   if (!name) {
     showError('Vui lòng chọn tên của bạn trước khi random');
+    memberSelect.focus();
+    return;
+  }
+  if (randomLocked) {
+    showError('Vòng chia nhóm đang tạm khóa — chờ Admin mở lại nhé');
     return;
   }
   playClick();
   doRandom(name);
+});
+
+notMeBtn.addEventListener('click', () => {
+  playClick();
+  localStorage.removeItem(STORAGE_KEY);
+  hideResult();
+  slotMachine.classList.add('hidden');
+  memberSelect.value = '';
+  updateRandomForm();
+  renderGroups();
+  memberSelect.focus();
 });
 
 startBtn.addEventListener('click', () => {
@@ -1138,34 +1503,55 @@ rulesModal.addEventListener('click', (e) => {
   }
 });
 
-socket.on('phase:updated', (payload) => {
-  if (!payload) return;
-  currentPhase = payload.phase;
+/* ---------- realtime ---------- */
 
-  // Admin keo giai doan nguoc ve quiz (vd chot nham, muon lam lai): ai dang xem
-  // ket qua random phai duoc dua ve man hinh cho, khong de ket qua cu tren man.
-  if (currentPhase === 'quiz' && !appScreen.classList.contains('hidden')) {
-    localStorage.removeItem(STORAGE_KEY);
+// Chuyen man hinh theo giai doan moi. Dung cho phase:updated va khi dong bo lai
+// sau mat ket noi (luc do co the da bo lo phase:updated).
+function followPhase(prevPhase, { fromEvent = false } = {}) {
+  const screen = currentScreen();
+
+  if (currentPhase === 'quiz' && screen === 'app') {
     backToWaitingScreen();
-    showToast('🔄 Admin đã mở lại vòng Quiz — mời mọi người vào từ đầu', 'info', 5000);
+    showToast('🔄 Admin đã mở lại vòng Quiz — mời mọi người vào lại từ đầu', 'info', 5000);
     return;
   }
 
-  if (currentPhase === 'random' && !quizScreen.classList.contains('hidden')) {
-    quizScreen.classList.add('hidden');
-    appScreen.classList.remove('hidden');
-    loadGroups();
-    loadMembers();
-    const savedQuizName = localStorage.getItem(QUIZ_NAME_KEY);
-    if (savedQuizName && !localStorage.getItem(STORAGE_KEY)) {
-      memberSelect.value = savedQuizName;
+  if (currentPhase === 'random' && screen === 'quiz') {
+    const quizName = window.QuizUI && window.QuizUI.currentName ? window.QuizUI.currentName() : '';
+    enterAppScreen();
+    loadAll().then(() => {
+      if (!localStorage.getItem(STORAGE_KEY) && quizName) memberSelect.value = quizName;
+      restoreSavedResult();
+    });
+    if (fromEvent || prevPhase !== currentPhase) {
+      const names = leaders.map((l) => l.name);
+      const amLeader = quizName && names.includes(quizName);
+      fireConfetti();
+      fireFireworks();
+      playWin();
+      showToast(
+        amLeader
+          ? `👑 Chúc mừng! Bạn là một trong ${names.length} Nhóm Trưởng. Bấm Random để vào nhóm của mình!`
+          : names.length
+            ? `👑 ${names.length} Nhóm Trưởng đã được chốt: ${names.join(', ')}. Mời mọi người bốc thăm!`
+            : '🎲 Vòng bốc thăm đã mở — mời mọi người bấm Random!',
+        'success',
+        7000
+      );
     }
-    const names = (payload.leaders || []).map((l) => l.name).join(', ');
-    fireConfetti();
-    fireFireworks();
-    playWin();
-    showToast(`👑 4 Nhóm Trưởng đã được chốt: ${names}. Mời mọi người bắt đầu Random!`, 'success', 6000);
   }
+}
+
+socket.on('phase:updated', (payload) => {
+  if (!payload) return;
+  const prev = currentPhase;
+  currentPhase = payload.phase;
+  leaders = Array.isArray(payload.leaders) ? payload.leaders : leaders;
+  if (lastConfig) lastConfig.phase = currentPhase;
+  renderLeaderNotice();
+  renderEventSteps();
+  updateStartBtnState();
+  if (prev !== currentPhase) followPhase(prev, { fromEvent: true });
 });
 
 socket.on('config:updated', () => {
@@ -1173,19 +1559,45 @@ socket.on('config:updated', () => {
   syncConfig();
 });
 
+// Admin khoa / mo vong chia nhom -> nut Random doi ngay, khong doi bam moi biet
+socket.on('random:config', (payload) => {
+  const locked = !!(payload && payload.locked);
+  if (locked === randomLocked) return;
+  applyRandomLock(locked);
+  if (currentScreen() === 'app' && !lastResult) {
+    showToast(locked ? '🔒 Admin vừa tạm khóa vòng chia nhóm' : '🔓 Vòng chia nhóm đã mở lại — bấm Random thôi!', 'info', 4000);
+  }
+});
+
+socket.on('rooms:config', (payload) => {
+  if (lastConfig) lastConfig.roomsLocked = !!(payload && payload.locked);
+  renderEventSteps();
+});
+
+socket.on('rooms:updated', (payload) => {
+  if (lastConfig && payload && Array.isArray(payload.rooms)) {
+    lastConfig.roomCount = payload.rooms.length;
+    renderEventSteps();
+  }
+});
+
+socket.on('quiz:started', () => {
+  if (lastConfig) lastConfig.quizStatus = 'active';
+  renderEventSteps();
+});
+
 socket.on('member:randomized', (payload) => {
   addActivity(payload);
   if (!isSpinning) {
     if (!applyMemberRandomized(payload)) {
-      loadGroups();
+      scheduleReload();
     }
   }
   if (!payload || !payload.member) return;
   const myName = localStorage.getItem(STORAGE_KEY);
   const isSelf = payload.member.name === myName || payload.member.name === pendingRandomName;
-  if (!isSelf) {
-    // Luc cao diem ca phong random cung luc: gop tat ca vao 1 toast duy nhat
-    // (cap nhat tai cho) thay vi day xuong mot day toast rieng le.
+  if (!isSelf && currentScreen() === 'app') {
+    // Luc cao diem ca phong random cung luc: gop vao 1 toast cap nhat tai cho
     window.Toast.stream(
       'member-randomized',
       { name: payload.member.name, group: payload.group.name },
@@ -1203,53 +1615,112 @@ socket.on('member:randomized', (payload) => {
 });
 
 // Admin sua danh sach nhom / thanh vien ben trang admin -> cap nhat luon o day
-socket.on('groups:updated', () => {
-  loadGroups();
+socket.on('groups:updated', () => scheduleReload());
+socket.on('members:updated', () => scheduleReload({ members: true }));
+
+socket.on('activity:cleared', () => {
+  activityData = [];
+  renderActivity();
 });
 
-socket.on('members:updated', () => {
-  loadMembers();
-  loadGroups();
-});
-
-// Admin bam "Reset toan bo" hoac "Lam lai vong Quiz" -> moi nguoi ve man hinh cho
+// Admin reset. scope:
+//  - 'all'    (Reset toan bo / phuc hoi du lieu): moi nguoi ve man hinh cho
+//  - 'quiz'   (Lam lai vong Quiz): ve vong quiz, KHONG mat ket qua chia nhom tren may chu
+//  - 'groups' (Xoa ket qua chia nhom): chi nguoi dang xem ket qua bi anh huong
 socket.on('groups:reset', async (payload) => {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(QUIZ_NAME_KEY);
+  const scope = (payload && payload.scope) || 'all';
 
-  backToWaitingScreen();
-
-  if (payload && payload.phase) {
-    currentPhase = payload.phase;
+  if (scope === 'groups') {
+    scheduleReload({ members: true });
+    return;
   }
 
-  // Tai lai du lieu roi moi mo nut "Bat dau" - tranh truong hop bam vao luc
-  // danh sach nhom/thanh vien chua kip ve.
+  if (scope === 'all') {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(QUIZ_NAME_KEY);
+  }
+  const wasOnQuiz = currentScreen() === 'quiz';
+  backToWaitingScreen();
+  if (payload && payload.phase) currentPhase = payload.phase;
+
+  // Tai lai du lieu roi moi mo nut "Bat dau" - tranh bam luc danh sach chua kip ve
   dataReady = false;
   updateStartBtnState();
-  await Promise.all([loadGroups(), loadMembers(), loadActivity()]);
+  await loadAll();
   dataReady = true;
-
-  // Doc lai gio mo: admin co the vua hen gio moi cho luot choi ke tiep
   await syncConfig();
 
-  showToast('🔄 Admin vừa reset — mời mọi người bắt đầu lại từ đầu', 'info', 5000);
+  if (scope === 'quiz' && wasOnQuiz && currentPhase === 'quiz') {
+    // Dang lam quiz thi dua thang ve phong cho voi ten cu, khong bat chon lai
+    enterQuizScreen();
+    showToast('🔄 Admin vừa làm lại vòng Quiz — bạn đã được đưa về phòng chờ', 'info', 5000);
+    return;
+  }
+  showToast(
+    scope === 'quiz' ? '🔄 Admin vừa làm lại vòng Quiz — mời mọi người vào lại' : '🔄 Admin vừa reset — mời mọi người bắt đầu lại từ đầu',
+    'info',
+    5000
+  );
 });
 
-/* ---------- init ---------- */
+// Mat ket noi (khoa man hinh dien thoai, rot wifi) thi co the bo lo phase:updated,
+// quiz:started... -> ket noi lai la dong bo lai toan bo va di theo giai doan moi.
+let hasConnectedOnce = false;
+socket.on('connect', async () => {
+  if (!hasConnectedOnce) {
+    hasConnectedOnce = true;
+    return;
+  }
+  const prev = currentPhase;
+  await syncConfig();
+  loadAll();
+  followPhase(prev);
+  if (window.QuizUI && typeof window.QuizUI.resync === 'function') window.QuizUI.resync();
+});
+
+// Quay lai tab sau mot luc (vd mo khoa dien thoai): socket co the van "song" nhung
+// da bo lo su kien -> dong bo lai nhe nhang, toi da 1 lan moi 20 giay
+let lastHiddenAt = 0;
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    lastHiddenAt = Date.now();
+    return;
+  }
+  if (!lastHiddenAt || Date.now() - lastHiddenAt < 20000) return;
+  const prev = currentPhase;
+  await syncConfig();
+  loadAll();
+  followPhase(prev);
+  if (window.QuizUI && typeof window.QuizUI.resync === 'function') window.QuizUI.resync();
+});
+
+/* ---------- cau hinh admin (am thanh mac dinh, an ten thanh vien...) ---------- */
+
+if (window.UiConfig) {
+  window.UiConfig.onChange((ui) => {
+    // Am thanh: nguoi dung chua tu chon thi theo mac dinh admin dat
+    if (storedSoundChoice() === null && typeof ui.soundEnabled === 'boolean') {
+      soundMuted = !ui.soundEnabled;
+      updateSoundBtn();
+    }
+    updateStartBtnState();
+    if (dataReady) {
+      renderGroups();
+      if (lastResult) renderResultMates(lastResult.member, lastResult.group);
+    }
+  });
+}
+
+/* ---------- khoi dong ---------- */
 
 (async function init() {
-  // Hai co nay quyet dinh nut "Bat dau" tren man hinh cho co bam duoc hay khong,
-  // nen phai duoc dat BAT KE nguoi dung dang o man nao. Truoc day chung chi duoc
-  // dat o nhanh "chua random", nen sau khi admin reset va dua moi nguoi ve man
-  // hinh cho thi nut bi khoa vinh vien.
-  const dataPromise = Promise.all([loadGroups(), loadMembers(), loadActivity()]).then(() => {
+  // Hai co nay quyet dinh nut "Bat dau" bam duoc hay khong, nen phai duoc dat bat
+  // ke nguoi dung dang o man nao.
+  const dataPromise = loadAll().then(() => {
     dataReady = true;
     updateStartBtnState();
   });
 
-  // Man hinh cho luon co san hieu ung nen, ke ca khi nguoi dung vao thang ket qua
-  // roi sau do bi dua nguoc ve day.
   setupIntroParticles();
 
   await syncConfig();
@@ -1257,12 +1728,13 @@ socket.on('groups:reset', async (payload) => {
   if (window.VersionGuard) window.VersionGuard.bind(socket);
 
   const myName = localStorage.getItem(STORAGE_KEY);
-  if (myName) {
+  // Chi vao thang ket qua khi DANG o vong random. Dang quiz (vd admin vua reset
+  // ve quiz luc minh offline) thi o lai man hinh cho, tranh ket o loi 403.
+  if (myName && currentPhase === 'random') {
     introScreen.style.display = 'none';
     appScreen.classList.remove('hidden');
     await dataPromise;
-    // Refresh van giu ket qua: goi lai /api/random, server tra ve nhom cu (idempotent)
-    doRandom(myName, { isInit: true });
+    restoreSavedResult();
     return;
   }
 
