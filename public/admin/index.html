@@ -45,11 +45,11 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="route"></i> Tiến trình sự kiện</h3>
-                    <p>Ba bước của buổi chơi. Bước đang sáng là bước mọi người thao tác được ngay lúc này.</p>
+                    <p>Ba bước của buổi chơi, mỗi bước ở một trong bốn trạng thái: <strong>Chưa mở</strong>, <strong>Đang mở</strong> (mọi người thao tác được ngay), <strong>Đang khóa</strong> hoặc <strong>Hoàn tất</strong>. Bấm vào một bước để tới trang quản lý của bước đó.</p>
                   </div>
                 </div>
                 <div class="admin-card-body">
-                  <div id="overviewFlow" class="admin-flow"></div>
+                  <div id="overviewFlow" class="admin-flow" aria-live="polite"></div>
                   <div class="admin-btn-row">
                     <button id="flowRandomLockBtn" class="admin-btn admin-btn-secondary" type="button">
                       <i data-lucide="lock"></i> Khóa vòng chia nhóm
@@ -58,7 +58,7 @@
                       <i data-lucide="lock"></i> Khóa vòng ghép phòng
                     </button>
                   </div>
-                  <p id="overviewFlowMsg" class="admin-msg"></p>
+                  <p id="overviewFlowMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -70,7 +70,7 @@
                   </div>
                 </div>
                 <div class="admin-card-body">
-                  <div id="overviewMemberStats" class="admin-stats"></div>
+                  <div id="overviewMemberStats" class="admin-stats is-six"></div>
                 </div>
               </div>
 
@@ -82,7 +82,7 @@
                     </div>
                   </div>
                   <div class="admin-card-body">
-                    <div id="overviewGroupStats" class="admin-stats"></div>
+                    <div id="overviewGroupStats" class="admin-stats is-quad"></div>
                   </div>
                 </div>
 
@@ -93,7 +93,7 @@
                     </div>
                   </div>
                   <div class="admin-card-body">
-                    <div id="overviewRoomStats" class="admin-stats"></div>
+                    <div id="overviewRoomStats" class="admin-stats is-quad"></div>
                   </div>
                 </div>
               </div>
@@ -102,7 +102,7 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="activity"></i> Hoạt động mới nhất</h3>
-                    <p>10 việc gần nhất. Xem đầy đủ ở trang <a href="/admin/activity.html">Nhật ký</a>.</p>
+                    <p>10 việc gần nhất, tự cập nhật. Xem đầy đủ ở trang <a href="/admin/activity.html">Nhật ký</a>.</p>
                   </div>
                 </div>
                 <div class="admin-card-body">

@@ -37,7 +37,8 @@ minigamegroup/
 │  ├─ rooms.js          # logic ghep phong ngu theo gioi tinh
 │  ├─ groups.js         # logic chia nhom (suc chua, khoa nhom, chia hang loat)
 │  ├─ activity.js       # nhat ky thao tac luu xuong DB
-│  ├─ quizLobby.js      # phong cho quiz
+│  ├─ lock.js           # hang doi tuan tu cho cac luot boc tham / ghep phong / tra loi quiz
+│  ├─ quizLobby.js      # phong cho quiz, moc thoi gian tung cau, tinh lai diem
 │  └─ routes/
 │     ├─ api.js         # /api/config, /api/groups, /api/members, /api/random, /api/admin/reset
 │     ├─ quiz.js        # vong quiz chon Nhom Truong
@@ -48,7 +49,8 @@ minigamegroup/
 │  ├─ migrations/
 │  └─ seed.js
 └─ public/
-   ├─ index.html        # trang random chia nhom
+   ├─ favicon.svg
+   ├─ index.html        # man hinh cho + vong Quiz + vong random chia nhom
    ├─ rooms.html        # trang ghep phong ngu
    ├─ admin-reset.html  # duong dan cu -> chuyen huong sang /admin/
    ├─ admin/            # moi khu vuc quan ly MOT TRANG rieng
@@ -95,9 +97,12 @@ minigamegroup/
 **ActivityLog**: id, type (`random`/`room`/`quiz`/`admin`), icon, message, actor, meta, createdAt —
 nhật ký thao tác, còn nguyên sau khi khởi động lại máy chủ (trước đây lưu trong bộ nhớ nên mất).
 
-Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, chưa đặt giới tính — giới tính do admin đặt trong trang admin).
+Seed tạo sẵn 4 nhóm, 16 thành viên mẫu và 6 câu hỏi quiz (chưa gán nhóm, chưa đặt giới tính — giới tính do admin đặt trong trang admin).
 
 ## Giao diện & tính năng
+
+- **Thanh điều hướng chung** ở đầu cả hai trang công khai: chuyển nhanh giữa *Chia nhóm* và *Ghép phòng*, bật/tắt âm thanh, hiệu ứng con trỏ, số người đang xem.
+- **3 bước của sự kiện** hiện ngay trên màn hình chờ: *Quiz → Bốc thăm → Ghép phòng*, bước nào đang mở / đã xong / đang khóa đều thấy rõ. Nút bắt đầu đổi theo giai đoạn ("Vào vòng Quiz" khi đang quiz, chữ admin đặt khi đã sang vòng bốc thăm).
 
 - **Reset là về màn hình chờ**: admin bấm "Reset toàn bộ" (hoặc "Làm lại vòng Quiz") thì mọi người đang mở trang — kể cả người đang xem kết quả hay đang làm bài dở — đều được đưa ngay về màn hình chờ, xóa kết quả cũ và sẵn sàng bắt đầu lại. Tương tự khi admin kéo giai đoạn ngược từ Random về Quiz.
 - **Màn hình intro trước khi vào bốc thăm**: hero đầy hiệu ứng (particle bay, tiêu đề nhấp nháy), có nút "Bắt đầu bốc thăm". Nếu admin đặt giờ mở (xem mục Trang admin), màn intro hiện đếm ngược tới giờ mở, hết giờ mới cho bấm bắt đầu (kèm confetti); ai đang mở trang sẵn cũng thấy cập nhật ngay qua Socket.IO khi admin đổi giờ. Người đã random trước đó (lưu trong `localStorage`) sẽ bỏ qua màn intro và vào thẳng kết quả.
@@ -105,10 +110,30 @@ Seed tạo sẵn 4 nhóm và 16 member mẫu (chưa gán nhóm, chưa đặt gi�
 - **Tiện ích trước khi quay**: xem trước 4 nhóm, bộ đếm số người chưa random, modal "Cách chơi".
 - **Bảng xếp hạng nhóm (leaderboard)**: xếp hạng các nhóm theo số thành viên, cập nhật realtime.
 - **Hoạt động gần đây (activity feed)**: ai vừa random vào nhóm nào, kèm giờ, cập nhật realtime qua Socket.IO; lưu xuống DB nên còn nguyên sau khi khởi động lại máy chủ.
-- **Tải ảnh kết quả**: sau khi random xong, có nút tải về ảnh PNG kết quả (tên + nhóm) để chia sẻ.
-- **Màu nhóm do admin đặt**: thẻ nhóm lấy đúng màu nhận diện admin chọn trong tab Chia nhóm.
+- **Thẻ kết quả**: tên nhóm theo màu nhóm, slogan, danh sách đồng đội cập nhật realtime, tải ảnh PNG / copy / chia sẻ (copy vẫn chạy khi mở qua IP mạng nội bộ không có https). Đã có kết quả thì ô chọn tên được khóa, muốn bốc cho người khác phải bấm "Chọn tên khác".
+- **Kết quả luôn khớp với máy chủ**: admin chuyển nhóm, xáo lại hay xóa kết quả thì thẻ kết quả của người đang xem đổi theo ngay. Tải lại trang chỉ *tra cứu* nhóm cũ, không bao giờ tự bốc thăm thay người dùng.
+- **Khóa vòng hiện ngay**: admin khóa vòng chia nhóm thì nút Random chuyển sang "Đang tạm khóa" kèm thông báo, không đợi bấm mới biết. Người đã có nhóm vẫn xem được nhóm của mình khi vòng đang khóa.
+- **Mất kết nối không bị kẹt**: khi socket kết nối lại (khóa màn hình điện thoại, rớt wifi) hoặc quay lại tab sau một lúc, trang tự đồng bộ giai đoạn, phòng chờ, câu hỏi và chuyển đúng màn hình.
+- **Màu nhóm do admin đặt**: thẻ nhóm, ô xem trước, bảng xếp hạng, slot machine và ảnh kết quả đều lấy đúng màu admin chọn trong tab Chia nhóm.
+- **Màu chủ đạo do admin đặt** lan ra mọi sắc độ (nền nhạt, viền, chữ đậm) và tự chọn chữ trắng/đen trên nút để luôn đọc được.
+- **Công tắc hiển thị có hiệu lực thật**: ẩn tên thành viên, tắt pháo giấy, âm thanh mặc định, đóng trang ghép phòng (đóng là API ghép phòng cũng chặn luôn).
 - **Nội dung do admin đặt**: tiêu đề, mô tả, chữ trên nút, dòng chân trang và màu chủ đạo đều sửa được ở tab "Giao diện & nội dung", áp dụng ngay cho người đang mở trang. Các khối như bảng xếp hạng hay hoạt động gần đây cũng bật/tắt được.
 - **Chỉ hiện tên người được tham gia**: ô chọn tên của mỗi vòng chỉ liệt kê những người admin cho phép tham gia vòng đó.
+
+## Vòng Quiz chọn Nhóm Trưởng
+
+1. Người chơi chọn tên → vào **phòng chờ** (thấy ai đã sẵn sàng, realtime).
+2. Admin bấm **Bắt đầu** → mọi người đếm ngược 3‑2‑1 cùng lúc (đếm theo đồng hồ của từng máy nên điện thoại lệch giờ vẫn đúng 3 giây).
+3. Mỗi câu có đáp án A–F, điểm riêng và **giới hạn thời gian riêng**: đồng hồ + thanh thời gian, 5 giây cuối đổi màu và kêu tick, hết giờ tự nộp và tính sai.
+4. Xong bài thấy điểm, **thứ hạng của mình**, tổng thời gian và bảng xếp hạng tạm thời (Top N sẽ làm Nhóm Trưởng, N chỉnh ở Cấu hình).
+5. Admin **chốt** → ai đang mở trang được chuyển sang vòng bốc thăm, Nhóm Trưởng nhận lời chúc mừng riêng.
+
+Luật công bằng phía máy chủ:
+
+- Chỉ nhận câu trả lời khi admin **đã bấm bắt đầu và chưa chốt** (trước đây gọi thẳng API là trả lời được trước giờ).
+- **Thời gian đo ở máy chủ**: mỗi câu được ghi mốc lần đầu hiển thị (`POST /api/quiz/seen`). F5 giữa chừng không làm đồng hồ chạy lại, và giới hạn thời gian được kiểm ở máy chủ (cho lệch 2,5 giây vì độ trễ mạng).
+- Bấm đúp / mạng chậm gửi 2 lần: chỉ ghi 1 câu trả lời.
+- Admin **xóa câu hỏi, đổi điểm hay đổi đáp án đúng** thì điểm của mọi người được tính lại từ đầu; người đang làm bài tự chuyển câu / làm tiếp câu mới được thêm.
 
 ## Chia nhóm (vòng random)
 
@@ -177,12 +202,27 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | Method | Endpoint               | Mô tả                                                                 |
 |--------|------------------------|------------------------------------------------------------------------|
 | GET    | `/api/config`          | Cấu hình cho trang công khai: `eventStartAt`, `phase`, `leaders`, `roomsLocked`, `randomLocked`, `roomCount`, và `ui` (toàn bộ nội dung + công tắc hiển thị admin đặt). |
-| GET    | `/api/activity`        | Hoạt động gần đây (`?limit=`, `?type=random\|room\|quiz\|admin`), đọc từ bảng `ActivityLog`. |
+| GET    | `/api/activity`        | Hoạt động gần đây (`?limit=`, `?type=random\|room\|quiz`), đọc từ bảng `ActivityLog`. Nhật ký thao tác admin chỉ xem ở `/api/admin/activity`. |
 | GET    | `/api/groups`          | Danh sách nhóm kèm thành viên (dạng mảng, giữ nguyên để tương thích).   |
 | GET    | `/api/groups/full`     | Như trên nhưng kèm `stats` và `globalCapacity`.                         |
 | GET    | `/api/members`         | Toàn bộ thành viên. **`?scope=random\|room\|quiz`** chỉ trả người được phép tham gia vòng đó — đây là cách ô chọn tên trên trang công khai không hiện tên người bị loại. |
 | POST   | `/api/random`          | Body `{ "name": "An" }`. Đã random rồi thì trả nhóm cũ. Chặn nếu vòng đang khóa, hoặc người này bị tắt `joinRandom`. Chọn nhóm còn chỗ, chưa khóa, ít người nhất. Emit `member:randomized`. |
 | POST   | `/api/room/random`     | Body `{ "name": "An" }`. Tương tự cho phòng ngủ, chặn nếu bị tắt `joinRoom`, chưa có giới tính, hoặc vòng đang khóa. Emit `member:room-randomized`. |
+
+### API vòng Quiz
+
+| Method | Endpoint                 | Mô tả                                                                 |
+|--------|--------------------------|------------------------------------------------------------------------|
+| GET    | `/api/quiz/questions`    | Danh sách câu hỏi (không kèm đáp án đúng), có `points`, `timeLimitSec`. |
+| GET    | `/api/quiz/state?name=`  | Tiến độ của một người: câu đã trả lời, điểm, thời gian, `finished`, `status` (waiting/active), `leaderCount`. |
+| GET    | `/api/quiz/lobby`        | Trạng thái phòng chờ + danh sách người đã sẵn sàng.                    |
+| POST   | `/api/quiz/join`         | `{ name }` — vào phòng chờ (quiz đã chạy thì trả `status: 'active'`).  |
+| POST   | `/api/quiz/seen`         | `{ name, questionId }` — ghi mốc lần đầu thấy câu hỏi, trả `elapsedMs`. |
+| POST   | `/api/quiz/answer`       | `{ name, questionId, selectedIndex, timeMs }` — `selectedIndex: -1` là hết giờ. Chặn khi quiz chưa bắt đầu / đã chốt. |
+| GET    | `/api/quiz/leaderboard`  | Bảng xếp hạng tạm thời (top 20).                                       |
+| POST   | `/api/admin/quiz/start`  | Bắt đầu (chặn khi đã chốt hoặc chưa có câu hỏi). Emit `quiz:started { startAt, delayMs }`. |
+| POST   | `/api/admin/quiz/finish` | `{ force }` — chốt Nhóm Trưởng, mở vòng random.                       |
+| POST   | `/api/admin/quiz/reset`  | Làm lại vòng Quiz (không đụng kết quả chia nhóm).                     |
 
 ### API phòng ngủ (admin)
 
@@ -244,9 +284,18 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | POST   | `/api/admin/event-time`       | `{ eventStartAt }` (ISO hoặc `null` để mở ngay). Emit `config:updated`.   |
 | GET    | `/api/admin/activity`         | Nhật ký đầy đủ (`?limit=`, `?type=`).                                    |
 | POST   | `/api/admin/activity/clear`   | `{ type }` — xóa toàn bộ hoặc một loại nhật ký.                          |
-| GET    | `/api/admin/export`           | Tải toàn bộ dữ liệu ra JSON để sao lưu.                                  |
+| GET    | `/api/admin/export`           | Tải toàn bộ dữ liệu ra JSON để sao lưu (bản 3: kèm cả câu trả lời quiz). |
 | POST   | `/api/admin/import`           | `{ data, confirm: "GHI DE" }` — phục hồi từ file sao lưu. **Ghi đè toàn bộ** dữ liệu hiện tại, chạy trong một transaction nên lỗi giữa chừng thì dữ liệu cũ được giữ nguyên. |
 | POST   | `/api/admin/reset`            | `{ includeRooms, keepPinned, includeActivity }` — reset kết quả chia nhóm + tiến độ quiz. |
+
+### Sự kiện realtime đáng chú ý
+
+| Sự kiện | Khi nào | Trang công khai làm gì |
+|---|---|---|
+| `groups:reset { scope, phase }` | `scope: 'all'` reset toàn bộ / phục hồi; `'quiz'` làm lại vòng Quiz; `'groups'` xóa kết quả chia nhóm | `all`: về màn hình chờ. `quiz`: người đang làm quiz về phòng chờ với tên cũ. `groups`: chỉ người đang xem kết quả bị gỡ kết quả. |
+| `phase:updated { phase, leaders }` | Chốt Nhóm Trưởng, hoặc admin đổi giai đoạn (chỉ phát khi giai đoạn **thật sự đổi**) | Chuyển đúng màn hình. |
+| `random:config` / `rooms:config` `{ locked }` | Khóa / mở vòng | Nút bấm và thông báo đổi ngay. |
+| `settings:updated { ui }` | Lưu "Giao diện & nội dung" | Áp dụng chữ, màu, công tắc ngay. |
 
 ## Cách chạy local
 
@@ -262,7 +311,7 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
    ```bash
    npx prisma migrate dev
    ```
-4. Seed dữ liệu mẫu (4 nhóm + 20 thành viên):
+4. Seed dữ liệu mẫu (4 nhóm + 16 thành viên + 6 câu hỏi):
    ```bash
    npm run seed
    ```
@@ -353,4 +402,6 @@ trên cả ba trang (`js/version-guard.js`).
 
 ### Chống ghi đè khi nhiều người bấm cùng lúc
 
-Hai người bấm cùng lúc có thể cùng đọc ra "phòng X còn 1 chỗ" rồi ghi đè lên nhau. Vì vậy mỗi lượt ghép phòng chạy trong một transaction: ghi xong thì **đếm lại** số người trong phòng, nếu vượt sức chứa thì roll back và chọn phòng khác (thử tối đa 3 lần). Thao tác ghép hàng loạt của admin cũng kiểm lại một lượt ở cuối transaction, có phòng nào vượt sức chứa thì hủy cả mẻ và báo admin bấm lại.
+Hai người bấm cùng lúc có thể cùng đọc ra "phòng X còn 1 chỗ" rồi cùng ghi vào. Cách cũ là ghi xong thì đếm lại trong cùng transaction — nhưng MySQL mặc định chạy REPEATABLE READ, lệnh đếm chỉ thấy snapshot của chính transaction đó nên hai bên vẫn cùng thấy "chưa vượt" và cùng commit.
+
+Giờ mọi thao tác "đọc số chỗ → chọn → ghi" chạy qua **hàng đợi tuần tự trong tiến trình** (`server/lock.js`): lượt bốc thăm nhóm, lượt quay phòng và thao tác chia/ghép hàng loạt của admin xếp hàng theo từng loại, lượt sau chỉ bắt đầu khi lượt trước đã commit. Trong hàng đợi máy chủ kiểm lại người đó đã có nhóm/phòng chưa, nên bấm đúp cũng chỉ ra một kết quả. Mỗi lượt chỉ vài chục ms nên người dùng không cảm thấy chờ. (Cách này đúng khi chạy **một** tiến trình Node — đúng với cách chạy của dự án.)

@@ -235,8 +235,11 @@ body {
   align-items: flex-end;
 }
 
-.field {
+/* Chi ap cho form ngang: o dang cot (mobile, khung quiz) flex-basis 220px se thanh
+   CHIEU CAO va de mot khoang trong lon giua o chon ten va nut bam. */
+.random-form .field {
   flex: 1 1 220px;
+  min-width: 0;
 }
 
 .random-form label {
@@ -1541,11 +1544,7 @@ body {
 .quiz-hint [data-lucide],
 .quiz-hint svg,
 .rules-modal h3 [data-lucide],
-.rules-modal h3 svg,
-.page-link [data-lucide],
-.page-link svg,
-.rooms-nav a [data-lucide],
-.rooms-nav a svg {
+.rules-modal h3 svg {
   width: 1.05em;
   height: 1.05em;
   vertical-align: -0.17em;
@@ -1560,9 +1559,7 @@ body {
 .flip-hint,
 .countdown-label,
 .quiz-hint,
-.rules-modal h3,
-.page-link,
-.rooms-nav a {
+.rules-modal h3 {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -2567,6 +2564,15 @@ body {
   .random-form {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .random-form .field {
+    flex: 0 0 auto;
+  }
+
+  /* The nhom rong tren dien thoai khong can cao 240px */
+  .group-card-face.front {
+    min-height: 170px;
   }
 
   .result-card {

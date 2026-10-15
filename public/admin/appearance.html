@@ -40,7 +40,7 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="type"></i> Nội dung hiển thị</h3>
-                    <p>Để trống ô nào thì ô đó quay về nội dung mặc định.</p>
+                    <p>Để trống ô nào thì ô đó quay về nội dung mặc định. Ô đã sửa mà chưa lưu có viền màu.</p>
                   </div>
                 </div>
                 <div class="admin-card-body">
@@ -59,12 +59,13 @@
                 <div class="admin-card-body">
                   <div id="uiFlagFields" class="admin-form-grid"></div>
                   <div class="admin-btn-row">
-                    <button id="saveUiBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu giao diện &amp; nội dung</button>
+                    <button id="saveUiBtn" class="admin-btn" type="button" data-keep-disabled="1"><i data-lucide="save"></i> Lưu giao diện &amp; nội dung</button>
+                    <button id="resetUiBtn" class="admin-btn admin-btn-secondary" type="button" data-keep-disabled="1"><i data-lucide="rotate-ccw"></i> Bỏ thay đổi</button>
                     <button id="previewUiBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
                       <i data-lucide="external-link"></i> Mở trang chủ để xem
                     </button>
                   </div>
-                  <p id="uiMsg" class="admin-msg"></p>
+                  <p id="uiMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
             </section>

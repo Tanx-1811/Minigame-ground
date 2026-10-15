@@ -540,9 +540,14 @@ function renderLeaderNotice() {
 
 // Doc lai /api/config -> cap nhat giai doan, khoa vong, gio mo, Nhom Truong.
 // Dung luc khoi dong, sau khi admin reset va moi lan ket noi lai.
-async function syncConfig() {
+async function syncConfig({ cached = false } = {}) {
   try {
-    const config = await (window.UiConfig ? window.UiConfig.refresh() : fetchJson('/api/config'));
+    // Lan dau dung lai request ui-config.js da gui, khong goi /api/config hai lan
+    const config = await (window.UiConfig
+      ? cached
+        ? window.UiConfig.ready
+        : window.UiConfig.refresh()
+      : fetchJson('/api/config'));
     if (!config) throw new Error('Không tải được cấu hình');
     lastConfig = config;
     currentPhase = config.phase || 'quiz';
@@ -1732,7 +1737,7 @@ if (window.UiConfig) {
 
   setupIntroParticles();
 
-  await syncConfig();
+  await syncConfig({ cached: true });
   window.UiConfig.bind(socket);
   if (window.VersionGuard) window.VersionGuard.bind(socket);
 
