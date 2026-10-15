@@ -50,7 +50,7 @@
         <label class="admin-correct-toggle" title="Chọn ${letter} là đáp án đúng">
           <input type="radio" name="${scope}-correct" data-correct="${index}" ${isCorrect ? 'checked' : ''}
             aria-label="${letter} là đáp án đúng" />
-          <span>${A.icon('check', 'ic-sm')} Đúng</span>
+          <span>${A.icon('check', 'ic-sm')}<span class="admin-hide-sm">Đúng</span></span>
         </label>
         <button type="button" class="admin-option-remove" data-remove-option="${index}" title="Bỏ phương án ${letter}"
           aria-label="Bỏ phương án ${letter}" ${total <= MIN_OPTIONS ? 'hidden' : ''}>${A.icon('x', 'ic-sm')}</button>
@@ -257,8 +257,8 @@
 
         <div class="admin-question-body">
           <label class="visually-hidden" for="${scope}-text">Nội dung câu hỏi</label>
-          <input id="${scope}-text" class="admin-question-text" type="text" data-field="text"
-            value="${A.escapeHtml(question.text)}" placeholder="Nội dung câu hỏi" autocomplete="off" />
+          <textarea id="${scope}-text" class="admin-question-text" data-field="text" rows="1"
+            placeholder="Nội dung câu hỏi" autocomplete="off">${A.escapeHtml(question.text)}</textarea>
           ${editorHtml(scope, items)}
         </div>
 
@@ -453,7 +453,10 @@
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && isDirty(card)) {
       e.preventDefault();
       card.querySelector('[data-action="save-question"]').click();
+      return;
     }
+    // Noi dung cau hoi la 1 dong (o nhap tu cao len khi chu dai): Enter khong xuong dong
+    if (e.key === 'Enter' && e.target.dataset.field === 'text') e.preventDefault();
   });
 
   // Doi so thu tu: luu ngay (giong nut len/xuong), khong tinh vao "chua luu"

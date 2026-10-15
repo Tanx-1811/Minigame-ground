@@ -782,6 +782,28 @@ details.admin-card[open] > .admin-card-body {
   background: var(--line-strong);
 }
 
+/* Cho san cho o thong ke / buoc tien trinh truoc khi co du lieu: noi dung ben
+   duoi khong bi day xuong khi so lieu tai xong. */
+.admin-stat.is-skeleton,
+.admin-flow-step.is-skeleton {
+  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%) 0 0 / 200% 100%;
+  animation: ad-skeleton 1.4s linear infinite;
+}
+
+.admin-stat.is-skeleton {
+  min-height: 96px;
+}
+
+.admin-flow-step.is-skeleton {
+  min-height: 132px;
+}
+
+@keyframes ad-skeleton {
+  to {
+    background-position: -200% 0;
+  }
+}
+
 .admin-stat.is-accent::before {
   background: var(--accent);
 }
@@ -1417,10 +1439,6 @@ details.admin-card[open] > .admin-card-body {
   border-color: var(--line-strong);
 }
 
-.admin-filter-chip:focus-visible {
-  border-radius: var(--r-pill);
-}
-
 .admin-filter-chip.is-active {
   background: var(--accent);
   border-color: var(--accent);
@@ -1715,7 +1733,7 @@ details.admin-card[open] > .admin-card-body {
 /* table-layout: fixed + <colgroup>: be rong cot do CSS quyet dinh, khong phu
    thuoc noi dung -> khong con canh "min-width tung o" va !important. Cot nhom /
    phong theo % (rong ra khi man hinh rong), cot ten lay phan con lai.
-   Cot co dinh = 402px + 2 x 16% -> o min-width 900px cot ten con ~210px. */
+   Cot co dinh = 422px + 2 x 16% -> o min-width 900px cot ten con ~190px. */
 .admin-members-table {
   --col-check: 36px;
   table-layout: fixed;
@@ -1726,7 +1744,7 @@ details.admin-card[open] > .admin-card-body {
   width: var(--col-check);
 }
 .admin-members-table .col-gender {
-  width: 86px;
+  width: 96px;
 }
 .admin-members-table .col-flags {
   width: 128px;
@@ -1735,7 +1753,7 @@ details.admin-card[open] > .admin-card-body {
   width: 16%;
 }
 .admin-members-table .col-leader {
-  width: 42px;
+  width: 52px;
 }
 .admin-members-table .col-quiz {
   width: 66px;
@@ -2642,8 +2660,16 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-question-text {
   width: 100%;
+  min-height: 40px;
+  height: auto;
+  max-height: 9em;
+  padding: 8px 12px;
   font-weight: 650;
   font-size: 0.92rem;
+  line-height: 1.45;
+  resize: none;
+  /* Tu cao len theo noi dung (cau hoi dai tren dien thoai khong bi cat) */
+  field-sizing: content;
 }
 
 /* Bo soan phuong an: chu cai | o nhap | nut "Dung" | nut bo */
@@ -2716,7 +2742,7 @@ details.admin-card[open] > .admin-card-body {
   cursor: inherit;
 }
 
-.admin-correct-toggle span {
+.admin-correct-toggle > span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2732,7 +2758,7 @@ details.admin-card[open] > .admin-card-body {
   transition: background var(--fast), border-color var(--fast), color var(--fast);
 }
 
-.admin-correct-toggle:hover span {
+.admin-correct-toggle:hover > span {
   border-color: var(--ok-line);
   color: var(--ok);
 }
@@ -3316,6 +3342,11 @@ details.admin-card[open] > .admin-card-body {
     ) {
     font-size: 16px;
   }
+
+  /* Chu 16px -> o chon gioi tinh can rong hon de "Nam" khong bi cat */
+  .admin-members-table .col-gender {
+    width: 104px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -3394,7 +3425,7 @@ details.admin-card[open] > .admin-card-body {
     height: 22px;
   }
 
-  .admin-correct-toggle span {
+  .admin-correct-toggle > span {
     padding: 0 9px;
   }
 

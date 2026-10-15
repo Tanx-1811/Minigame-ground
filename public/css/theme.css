@@ -150,10 +150,11 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
+/* Khong dat border-radius o day: outline tu bo theo hinh cua phan tu, con dat
+   radius thi nut tron / vien pill bi vuong goc moi khi duoc focus bang ban phim. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--r-sm);
 }
 
 ::selection {
