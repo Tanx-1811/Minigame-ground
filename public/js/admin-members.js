@@ -218,7 +218,7 @@ function isTyping(scope) {
         </td>
         <td class="admin-cell-index">${index + 1}</td>
         <td class="admin-cell-name"><input type="text" data-field="name" value="${A.escapeHtml(member.name)}" /></td>
-        <td>
+        <td class="admin-cell-pick is-narrow">
           <select data-field="gender">
             <option value="" ${!member.gender ? 'selected' : ''}>-- Chưa đặt --</option>
             <option value="MALE" ${member.gender === 'MALE' ? 'selected' : ''}>Nam</option>
@@ -226,10 +226,10 @@ function isTyping(scope) {
           </select>
         </td>
         ${flagCell(member)}
-        <td><select data-field="groupId" ${member.joinRandom ? '' : 'disabled data-keep-disabled="1"'}>${groupOptions(
+        <td class="admin-cell-pick"><select data-field="groupId" ${member.joinRandom ? '' : 'disabled data-keep-disabled="1"'}>${groupOptions(
           member.groupId
         )}</select></td>
-        <td><select data-field="roomId" ${
+        <td class="admin-cell-pick"><select data-field="roomId" ${
           member.gender && member.joinRoom ? '' : 'disabled data-keep-disabled="1"'
         }>${roomOptions(member)}</select></td>
         <td class="admin-cell-center">

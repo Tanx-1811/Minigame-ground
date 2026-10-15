@@ -1323,7 +1323,18 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-cell-name {
-  min-width: 180px;
+  min-width: 204px;
+}
+
+/* Cac o chua <select>: select duoc dat min-width:0 (de khong lam vo form luoi)
+   nen trong bang no co lai den muc cat chu - "-- Chua co nhom --" thanh
+   "-- Chua co nho". Dat be rong toi thieu cho chinh o de cot khong bi bop. */
+.admin-cell-pick {
+  min-width: 176px;
+}
+
+.admin-cell-pick.is-narrow {
+  min-width: 124px;
 }
 
 .admin-cell-center {
