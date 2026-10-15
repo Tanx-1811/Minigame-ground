@@ -134,7 +134,7 @@
 
 .rooms-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -462,7 +462,7 @@
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(258px, 100%), 1fr));
   gap: 14px;
 }
 

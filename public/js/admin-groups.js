@@ -181,7 +181,7 @@ function isTyping(scope) {
     lockRoundBtn.innerHTML = `${A.icon(randomLocked ? 'lock-open' : 'lock')} ${
       randomLocked ? 'Mở vòng chia nhóm' : 'Khóa vòng chia nhóm'
     }`;
-    lockRoundBtn.classList.toggle('admin-btn-danger', !randomLocked);
+    lockRoundBtn.classList.toggle('admin-btn-warn', !randomLocked);
     lockRoundBtn.classList.toggle('admin-btn-secondary', randomLocked);
   }
 

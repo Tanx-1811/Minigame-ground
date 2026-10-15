@@ -350,7 +350,7 @@ function isTyping(scope) {
     lockBtn.innerHTML = `${A.icon(roundLocked ? 'lock-open' : 'lock')} ${
       roundLocked ? 'Mở vòng ghép phòng' : 'Khóa vòng ghép phòng'
     }`;
-    lockBtn.classList.toggle('admin-btn-danger', !roundLocked);
+    lockBtn.classList.toggle('admin-btn-warn', !roundLocked);
     lockBtn.classList.toggle('admin-btn-secondary', roundLocked);
   }
 

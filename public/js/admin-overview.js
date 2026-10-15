@@ -66,7 +66,7 @@
     if (!btn) return;
     btn.dataset.locked = locked ? '1' : '0';
     btn.innerHTML = `${A.icon(locked ? 'lock-open' : 'lock')} ${locked ? 'Mở' : 'Khóa'} ${label}`;
-    btn.classList.toggle('admin-btn-danger', !locked);
+    btn.classList.toggle('admin-btn-warn', !locked);
     btn.classList.toggle('admin-btn-secondary', locked);
   }
 

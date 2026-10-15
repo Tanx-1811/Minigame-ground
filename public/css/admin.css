@@ -54,13 +54,19 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* min-width: 0 la bat buoc: mac dinh flex item khong duoc co nho hon noi dung,
+     nen thieu dong nay la thanh tren tran ra ngoai man hinh. */
   min-width: 0;
-  width: calc(var(--ad-nav-w) - 20px);
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+}
+
+.admin-brand > div {
+  min-width: 0;
 }
 
 .admin-brand-mark {
   flex: 0 0 auto;
+  text-decoration: none;
   width: 36px;
   height: 36px;
   display: grid;
@@ -96,7 +102,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: flex-end;
   min-width: 0;
 }
@@ -107,6 +113,11 @@ body {
   gap: 8px;
   flex: 0 1 340px;
   min-width: 0;
+}
+
+/* O nhap ma bi mat duoc phep co, nhung khong hep den muc khong go noi */
+.admin-secret-field input {
+  min-width: 90px;
 }
 
 .admin-secret-field {
@@ -276,6 +287,7 @@ body {
   font-size: 0.88rem;
   font-weight: 600;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition: background var(--fast), color var(--fast);
 }
@@ -316,6 +328,10 @@ body {
 }
 
 /* So dem nho ben phai moi muc (vd so thanh vien) */
+.admin-tab-badge:empty {
+  display: none;
+}
+
 .admin-tab-badge {
   margin-left: auto;
   min-width: 22px;
@@ -573,11 +589,25 @@ details.admin-card[open] > .admin-card-body {
   }
 }
 
+/* Ten do nguoi dung nhap co the rat dai va khong co dau cach.
+   Cho phep ngat giua tu de khong lam vo khoi chua. */
+.admin-group-title strong,
+.admin-group-title p,
+.admin-room-name,
+.admin-room-note,
+.admin-log-msg,
+.admin-card-head h3,
+.admin-page-head h2 {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 /* ===================== o thong ke ===================== */
 
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(min(176px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -663,19 +693,23 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-stat .meter {
-  margin-top: 6px;
+  /* Day xuong day de cac the trong cung hang thang canh duoi voi nhau,
+     du the co hay khong co dong mo ta phu. */
+  margin-top: auto;
+  padding-top: 6px;
+  background-clip: content-box;
 }
 
 /* ===================== o nhap ===================== */
 
 .admin-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
   gap: 13px;
 }
 
 .admin-form-grid.is-tight {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
 }
 
 .admin-field {
@@ -940,6 +974,20 @@ details.admin-card[open] > .admin-card-body {
   background: linear-gradient(145deg, #ef4444, var(--danger));
 }
 
+/* Viec dao nguoc duoc (khoa/mo mot vong): noi bat vua phai, khong gianh
+   su chu y voi cac nut xoa thuc su. */
+.admin-btn-warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+  color: var(--warn);
+}
+
+.admin-btn-warn:hover:not(:disabled) {
+  filter: none;
+  background: var(--surface);
+  border-color: var(--warn);
+}
+
 .admin-btn-ghost {
   background: transparent;
   border-color: var(--line);
@@ -1048,6 +1096,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-toolbar .admin-field {
   flex: 1 1 250px;
+  min-width: 0;
   max-width: 380px;
 }
 
@@ -1522,7 +1571,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-room-group {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(282px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -1728,7 +1777,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-room-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
   gap: 9px;
 }
 
@@ -1736,7 +1785,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-pending-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
   gap: 9px;
 }
 
@@ -1744,6 +1793,7 @@ details.admin-card[open] > .admin-card-body {
   display: flex;
   align-items: center;
   gap: 9px;
+  flex-wrap: wrap;
   padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -1764,7 +1814,8 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-pending select {
-  flex: 0 0 150px;
+  flex: 0 1 150px;
+  min-width: 0;
   height: var(--control-sm) !important;
   font-size: 0.8rem !important;
 }
@@ -1773,7 +1824,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 13px;
 }
 
@@ -2089,7 +2140,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-flow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -2160,7 +2211,7 @@ details.admin-card[open] > .admin-card-body {
 
 .admin-split {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 16px;
   align-items: start;
 }
@@ -2306,12 +2357,12 @@ details.admin-card[open] > .admin-card-body {
 }
 
 @media (max-width: 880px) {
-  .admin-brand {
-    width: auto;
-  }
-
   .admin-brand p {
     display: none;
+  }
+
+  .admin-brand h1 {
+    font-size: 0.9rem;
   }
 
   .admin-nav-toggle {
@@ -2363,6 +2414,25 @@ details.admin-card[open] > .admin-card-body {
 }
 
 @media (max-width: 560px) {
+  /* Khong du cho cho ca ten trang lan o nhap ma -> giu lai thu can thao tac */
+  .admin-brand > div {
+    display: none;
+  }
+
+  .admin-topbar-inner {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .admin-brand {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .admin-auth-dot {
+    padding: 6px 9px;
+  }
+
   .admin-content {
     padding: 16px 12px 56px;
   }
@@ -2373,7 +2443,7 @@ details.admin-card[open] > .admin-card-body {
   }
 
   .admin-stats {
-    grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(142px, 100%), 1fr));
   }
 
   .admin-stat-value {
