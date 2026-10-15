@@ -41,7 +41,7 @@
                 </div>
               </div>
 
-              <div id="groupStats" class="admin-stats"></div>
+              <div id="groupStats" class="admin-stats is-five"></div>
 
               <div class="admin-card">
                 <div class="admin-card-head">
@@ -55,7 +55,7 @@
                     <button id="groupRandomAllBtn" class="admin-btn" type="button"><i data-lucide="dices"></i> Chia nhóm cho người chưa có</button>
                     <button id="groupReshuffleBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="shuffle"></i> Xáo lại toàn bộ</button>
                     <button id="groupLockRoundBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="lock"></i> Khóa vòng chia nhóm</button>
-                    <button id="groupResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Xóa kết quả chia nhóm</button>
+                    <button id="groupResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="eraser"></i> Xóa kết quả chia nhóm</button>
                   </div>
                   <label class="admin-checkbox">
                     <input id="groupKeepPinned" type="checkbox" checked />
@@ -63,7 +63,7 @@
                       <small>Người được ghim (biểu tượng ghim ở trang <a href="/admin/members.html">Thành viên</a>) sẽ không bị xáo lại hay bị xóa nhóm.</small>
                     </span>
                   </label>
-                  <p id="groupActionMsg" class="admin-msg"></p>
+                  <p id="groupActionMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -89,10 +89,18 @@
                     </div>
                     <div class="admin-field">
                       <label for="newGroupColor"><i data-lucide="paintbrush"></i> Màu nhận diện</label>
-                      <input id="newGroupColor" type="color" value="#4f46e5" />
+                      <span class="admin-color-field">
+                        <input id="newGroupColor" type="color" value="#4f46e5" aria-describedby="newGroupColorNote" />
+                        <span class="admin-field-hint" id="newGroupColorNote"></span>
+                        <button id="newGroupColorReset" class="admin-row-btn" type="button" data-keep-disabled="1" title="Bỏ màu đã chọn">
+                          <i data-lucide="paint-bucket"></i> Mặc định
+                        </button>
+                      </span>
                     </div>
                   </div>
-                  <button id="addGroupBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm nhóm</button>
+                  <div class="admin-btn-row">
+                    <button id="addGroupBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm nhóm</button>
+                  </div>
                   <p id="addGroupMsg" class="admin-msg"></p>
                 </div>
               </details>
@@ -115,7 +123,7 @@
                   </div>
 
                   <div id="groupGrid" class="admin-group-grid"></div>
-                  <p id="groupMsg" class="admin-msg"></p>
+                  <p id="groupMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
             </section>

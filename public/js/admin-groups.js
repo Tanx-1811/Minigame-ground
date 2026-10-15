@@ -3,18 +3,14 @@
 //
 // Khoa nhom = nhom do khong nhan them ai khi random, nhung nguoi dang o trong van giu nguyen.
 // Gioi han so nguoi de trong = khong gioi han (van chia deu giua cac nhom).
+//
+// Mau nhom: nhom chua chon mau (color = null) dung mau chu dao cua trang. Chi
+// gui mau len khi admin THUC SU cham vao o chon mau - truoc day bam "Luu nhom"
+// la nhom nao cung bi gan cung mau #4f46e5.
 (function () {
-// Chi hoan ve lai khi nguoi dung dang GO trong 1 o chu/so - ve lai luc do se
-// cuop mat con tro. Con tick checkbox hay chon trong dropdown thi da xong thao tac,
-// phai ve lai ngay de bang hien dung trang thai moi.
-function isTyping(scope) {
-  const el = document.activeElement;
-  if (!el || !scope.contains(el)) return false;
-  if (el.tagName === 'TEXTAREA') return true;
-  if (el.tagName !== 'INPUT') return false;
-  return ['text', 'search', 'number', 'password', 'date', 'datetime-local'].includes(el.type);
-}
   const A = window.AdminCommon;
+
+  const DEFAULT_SWATCH = '#4f46e5';
 
   const panel = document.querySelector('.admin-panel[data-panel="groups"]');
   const statsBox = document.getElementById('groupStats');
@@ -34,6 +30,8 @@ function isTyping(scope) {
   const newDesc = document.getElementById('newGroupDesc');
   const newCapacity = document.getElementById('newGroupCapacity');
   const newColor = document.getElementById('newGroupColor');
+  const newColorReset = document.getElementById('newGroupColorReset');
+  const newColorNote = document.getElementById('newGroupColorNote');
   const addBtn = document.getElementById('addGroupBtn');
   const addMsg = document.getElementById('addGroupMsg');
   const exportBtn = document.getElementById('groupExportBtn');
@@ -41,6 +39,7 @@ function isTyping(scope) {
   let groups = [];
   let stats = null;
   let randomLocked = false;
+  let loaded = false;
   const expanded = new Set();
 
   /* ---------- hien thi ---------- */
@@ -66,19 +65,21 @@ function isTyping(scope) {
         value: stats.pending,
         variant: stats.pending ? 'warn' : '',
       }),
-      stats.excluded
-        ? A.statTile({
-            icon: 'user-round-x',
-            label: 'Không tham gia',
-            value: stats.excluded,
-            sub: 'Đã tắt quyền chia nhóm',
-            variant: 'danger',
-          })
-        : '',
-      stats.lockedGroups ? A.statTile({ icon: 'lock', label: 'Nhóm đang khóa', value: stats.lockedGroups, variant: 'warn' }) : '',
-    ]
-      .filter(Boolean)
-      .join('');
+      A.statTile({
+        icon: 'user-round-x',
+        label: 'Không tham gia',
+        value: stats.excluded,
+        sub: 'Đã tắt quyền chia nhóm',
+        variant: stats.excluded ? 'danger' : '',
+      }),
+      A.statTile({
+        icon: stats.lockedGroups ? 'lock' : 'lock-open',
+        label: 'Nhóm đang khóa',
+        value: stats.lockedGroups,
+        sub: randomLocked ? 'Cả vòng chia nhóm đang khóa' : 'Vòng chia nhóm đang mở',
+        variant: stats.lockedGroups || randomLocked ? 'warn' : '',
+      }),
+    ].join('');
 
     A.setBadge('groups', stats.totalGroups);
   }
@@ -86,8 +87,12 @@ function isTyping(scope) {
   function visibleGroups() {
     const keyword = filterInput.value.trim().toLowerCase();
     if (!keyword) return groups;
+    const busy = new Set(
+      [...grid.querySelectorAll('.admin-group-card.is-dirty')].map((c) => Number(c.dataset.groupId))
+    );
     return groups.filter(
       (g) =>
+        busy.has(g.id) ||
         g.name.toLowerCase().includes(keyword) ||
         (g.description || '').toLowerCase().includes(keyword) ||
         g.members.some((m) => m.name.toLowerCase().includes(keyword))
@@ -99,8 +104,9 @@ function isTyping(scope) {
       <span class="admin-member-chip ${member.isLeader ? 'is-leader' : ''}">
         ${member.isLeader ? A.icon('crown', 'ic-sm') : A.icon(A.genderIcon(member.gender), 'ic-sm')}
         <span>${A.escapeHtml(member.name)}</span>
-        ${member.pinnedGroup ? A.icon('pin', 'ic-sm') : ''}
-        <button type="button" data-action="remove-member" data-member-id="${member.id}" title="Đưa ra khỏi nhóm">
+        ${member.pinnedGroup ? `<span class="admin-chip-pin" title="Đã ghim">${A.icon('pin', 'ic-sm')}</span>` : ''}
+        <button type="button" data-action="remove-member" data-member-id="${member.id}" title="Đưa ra khỏi nhóm"
+          aria-label="Đưa ${A.escapeHtml(member.name)} ra khỏi nhóm">
           ${A.icon('x', 'ic-sm')}
         </button>
       </span>`;
@@ -111,10 +117,11 @@ function isTyping(scope) {
     const limit = group.effectiveCapacity;
     const countText = limit ? `${group.occupancy}/${limit}` : `${group.occupancy}`;
     const isOpen = expanded.has(group.id);
+    const scope = `g${group.id}`;
 
     const tags = [
       group.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : '',
-      limit && group.isFull ? `<span class="admin-tag">${A.icon('check', 'ic-sm')} Đã đầy</span>` : '',
+      limit && group.isFull ? `<span class="admin-tag is-ok">${A.icon('check', 'ic-sm')} Đã đầy</span>` : '',
       group.capacity ? `<span class="admin-tag">${A.icon('user-round-check', 'ic-sm')} Giới hạn riêng ${group.capacity}</span>` : '',
     ]
       .filter(Boolean)
@@ -122,18 +129,18 @@ function isTyping(scope) {
 
     return `
       <div class="admin-group-card ${group.locked ? 'is-locked' : ''}" data-group-id="${group.id}" style="--g-color:${A.escapeHtml(
-        color
-      )}">
+      color
+    )}">
         <div class="admin-group-head">
           <div class="admin-group-title">
             <strong>${A.escapeHtml(group.name)}</strong>
             ${group.description ? `<p>${A.escapeHtml(group.description)}</p>` : ''}
           </div>
-          <span class="admin-room-count">${countText}</span>
+          <span class="admin-room-count" title="Số người${limit ? ' / giới hạn' : ''}">${countText}</span>
         </div>
 
         <div class="admin-group-body">
-          ${tags ? `<div class="row-tight" style="flex-wrap:wrap;gap:5px">${tags}</div>` : ''}
+          ${tags ? `<div class="admin-tag-row">${tags}</div>` : ''}
           ${
             group.members.length
               ? `<div class="admin-member-chips">${group.members.map(memberChip).join('')}</div>`
@@ -142,35 +149,45 @@ function isTyping(scope) {
         </div>
 
         <div class="admin-group-foot">
-          <button type="button" class="admin-row-btn" data-action="toggle-edit">${A.icon('pencil')} Sửa nhóm</button>
-          <button type="button" class="admin-row-btn ${group.locked ? 'is-on' : ''}" data-action="toggle-lock">
+          <button type="button" class="admin-row-btn" data-action="toggle-edit" aria-expanded="${isOpen}"
+            aria-controls="${scope}-edit">${A.icon('pencil')} Sửa nhóm</button>
+          <button type="button" class="admin-row-btn ${group.locked ? 'is-on' : ''}" data-action="toggle-lock"
+            aria-pressed="${group.locked}">
             ${A.icon(group.locked ? 'lock-open' : 'lock')} ${group.locked ? 'Mở khóa' : 'Khóa'}
           </button>
           <button type="button" class="admin-row-btn" data-action="clear-members">${A.icon('user-round-minus')} Bỏ hết người</button>
         </div>
 
-        <div class="admin-group-edit" ${isOpen ? '' : 'hidden'}>
+        <div class="admin-group-edit" id="${scope}-edit" ${isOpen ? '' : 'hidden'}>
           <div class="admin-form-grid is-tight">
             <div class="admin-field">
-              <label>Tên nhóm</label>
-              <input type="text" data-edit="name" value="${A.escapeHtml(group.name)}" />
+              <label for="${scope}-name">Tên nhóm</label>
+              <input id="${scope}-name" type="text" data-edit="name" value="${A.escapeHtml(group.name)}" autocomplete="off" />
             </div>
             <div class="admin-field">
-              <label>Slogan / mô tả</label>
-              <input type="text" data-edit="description" value="${A.escapeHtml(group.description || '')}" />
+              <label for="${scope}-desc">Slogan / mô tả</label>
+              <input id="${scope}-desc" type="text" data-edit="description" value="${A.escapeHtml(group.description || '')}" autocomplete="off" />
             </div>
             <div class="admin-field">
-              <label>Giới hạn số người</label>
-              <input type="number" min="1" max="500" data-edit="capacity" value="${group.capacity || ''}" placeholder="Trống = không giới hạn" />
+              <label for="${scope}-cap">Giới hạn số người</label>
+              <input id="${scope}-cap" type="number" min="1" max="500" inputmode="numeric" data-edit="capacity"
+                value="${group.capacity || ''}" placeholder="Trống = không giới hạn" />
             </div>
             <div class="admin-field">
-              <label>Màu nhận diện</label>
-              <input type="color" data-edit="color" value="${A.escapeHtml(group.color || '#4f46e5')}" />
+              <label for="${scope}-color">Màu nhận diện</label>
+              <span class="admin-color-field">
+                <input id="${scope}-color" type="color" data-edit="color" value="${A.escapeHtml(group.color || DEFAULT_SWATCH)}"
+                  aria-describedby="${scope}-color-note" />
+                <span class="admin-field-hint" id="${scope}-color-note" data-color-note>${
+                  group.color ? A.escapeHtml(group.color) : 'Đang dùng màu mặc định'
+                }</span>
+              </span>
             </div>
           </div>
           <div class="admin-btn-row">
-            <button type="button" class="admin-row-btn" data-action="save">${A.icon('save')} Lưu nhóm</button>
-            <button type="button" class="admin-row-btn" data-action="clear-color">${A.icon('paint-bucket')} Dùng màu mặc định</button>
+            <button type="button" class="admin-row-btn is-primary" data-action="save" data-keep-disabled="1">${A.icon('save')} Lưu nhóm</button>
+            <button type="button" class="admin-row-btn" data-action="clear-color" ${group.color ? '' : 'data-keep-disabled="1"'}
+              title="Bỏ màu riêng, dùng màu chủ đạo của trang">${A.icon('paint-bucket')} Dùng màu mặc định</button>
             <button type="button" class="admin-row-btn danger" data-action="delete">${A.icon('trash-2')} Xóa nhóm</button>
           </div>
         </div>
@@ -183,31 +200,76 @@ function isTyping(scope) {
     }`;
     lockRoundBtn.classList.toggle('admin-btn-warn', !randomLocked);
     lockRoundBtn.classList.toggle('admin-btn-secondary', randomLocked);
+    lockRoundBtn.setAttribute('aria-pressed', randomLocked ? 'true' : 'false');
   }
 
-  function render() {
-    if (isTyping(grid)) return;
+  /* ---------- sua nhom: theo doi thay doi chua luu ---------- */
 
+  function editChanges(card, group) {
+    const read = (field) => card.querySelector(`[data-edit="${field}"]`);
+    const body = {};
+    const name = read('name').value.trim();
+    if (name !== group.name) body.name = name;
+    const desc = read('description').value.trim();
+    if (desc !== (group.description || '')) body.description = desc;
+    const capacity = read('capacity').value.trim();
+    if (capacity !== String(group.capacity || '')) body.capacity = capacity;
+    const color = read('color');
+    if (color.dataset.touched === '1' && color.value.toLowerCase() !== String(group.color || '').toLowerCase()) {
+      body.color = color.value;
+    }
+    return body;
+  }
+
+  function updateDirty(card) {
+    const group = groups.find((g) => g.id === Number(card.dataset.groupId));
+    if (!group) return;
+    const dirty = Object.keys(editChanges(card, group)).length > 0;
+    card.classList.toggle('is-dirty', dirty);
+    A.setAllowed(card.querySelector('[data-action="save"]'), dirty);
+  }
+
+  // The dang sua do, hoac dang thao tac trong o sua (ke ca dang mo bang chon
+  // mau) thi giu nguyen khi co ban cap nhat realtime.
+  function cardIsBusy(card) {
+    if (card.classList.contains('is-dirty')) return true;
+    const el = document.activeElement;
+    if (!el || !card.contains(el) || !el.closest('.admin-group-edit')) return false;
+    return A.isEditingControl(el) || el.type === 'color';
+  }
+
+  let pendingRender = false;
+
+  function render() {
     renderStats();
     syncLockRoundBtn();
+    pendingRender = false;
 
-    const list = visibleGroups();
-    grid.innerHTML = list.length
-      ? list.map(cardHtml).join('')
-      : `<div class="admin-empty-rich">${A.icon(groups.length ? 'search-x' : 'folder-plus')}
-          <strong>${groups.length ? 'Không có nhóm nào khớp từ khóa' : 'Chưa có nhóm nào'}</strong>
+    A.patchList(
+      grid,
+      visibleGroups().map((g) => ({ key: g.id, html: cardHtml(g) })),
+      {
+        keep: (card) => {
+          const busy = cardIsBusy(card);
+          if (busy && !card.classList.contains('is-dirty')) pendingRender = true;
+          return busy;
+        },
+        empty: `<div class="admin-empty-rich">${A.icon(groups.length ? 'search-x' : 'folder-plus')}
+          <strong>${!loaded ? 'Đang tải…' : groups.length ? 'Không có nhóm nào khớp từ khóa' : 'Chưa có nhóm nào'}</strong>
           <p>${
             groups.length
               ? 'Thử xóa bớt từ khóa tìm kiếm.'
               : 'Thêm ít nhất một nhóm ở khối phía trên để vòng chia nhóm hoạt động.'
-          }</p></div>`;
+          }</p></div>`,
+      }
+    );
 
     A.applyEditLock(panel, lockNote);
   }
 
   /* ---------- tai du lieu ---------- */
 
-  async function load() {
+  const load = A.serial(async () => {
     try {
       const [groupRes, config] = await Promise.all([
         fetch('/api/groups/full').then((r) => r.json()),
@@ -216,16 +278,48 @@ function isTyping(scope) {
       groups = groupRes.groups || [];
       stats = groupRes.stats || null;
       randomLocked = !!config.randomLocked;
+      loaded = true;
 
       render();
     } catch (err) {
       A.setMsg(groupMsg, err.message, 'err');
     }
-  }
+  });
 
   /* ---------- thao tac tren tung the ---------- */
 
   filterInput.addEventListener('input', render);
+
+  grid.addEventListener('input', (e) => {
+    const card = e.target.closest('.admin-group-card');
+    if (!card || !e.target.dataset.edit) return;
+    if (e.target.dataset.edit === 'color') {
+      e.target.dataset.touched = '1';
+      const note = card.querySelector('[data-color-note]');
+      if (note) note.textContent = `${e.target.value} (chưa lưu)`;
+    }
+    updateDirty(card);
+  });
+  grid.addEventListener('change', (e) => {
+    const card = e.target.closest('.admin-group-card');
+    if (card && e.target.dataset.edit) updateDirty(card);
+  });
+
+  grid.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.dataset.edit || e.target.type === 'color') return;
+    const card = e.target.closest('.admin-group-card');
+    const save = card && card.querySelector('[data-action="save"]');
+    if (save && !save.disabled) {
+      e.preventDefault();
+      save.click();
+    }
+  });
+
+  grid.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (pendingRender && ![...grid.querySelectorAll('.admin-group-card')].some(cardIsBusy)) render();
+    }, 0);
+  });
 
   grid.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-action]');
@@ -241,14 +335,25 @@ function isTyping(scope) {
     if (action === 'toggle-edit') {
       const box = card.querySelector('.admin-group-edit');
       box.hidden = !box.hidden;
-      if (box.hidden) expanded.delete(groupId);
-      else expanded.add(groupId);
+      btn.setAttribute('aria-expanded', String(!box.hidden));
+      if (box.hidden) {
+        expanded.delete(groupId);
+        // Dong o sua = bo thay doi chua luu
+        if (card.classList.contains('is-dirty')) {
+          card.classList.remove('is-dirty');
+          render();
+        }
+      } else {
+        expanded.add(groupId);
+        const first = box.querySelector('[data-edit="name"]');
+        if (first && !first.disabled) first.focus();
+      }
       return;
     }
 
     if (action === 'remove-member') {
       const memberId = Number(btn.dataset.memberId);
-      const data = await A.run(null, groupMsg, 'Đang cập nhật...', () =>
+      const data = await A.run(btn, groupMsg, 'Đang cập nhật...', () =>
         A.request('POST', '/api/admin/groups/move', { memberId, groupId: '' })
       );
       if (!data) return;
@@ -292,26 +397,36 @@ function isTyping(scope) {
 
     if (action === 'clear-color') {
       const data = await A.run(btn, groupMsg, 'Đang cập nhật...', () =>
-        A.request('PUT', `/api/admin/groups/${groupId}`, { color: '' })
+        A.request('PUT', `/api/admin/groups/${groupId}`, { color: null })
       );
       if (!data) return;
-      A.done(groupMsg, 'Đã trả về màu mặc định.');
+      group.color = null;
+      const color = card.querySelector('[data-edit="color"]');
+      if (color) delete color.dataset.touched;
+      card.classList.remove('is-dirty');
+      A.done(groupMsg, `"${group.name}" đã trở về màu mặc định.`);
+      render();
       load();
       return;
     }
 
     if (action === 'save') {
-      const read = (field) => card.querySelector(`[data-edit="${field}"]`).value;
-      const data = await A.run(btn, groupMsg, 'Đang lưu...', () =>
-        A.request('PUT', `/api/admin/groups/${groupId}`, {
-          name: read('name'),
-          description: read('description'),
-          capacity: read('capacity'),
-          color: read('color'),
-        })
-      );
+      const body = editChanges(card, group);
+      if (!Object.keys(body).length) {
+        updateDirty(card);
+        return;
+      }
+      const data = await A.run(btn, groupMsg, 'Đang lưu...', () => A.request('PUT', `/api/admin/groups/${groupId}`, body));
       if (!data) return;
+      Object.assign(group, {
+        name: data.group.name,
+        description: data.group.description,
+        color: data.group.color,
+        capacity: data.group.capacity,
+      });
+      card.classList.remove('is-dirty');
       A.done(groupMsg, `Đã lưu "${data.group.name}".`);
+      render();
       load();
       return;
     }
@@ -331,6 +446,7 @@ function isTyping(scope) {
       const data = await A.run(btn, groupMsg, 'Đang xóa...', () => A.request('DELETE', `/api/admin/groups/${groupId}`));
       if (!data) return;
       expanded.delete(groupId);
+      card.classList.remove('is-dirty');
       A.done(groupMsg, `Đã xóa nhóm (${data.releasedMembers} người quay về chưa chia).`);
       load();
     }
@@ -338,21 +454,42 @@ function isTyping(scope) {
 
   /* ---------- them nhom ---------- */
 
+  function syncNewColorNote() {
+    const touched = newColor.dataset.touched === '1';
+    newColorNote.textContent = touched ? `Màu riêng: ${newColor.value}` : 'Chưa chọn — dùng màu chủ đạo của trang';
+    A.setAllowed(newColorReset, touched);
+  }
+
+  newColor.addEventListener('input', () => {
+    newColor.dataset.touched = '1';
+    syncNewColorNote();
+  });
+
+  newColorReset.addEventListener('click', () => {
+    delete newColor.dataset.touched;
+    newColor.value = DEFAULT_SWATCH;
+    syncNewColorNote();
+  });
+
   addBtn.addEventListener('click', async () => {
-    const data = await A.run(addBtn, addMsg, 'Đang thêm...', () =>
-      A.request('POST', '/api/admin/groups', {
-        name: newName.value,
-        description: newDesc.value,
-        capacity: newCapacity.value,
-        color: newColor.value,
-      })
-    );
+    const body = {
+      name: newName.value,
+      description: newDesc.value,
+      capacity: newCapacity.value,
+    };
+    if (newColor.dataset.touched === '1') body.color = newColor.value;
+
+    const data = await A.run(addBtn, addMsg, 'Đang thêm...', () => A.request('POST', '/api/admin/groups', body));
     if (!data) return;
 
     A.done(addMsg, `Đã thêm nhóm "${data.group.name}".`);
     newName.value = '';
     newDesc.value = '';
     newCapacity.value = '';
+    delete newColor.dataset.touched;
+    newColor.value = DEFAULT_SWATCH;
+    syncNewColorNote();
+    newName.focus();
     load();
   });
 
@@ -372,7 +509,7 @@ function isTyping(scope) {
       title: 'Xáo lại toàn bộ',
       message: `Bốc tất cả mọi người ra rồi chia lại từ đầu?<br />${
         keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên nhóm.' : '<strong>Kể cả người đã ghim</strong> cũng bị xáo lại.'
-      }`,
+      }<br />Ai đang mở trang chia nhóm sẽ thấy kết quả mới ngay.`,
       okText: 'Xáo lại',
     });
     if (!ok) return;
@@ -395,6 +532,15 @@ function isTyping(scope) {
   }
 
   lockRoundBtn.addEventListener('click', async () => {
+    if (!randomLocked) {
+      const ok = await A.confirmAction({
+        title: 'Khóa vòng chia nhóm',
+        message: 'Khóa vòng chia nhóm? Mọi người sẽ không tự bốc thăm được nữa cho tới khi bạn mở lại. Kết quả hiện có vẫn giữ nguyên.',
+        okText: 'Khóa',
+        danger: false,
+      });
+      if (!ok) return;
+    }
     const data = await A.run(lockRoundBtn, actionMsg, 'Đang cập nhật...', () =>
       A.request('POST', '/api/admin/settings/lock', { locked: !randomLocked })
     );
@@ -407,9 +553,9 @@ function isTyping(scope) {
   resetBtn.addEventListener('click', async () => {
     const ok = await A.confirmAction({
       title: 'Xóa kết quả chia nhóm',
-      message: `Đưa tất cả mọi người về trạng thái chưa chia nhóm?<br />${
-        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên nhóm.' : 'Kể cả người đã ghim.'
-      } Danh sách nhóm vẫn được giữ.`,
+      message: `Đưa tất cả mọi người về trạng thái <strong>chưa chia nhóm</strong>?<br />${
+        keepPinned.checked ? 'Người đã ghim vẫn giữ nguyên nhóm.' : '<strong>Kể cả người đã ghim.</strong>'
+      }<br /><br />Ai đang mở trang chia nhóm sẽ thấy kết quả của mình bị xóa và phải bốc thăm lại. Danh sách nhóm, điểm quiz và Nhóm Trưởng vẫn giữ nguyên — người đang làm quiz không bị ảnh hưởng.`,
       okText: 'Xóa kết quả',
     });
     if (!ok) return;
@@ -442,17 +588,14 @@ function isTyping(scope) {
 
   /* ---------- realtime ---------- */
 
-  if (A.socket) {
-    const refreshIfVisible = () => {
-      if (A.activeTab() === 'groups') load();
-    };
+  // "Chia nhom cho tat ca" phat groups:updated + members:updated + bulk-randomized
+  // + activity lien nhau -> gop thanh 1 lan tai.
+  A.onLive(
     ['groups:updated', 'groups:reset', 'members:updated', 'member:randomized', 'groups:bulk-randomized',
-      'random:config'].forEach((evt) => A.socket.on(evt, refreshIfVisible));
-  }
+      'random:config', 'settings:updated'],
+    load
+  );
 
-  A.onSecretChange(() => {
-    if (A.activeTab() === 'groups') load();
-  });
-
+  syncNewColorNote();
   A.onTab('groups', load);
 })();

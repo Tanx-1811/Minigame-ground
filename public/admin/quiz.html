@@ -36,19 +36,24 @@
                 </div>
               </div>
 
+              <div id="quizStats" class="admin-stats is-quad-wide" aria-live="polite"></div>
+
               <div class="admin-card">
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-open"></i> Bước 1 · Phòng chờ</h3>
                     <p>Danh sách người đã chọn tên và đang chờ (cập nhật realtime). Bấm bắt đầu để đếm ngược 3 giây và mở câu hỏi đầu tiên cho tất cả cùng lúc.</p>
                   </div>
-                  <span id="lobbyStatusText" class="admin-chip"></span>
+                  <span id="lobbyStatusText" class="admin-chip" aria-live="polite"></span>
                 </div>
                 <div class="admin-card-body">
                   <p id="quizLockNote" class="admin-msg"></p>
-                  <ol id="lobbyMembersList" class="admin-list"></ol>
-                  <button id="startQuizBtn" class="admin-btn" type="button"><i data-lucide="play"></i> Bắt đầu làm bài (đếm ngược 3 giây)</button>
-                  <p id="lobbyMsg" class="admin-msg"></p>
+                  <ol id="lobbyMembersList" class="admin-list is-columns"></ol>
+                  <div class="admin-btn-row">
+                    <button id="startQuizBtn" class="admin-btn" type="button" data-keep-disabled="1" aria-describedby="startHint"><i data-lucide="play"></i> Bắt đầu làm bài (đếm ngược 3 giây)</button>
+                  </div>
+                  <p id="startHint" class="admin-field-hint"></p>
+                  <p id="lobbyMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -59,26 +64,41 @@
                     <p>Điểm cao nhất thắng, hòa điểm thì ai nhanh hơn thắng. Chốt xong vòng Random mới mở khóa. Số lượng Nhóm Trưởng đổi được ở trang <a href="/admin/settings.html">Cấu hình</a>.</p>
                   </div>
                   <button id="refreshQuizBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
-                    <i data-lucide="refresh-cw"></i> Tải bảng xếp hạng
+                    <i data-lucide="refresh-cw"></i> Tải lại
                   </button>
                 </div>
                 <div class="admin-card-body">
-                  <ol id="quizAdminLeaderboard" class="admin-list"></ol>
+                  <p id="quizBoardLegend" class="admin-field-hint"></p>
+                  <ol id="quizAdminLeaderboard" class="admin-list" aria-live="polite"></ol>
 
                   <label class="admin-checkbox">
-                    <input id="forceFinishCheckbox" type="checkbox" />
+                    <input id="forceFinishCheckbox" type="checkbox" data-keep-disabled="1" />
                     <span>Chốt luôn dù chưa đủ người hoàn thành hết câu hỏi
                       <small>Lấy những người điểm cao nhất trong số đã làm bài.</small>
                     </span>
                   </label>
 
                   <div class="admin-btn-row">
-                    <button id="finishQuizBtn" class="admin-btn" type="button"><i data-lucide="crown"></i> Chốt Nhóm Trưởng &amp; mở Random</button>
-                    <button id="resetLeadersBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="rotate-ccw"></i> Làm lại vòng Quiz từ đầu</button>
+                    <button id="finishQuizBtn" class="admin-btn" type="button" data-keep-disabled="1" aria-describedby="finishHint"><i data-lucide="crown"></i> Chốt Nhóm Trưởng &amp; mở Random</button>
                   </div>
-                  <p id="quizMsg" class="admin-msg"></p>
+                  <p id="finishHint" class="admin-field-hint"></p>
+                  <p id="quizMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
+
+              <details class="admin-card is-danger is-collapsible-head"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="rotate-ccw"></i> Làm lại vòng Quiz</h3>
+                    <p>Xóa điểm, câu trả lời và bỏ chốt Nhóm Trưởng để mọi người làm lại từ đầu. Không thể hoàn tác.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <p class="admin-help">Kết quả chia nhóm và ghép phòng được giữ nguyên. Phòng chờ được làm trống, ai đang mở trang sẽ quay về màn Quiz.</p>
+                  <div class="admin-btn-row">
+                    <button id="resetLeadersBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Làm lại vòng Quiz từ đầu</button>
+                  </div>
+                </div>
+              </details>
             </section>
     </main>
   </div>

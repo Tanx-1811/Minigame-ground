@@ -42,7 +42,7 @@
                     <h3><i data-lucide="timer"></i> Giờ mở bốc thăm</h3>
                     <p>Chưa đặt giờ thì nút "Bắt đầu bốc thăm" mở ngay lập tức, không đếm ngược.</p>
                   </div>
-                  <span id="eventCountdownChip" class="admin-chip"></span>
+                  <span id="eventCountdownChip" class="admin-chip" role="timer" aria-live="off"></span>
                 </div>
                 <div class="admin-card-body">
                   <p id="eventLockNote" class="admin-msg"></p>
@@ -55,9 +55,9 @@
                   </div>
                   <div class="admin-btn-row">
                     <button id="saveTimeBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu giờ mở</button>
-                    <button id="clearTimeBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="zap"></i> Mở ngay (xóa giờ)</button>
+                    <button id="clearTimeBtn" class="admin-btn admin-btn-warn" type="button" data-keep-disabled="1"><i data-lucide="zap"></i> Mở ngay (xóa giờ)</button>
                   </div>
-                  <p id="timeMsg" class="admin-msg"></p>
+                  <p id="timeMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
             </section>

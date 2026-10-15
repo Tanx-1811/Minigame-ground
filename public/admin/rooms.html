@@ -41,7 +41,7 @@
                 </div>
               </div>
 
-              <div id="roomStats" class="admin-stats"></div>
+              <div id="roomStats" class="admin-stats is-six"></div>
 
               <div class="admin-card">
                 <div class="admin-card-head">
@@ -54,7 +54,7 @@
                   <div class="admin-form-grid is-tight">
                     <div class="admin-field">
                       <label for="roomAutoCapacity"><i data-lucide="users"></i> Sức chứa mỗi phòng</label>
-                      <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" />
+                      <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" inputmode="numeric" />
                     </div>
                     <div class="admin-field">
                       <label for="roomAutoPrefix"><i data-lucide="type"></i> Tiền tố tên phòng</label>
@@ -68,7 +68,7 @@
                     <button id="roomRandomAllBtn" class="admin-btn" type="button"><i data-lucide="dices"></i> Ghép phòng cho tất cả</button>
                     <button id="roomReshuffleBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="shuffle"></i> Xáo lại toàn bộ</button>
                     <button id="roomLockBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="lock"></i> Khóa vòng ghép phòng</button>
-                    <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Reset ghép phòng</button>
+                    <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="eraser"></i> Reset ghép phòng</button>
                   </div>
                   <label class="admin-checkbox">
                     <input id="roomKeepPinned" type="checkbox" checked />
@@ -76,7 +76,7 @@
                       <small>Người được ghim phòng sẽ không bị xáo lại hay bị đưa ra khỏi phòng.</small>
                     </span>
                   </label>
-                  <p id="roomActionMsg" class="admin-msg"></p>
+                  <p id="roomActionMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -101,14 +101,16 @@
                     </div>
                     <div class="admin-field">
                       <label for="newRoomCapacity"><i data-lucide="users"></i> Sức chứa</label>
-                      <input id="newRoomCapacity" type="number" min="1" max="50" value="2" />
+                      <input id="newRoomCapacity" type="number" min="1" max="50" value="2" inputmode="numeric" />
                     </div>
                     <div class="admin-field">
                       <label for="newRoomNote"><i data-lucide="sticky-note"></i> Ghi chú</label>
                       <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công" />
                     </div>
                   </div>
-                  <button id="addRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm phòng</button>
+                  <div class="admin-btn-row">
+                    <button id="addRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm phòng</button>
+                  </div>
                   <p id="addRoomMsg" class="admin-msg"></p>
                 </div>
               </details>
@@ -117,13 +119,13 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="user-round-search"></i> Chưa có phòng</h3>
-                    <p>Những người chưa được ghép. Chọn phòng trong ô bên cạnh để xếp tay, hoặc dùng "Ghép phòng cho tất cả" ở trên.</p>
+                    <p>Những người chưa được ghép. Chọn phòng ngay dưới tên để xếp tay, hoặc dùng "Ghép phòng cho tất cả" ở trên. Người chưa đặt giới tính phải đặt ở trang Thành viên trước.</p>
                   </div>
                   <span id="pendingCount" class="admin-chip"></span>
                 </div>
                 <div class="admin-card-body">
                   <div id="pendingList"></div>
-                  <p id="pendingMsg" class="admin-msg"></p>
+                  <p id="pendingMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -144,7 +146,9 @@
                       <select id="swapMemberB"></select>
                     </div>
                   </div>
-                  <button id="swapBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="arrow-left-right"></i> Đổi chỗ</button>
+                  <div class="admin-btn-row">
+                    <button id="swapBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="arrow-left-right"></i> Đổi chỗ</button>
+                  </div>
                   <p id="swapMsg" class="admin-msg"></p>
                 </div>
               </details>
@@ -164,7 +168,7 @@
                       <label for="roomFilter"><i data-lucide="search"></i> Tìm phòng / tên người</label>
                       <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1" />
                     </div>
-                    <div class="admin-filter-chips" id="roomFilterChips"></div>
+                    <div class="admin-filter-chips" id="roomFilterChips" role="group" aria-label="Lọc phòng"></div>
                   </div>
 
                   <div class="admin-btn-row">
@@ -173,7 +177,7 @@
                   </div>
 
                   <div id="roomList"></div>
-                  <p id="roomListMsg" class="admin-msg"></p>
+                  <p id="roomListMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
             </section>

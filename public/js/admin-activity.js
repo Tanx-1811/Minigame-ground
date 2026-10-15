@@ -1,5 +1,7 @@
 // Tab "Nhat ky": lich su thao tac luu trong DB (con nguyen sau khi restart server).
 // Loc theo loai, xuat CSV, xoa nhat ky.
+// Luot boc tham cong khai cung ghi nhat ky -> trong luc su kien co the don dap,
+// nen gop lai tai toi da ~1.5 giay 1 lan thay vi tai lai moi luot.
 (function () {
   const A = window.AdminCommon;
 
@@ -27,7 +29,7 @@
     chipBox.innerHTML = FILTERS.map(
       (f) => `
       <button type="button" class="admin-filter-chip ${f.key === activeFilter ? 'is-active' : ''}"
-        data-filter="${f.key}" data-always-enabled="1">
+        aria-pressed="${f.key === activeFilter}" data-filter="${f.key}" data-always-enabled="1">
         ${A.icon(f.icon)} ${f.label}
       </button>`
     ).join('');
@@ -44,7 +46,9 @@
           <span class="admin-log-icon">${A.icon(row.icon || 'circle')}</span>
           <div class="admin-log-main">
             <div class="admin-log-msg">${A.escapeHtml(row.message)}</div>
-            <div class="admin-log-time">${A.escapeHtml(A.timeAgo(row.at))}</div>
+            <div class="admin-log-time">${A.timeHtml(row.at)}${
+              row.actor ? ` · ${A.escapeHtml(row.actor)}` : ''
+            }</div>
           </div>
         </div>`
           )
@@ -53,11 +57,10 @@
           <p>Mọi lượt bốc thăm, ghép phòng và thao tác admin sẽ được ghi lại ở đây.</p></div>`;
 
     A.applyEditLock(panel, lockNote);
-    refreshBtn.disabled = false;
-    exportBtn.disabled = false;
+    A.setAllowed(clearBtn, rows.length > 0);
   }
 
-  async function load() {
+  const load = A.serial(async () => {
     try {
       // Co ma bi mat thi lay ban day du (200 dong), khong thi dung feed cong khai
       rows = A.canEdit()
@@ -67,7 +70,7 @@
     } catch (err) {
       A.setMsg(msg, err.message, 'err');
     }
-  }
+  });
 
   chipBox.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');
@@ -76,7 +79,7 @@
     load();
   });
 
-  refreshBtn.addEventListener('click', load);
+  refreshBtn.addEventListener('click', () => A.run(refreshBtn, null, '', load));
 
   exportBtn.addEventListener('click', () => {
     const out = [['Thời điểm', 'Loại', 'Nội dung', 'Người thực hiện']];
@@ -105,18 +108,7 @@
     load();
   });
 
-  if (A.socket) {
-    A.socket.on('activity:new', () => {
-      if (A.activeTab() === 'activity') load();
-    });
-    A.socket.on('activity:cleared', () => {
-      if (A.activeTab() === 'activity') load();
-    });
-  }
-
-  A.onSecretChange(() => {
-    if (A.activeTab() === 'activity') load();
-  });
+  A.onLive(['activity:new', 'activity:cleared'], load);
 
   A.onTab('activity', load);
 })();
