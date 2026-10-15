@@ -351,7 +351,7 @@
 
   function genderChip(gender) {
     return `<span class="admin-tag ${A.genderClass(gender) || 'is-warn'}">${A.icon(A.genderIcon(gender), 'ic-sm')} ${
-      gender ? A.genderLabel(gender) : 'Chưa đặt giới tính'
+      gender ? A.genderLabel(gender) : 'Chưa đặt'
     }</span>`;
   }
 
@@ -377,7 +377,6 @@
           ${genderChip(member.gender)}
         </div>
         <select id="${id}" data-action="assign" ${member.gender ? '' : 'disabled data-keep-disabled="1"'}>${options}</select>
-        ${member.gender ? '' : '<a class="admin-pending-fix" href="/admin/members.html">Đặt giới tính ở trang Thành viên</a>'}
       </div>`;
   }
 

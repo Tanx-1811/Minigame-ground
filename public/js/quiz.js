@@ -653,6 +653,14 @@
 
   quizChangeNameBtn.addEventListener('click', () => {
     if (typeof window.playClick === 'function') window.playClick();
+    // Rut ten cu khoi phong cho, neu khong chon ten moi xong danh sach se thua 1 nguoi
+    if (currentName) {
+      fetchJson('/api/quiz/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: currentName }),
+      }).catch(() => {});
+    }
     session += 1;
     clearTimers();
     saveName('');

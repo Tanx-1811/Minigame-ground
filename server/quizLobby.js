@@ -19,6 +19,11 @@ function addLobbyMember(name) {
   if (!lobbyMembers.has(name)) lobbyMembers.set(name, Date.now());
 }
 
+// Tra ve true neu ten do dang co trong phong cho (de biet co can bao cho moi nguoi)
+function removeLobbyMember(name) {
+  return lobbyMembers.delete(name);
+}
+
 function clearLobby() {
   lobbyMembers.clear();
   seenAt.clear();
@@ -85,6 +90,7 @@ async function recomputeScores(client = prisma) {
 module.exports = {
   getLobbyMembers,
   addLobbyMember,
+  removeLobbyMember,
   clearLobby,
   markSeen,
   elapsedSince,

@@ -144,6 +144,19 @@ router.post('/quiz/join', async (req, res) => {
   }
 });
 
+// POST /api/quiz/leave - roi phong cho (bam "Chon ten khac"), neu khong ten cu van
+// nam lai trong danh sach va so nguoi san sang bi cong them 1
+router.post('/quiz/leave', (req, res) => {
+  const { name } = req.body || {};
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Thiếu tên thành viên' });
+  }
+
+  const members = quizLobby.removeLobbyMember(name.trim()) ? quizLobby.getLobbyMembers() : null;
+  if (members) req.io.emit('quiz:lobby', { members });
+  res.json({ ok: true });
+});
+
 // GET /api/quiz/leaderboard - bang xep hang tam thoi (khong tiet lo ai la nhom truong khi chua chot)
 router.get('/quiz/leaderboard', async (req, res) => {
   try {
