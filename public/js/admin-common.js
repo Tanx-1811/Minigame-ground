@@ -1,6 +1,7 @@
 // Tien ich dung chung cho moi module admin: ma bi mat, goi API, doi tab,
-// thong bao (toast), hop thoai xac nhan, che do sang/toi.
-// Khai bao TRUOC cac file admin-*.js khac trong admin-reset.html.
+// thong bao (toast), hop thoai xac nhan, che do sang/toi, ve lai danh sach
+// ma khong cuop con tro cua nguoi dang sua.
+// Khai bao TRUOC cac file admin-*.js khac trong moi trang admin.
 
 window.AdminCommon = (function () {
   const SECRET_KEY = 'randomTeam_adminSecret';
@@ -66,7 +67,8 @@ window.AdminCommon = (function () {
       <header class="admin-topbar">
         <div class="admin-topbar-inner">
           <div class="admin-brand">
-            <button type="button" id="navToggle" class="admin-icon-btn admin-nav-toggle" aria-label="Mở menu">
+            <button type="button" id="navToggle" class="admin-icon-btn admin-nav-toggle" aria-label="Mở menu"
+              aria-expanded="false" aria-controls="adminSidebar">
               <i data-lucide="menu"></i>
             </button>
             <a class="admin-brand-mark" href="/admin/" aria-label="Về trang tổng quan">
@@ -79,12 +81,13 @@ window.AdminCommon = (function () {
           </div>
 
           <div class="admin-topbar-tools">
-            <span id="authDot" class="admin-auth-dot"><i data-lucide="shield-off"></i><span>Chỉ xem</span></span>
+            <span id="authDot" class="admin-auth-dot" role="status" aria-live="polite"></span>
             <div class="admin-secret">
               <div class="admin-secret-field">
                 <label class="visually-hidden" for="secretInput">Mã bí mật admin</label>
                 <i data-lucide="key-round"></i>
-                <input id="secretInput" type="password" placeholder="Mã bí mật admin" autocomplete="off" />
+                <input id="secretInput" type="password" placeholder="Mã bí mật admin" autocomplete="off"
+                  enterkeyhint="done" spellcheck="false" />
                 <button type="button" id="secretToggle" class="admin-secret-toggle" aria-label="Hiện mã bí mật">
                   <i data-lucide="eye"></i>
                 </button>
@@ -106,7 +109,8 @@ window.AdminCommon = (function () {
             ${group.items
               .map(
                 (item) => `
-              <a class="admin-tab ${item.page === PAGE ? 'is-active' : ''}" href="${item.href}" data-tab="${item.page}">
+              <a class="admin-tab ${item.page === PAGE ? 'is-active' : ''}" href="${item.href}" data-tab="${item.page}"
+                ${item.page === PAGE ? 'aria-current="page"' : ''}>
                 <span class="admin-tab-icon"><i data-lucide="${item.icon}"></i></span> ${item.label}
                 ${item.badge ? `<span class="admin-tab-badge" data-badge="${item.badge}">${badges[item.badge] || ''}</span>` : ''}
               </a>`
@@ -131,6 +135,7 @@ window.AdminCommon = (function () {
     scrim.className = 'admin-scrim';
     scrim.id = 'navScrim';
     scrim.hidden = true;
+    scrim.tabIndex = -1;
     scrim.setAttribute('aria-label', 'Đóng menu');
 
     const shell = document.querySelector('.admin-shell');
@@ -142,7 +147,7 @@ window.AdminCommon = (function () {
       'beforeend',
       `
       <div id="adminToasts" class="admin-toasts" aria-live="polite"></div>
-      <dialog id="confirmDialog" class="admin-dialog">
+      <dialog id="confirmDialog" class="admin-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmBody">
         <div class="admin-dialog-head"><i data-lucide="triangle-alert"></i> <span id="confirmTitle">Xác nhận</span></div>
         <div class="admin-dialog-body" id="confirmBody"></div>
         <div class="admin-dialog-foot">
@@ -166,12 +171,27 @@ window.AdminCommon = (function () {
 
   /* ================= che do sang / toi ================= */
 
-  function applyTheme(theme) {
+  // Chua tung chon thi theo he dieu hanh. Script nho trong <head> cua moi trang
+  // da dat data-theme TRUOC khi ve lan dau (khong bi nhay nen trang), o day chi
+  // dong bo lai nut bam va lang nghe he dieu hanh doi che do.
+  const systemDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function savedTheme() {
+    try {
+      const value = localStorage.getItem(THEME_KEY);
+      return value === 'dark' || value === 'light' ? value : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function applyTheme(theme, persist) {
     document.documentElement.dataset.theme = theme;
     if (themeToggle) {
       themeToggle.innerHTML = `<i data-lucide="${theme === 'dark' ? 'sun' : 'moon'}"></i>`;
       themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Chuyển sang nền sáng' : 'Chuyển sang nền tối');
     }
+    if (!persist) return;
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch (err) {
@@ -179,17 +199,17 @@ window.AdminCommon = (function () {
     }
   }
 
-  let savedTheme = null;
-  try {
-    savedTheme = localStorage.getItem(THEME_KEY);
-  } catch (err) {
-    /* localStorage bi chan, bo qua */
+  applyTheme(savedTheme() || (systemDark && systemDark.matches ? 'dark' : 'light'), false);
+
+  if (systemDark && systemDark.addEventListener) {
+    systemDark.addEventListener('change', (e) => {
+      if (!savedTheme()) applyTheme(e.matches ? 'dark' : 'light', false);
+    });
   }
-  applyTheme(savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light');
 
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
-      applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
     });
   }
 
@@ -208,19 +228,36 @@ window.AdminCommon = (function () {
     return secretInput.value.trim();
   }
 
-  // Chua nhap ma bi mat -> cac tab van hien danh sach (doc tu API cong khai),
-  // chi khoa cac o sua/nut thao tac lai.
+  // Trang thai ma bi mat:
+  //  none     - chua nhap gi (chi xem)
+  //  checking - dang hoi may chu
+  //  valid    - may chu chap nhan -> mo khoa cac o sua
+  //  invalid  - may chu tra 401 -> van chi xem, bao "Sai ma"
+  //  offline  - khong ket noi duoc may chu de kiem tra
+  // Truoc day cu go 1 ky tu bat ky la hien "Toan quyen" va mo khoa nut bam,
+  // bam vao moi bao loi 401.
+  let authState = getSecret() ? 'checking' : 'none';
+  let checkedSecret = '';
+
   function canEdit() {
-    return getSecret().length > 0;
+    return authState === 'valid' && getSecret() === checkedSecret;
   }
+
+  const AUTH_VIEW = {
+    none: { icon: 'shield-off', text: 'Chỉ xem', cls: '' },
+    checking: { icon: 'hourglass', text: 'Đang kiểm tra', cls: 'is-checking' },
+    valid: { icon: 'shield-check', text: 'Toàn quyền', cls: 'is-on' },
+    invalid: { icon: 'circle-alert', text: 'Sai mã', cls: 'is-err' },
+    offline: { icon: 'triangle-alert', text: 'Mất kết nối', cls: 'is-warn' },
+  };
 
   function syncAuthDot() {
     if (!authDot) return;
-    const on = canEdit();
-    authDot.classList.toggle('is-on', on);
-    authDot.innerHTML = on
-      ? '<i data-lucide="shield-check"></i><span>Toàn quyền</span>'
-      : '<i data-lucide="shield-off"></i><span>Chỉ xem</span>';
+    const view = AUTH_VIEW[authState] || AUTH_VIEW.none;
+    authDot.className = `admin-auth-dot ${view.cls}`;
+    authDot.innerHTML = `<i data-lucide="${view.icon}"></i><span>${view.text}</span>`;
+    authDot.title = view.text;
+    secretInput.setAttribute('aria-invalid', authState === 'invalid' ? 'true' : 'false');
   }
 
   const secretWatchers = new Set();
@@ -229,39 +266,128 @@ window.AdminCommon = (function () {
     secretWatchers.add(handler);
   }
 
+  // Bao cho trang biet quyen sua vua doi: chi 1 lan tai lai du lieu (truoc day
+  // vua goi watcher vua goi reloadActive -> moi trang tai 2 lan).
+  function notifyAuthChange() {
+    const editable = canEdit();
+    secretWatchers.forEach((handler) => {
+      try {
+        handler(editable);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+    reloadActive();
+  }
+
+  let validateSeq = 0;
+
+  async function validateSecret() {
+    const secret = getSecret();
+    if (!secret) {
+      checkedSecret = '';
+      return 'none';
+    }
+    if (secret === checkedSecret && authState !== 'checking' && authState !== 'offline') return authState;
+
+    const seq = ++validateSeq;
+    let next;
+    try {
+      const res = await fetch(`/api/admin/settings?secret=${encodeURIComponent(secret)}`, { cache: 'no-store' });
+      next = res.status === 401 || res.status === 403 ? 'invalid' : 'valid';
+    } catch (err) {
+      next = 'offline';
+    }
+    // Nguoi dung da go tiep trong luc cho -> ket qua nay da cu
+    if (seq !== validateSeq || secret !== getSecret()) return authState;
+    checkedSecret = secret;
+    return next;
+  }
+
+  async function revalidate() {
+    const before = authState;
+    const beforeEdit = canEdit();
+    if (getSecret()) {
+      authState = 'checking';
+      syncAuthDot();
+    }
+    const next = await validateSecret();
+    if (next === authState && authState !== 'checking') return;
+    authState = next;
+    syncAuthDot();
+    if (beforeEdit !== canEdit() || (before !== next && before !== 'checking')) notifyAuthChange();
+  }
+
+  // Lan dau mo trang: kiem tra ma da luu truoc roi moi tai du lieu, de khong
+  // phai tai 2 lan (1 lan chi xem, 1 lan day du).
+  const authReady = getSecret()
+    ? validateSecret().then((state) => {
+        authState = state;
+        syncAuthDot();
+      })
+    : Promise.resolve();
+
   let secretDebounce = null;
+  let secretDirty = false;
+
+  function commitSecret() {
+    clearTimeout(secretDebounce);
+    if (!secretDirty) return;
+    secretDirty = false;
+    revalidate();
+  }
+
   secretInput.addEventListener('input', () => {
     try {
-      sessionStorage.setItem(SECRET_KEY, secretInput.value.trim());
+      sessionStorage.setItem(SECRET_KEY, getSecret());
     } catch (err) {
       /* sessionStorage bi chan, bo qua */
     }
+    secretDirty = true;
+    const hadEdit = canEdit();
+    if (!getSecret()) {
+      authState = 'none';
+    } else if (getSecret() !== checkedSecret) {
+      authState = 'checking';
+    }
     syncAuthDot();
-
-    // Vua nhap xong ma bi mat thi tai lai du lieu cua tab dang mo va mo khoa
-    // cac o sua (truoc do dang o che do chi xem)
+    // Vua xoa ma thi khoa ngay, khong cho het thoi gian cho
+    if (hadEdit && !canEdit() && !getSecret()) {
+      secretDirty = false;
+      checkedSecret = '';
+      notifyAuthChange();
+      return;
+    }
     clearTimeout(secretDebounce);
-    secretDebounce = setTimeout(() => {
-      secretWatchers.forEach((handler) => {
-        try {
-          handler(canEdit());
-        } catch (err) {
-          console.error(err);
-        }
-      });
-      reloadActive();
-    }, 700);
+    secretDebounce = setTimeout(commitSecret, 600);
   });
+
+  secretInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') commitSecret();
+  });
+  secretInput.addEventListener('blur', commitSecret);
 
   if (secretToggle) {
     secretToggle.addEventListener('click', () => {
       const show = secretInput.type === 'password';
       secretInput.type = show ? 'text' : 'password';
       secretToggle.innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+      secretToggle.setAttribute('aria-label', show ? 'Ẩn mã bí mật' : 'Hiện mã bí mật');
     });
   }
 
   /* ================= khoa che do chi xem ================= */
+
+  const LOCK_NOTE = {
+    none: 'Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để thêm/sửa/xóa.',
+    checking: 'Đang kiểm tra mã bí mật…',
+    invalid: 'Mã bí mật không đúng — vẫn đang ở chế độ chỉ xem. Kiểm tra lại mã ở đầu trang.',
+    offline: 'Không kết nối được máy chủ để kiểm tra mã bí mật.',
+  };
+
+  function lockNoteText() {
+    return LOCK_NOTE[authState] || LOCK_NOTE.none;
+  }
 
   // Khoa/mo toan bo o nhap + nut trong 1 vung, va hien dong nhac nhap ma bi mat.
   // data-always-enabled: khong bao gio khoa (tim kiem, xuat CSV...).
@@ -270,12 +396,22 @@ window.AdminCommon = (function () {
     const locked = !canEdit();
     scope.querySelectorAll('input, select, textarea, button').forEach((el) => {
       if (el.dataset.alwaysEnabled === '1') return;
-      el.disabled = locked || el.dataset.keepDisabled === '1';
+      const next = locked || el.dataset.keepDisabled === '1';
+      if (el.disabled !== next) el.disabled = next;
     });
     if (noteEl) {
-      setMsg(noteEl, locked ? 'Đang ở chế độ chỉ xem — nhập mã bí mật admin ở đầu trang để thêm/sửa/xóa.' : '', locked ? 'warn' : '');
+      setMsg(noteEl, locked ? lockNoteText() : '', locked ? (authState === 'invalid' ? 'err' : 'warn') : '');
     }
     return !locked;
+  }
+
+  // Bat/tat 1 nut theo dieu kien rieng cua trang (vd "Luu" chi bat khi co thay
+  // doi) ma van ton trong che do chi xem va lan applyEditLock sau.
+  function setAllowed(el, allowed) {
+    if (!el) return;
+    if (allowed) delete el.dataset.keepDisabled;
+    else el.dataset.keepDisabled = '1';
+    el.disabled = !allowed || !canEdit();
   }
 
   /* ================= toast ================= */
@@ -288,9 +424,13 @@ window.AdminCommon = (function () {
 
     const el = document.createElement('div');
     el.className = `admin-toast is-${type}`;
+    el.setAttribute('role', type === 'err' ? 'alert' : 'status');
     el.innerHTML = `<i data-lucide="${TOAST_ICON[type]}"></i><span></span>`;
     el.querySelector('span').textContent = text;
     toastHost.appendChild(el);
+
+    // Toi da 4 thong bao cung luc - thao tac lien tuc khong lap kin man hinh
+    while (toastHost.children.length > 4) toastHost.firstElementChild.remove();
 
     setTimeout(() => {
       el.classList.add('is-out');
@@ -308,6 +448,7 @@ window.AdminCommon = (function () {
 
   // Thay cho confirm() cua trinh duyet: dong bo voi giao dien va cho phep
   // doi chu tren nut dong y. Tra ve Promise<boolean>.
+  // Nut "Huy" luon duoc focus truoc: bam Enter vo tinh khong xoa du lieu.
   function confirmAction({ title = 'Xác nhận', message = '', okText = 'Đồng ý', danger = true } = {}) {
     if (!dialog || typeof dialog.showModal !== 'function') {
       return Promise.resolve(window.confirm(message || title));
@@ -335,17 +476,22 @@ window.AdminCommon = (function () {
       dialogCancel.addEventListener('click', onCancel);
       dialog.addEventListener('close', onClose);
       dialog.showModal();
+      dialogCancel.focus();
       if (window.Icons) window.Icons.refresh();
     });
   }
 
   /* ================= tien ich ================= */
 
-  // Tai file CSV tu du lieu dang bang (co BOM de Excel doc dung tieng Viet)
+  // Tai file CSV tu du lieu dang bang (co BOM de Excel doc dung tieng Viet).
+  // O bat dau bang = + - @ bi Excel hieu la cong thuc (ten ai do dat "=HYPERLINK(...)"
+  // la thanh duong link doc) -> them dau ' phia truoc de Excel coi la chu.
   function downloadCsv(filename, rows) {
     const escapeCell = (value) => {
-      const text = value === null || value === undefined ? '' : String(value);
-      return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      if (value === null || value === undefined) return '';
+      let text = String(value);
+      if (typeof value !== 'number' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+      return /[",;\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
     };
     const csv = rows.map((row) => row.map(escapeCell).join(',')).join('\r\n');
     downloadBlob(filename, new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }));
@@ -359,13 +505,16 @@ window.AdminCommon = (function () {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str === null || str === undefined ? '' : String(str);
-    return div.innerHTML;
+    return (str === null || str === undefined ? '' : String(str))
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function icon(name, className) {
@@ -403,6 +552,23 @@ window.AdminCommon = (function () {
     return new Date(iso).toLocaleString('vi-VN', { hour12: false });
   }
 
+  // Nhan thoi gian tuong doi (<time data-time="...">) tu cap nhat, khong thi
+  // "vua xong" nam yen do ca tieng dong ho.
+  function timeHtml(iso) {
+    const full = new Date(iso);
+    const title = Number.isNaN(full.getTime()) ? '' : full.toLocaleString('vi-VN', { hour12: false });
+    return `<time data-time="${escapeHtml(iso)}" datetime="${escapeHtml(iso)}" title="${escapeHtml(title)}">${escapeHtml(
+      timeAgo(iso)
+    )}</time>`;
+  }
+
+  setInterval(() => {
+    document.querySelectorAll('time[data-time]').forEach((el) => {
+      const text = timeAgo(el.dataset.time);
+      if (el.textContent !== text) el.textContent = text;
+    });
+  }, 30000);
+
   function setMsg(el, text, kind) {
     if (!el) return;
     el.textContent = text || '';
@@ -420,11 +586,173 @@ window.AdminCommon = (function () {
 
     return `
       <div class="admin-stat ${variant ? `is-${variant}` : ''}">
-        <span class="admin-stat-label">${iconName ? icon(iconName) : ''}${label}</span>
+        <span class="admin-stat-label">${iconName ? icon(iconName) : ''}<span>${label}</span></span>
         <span class="admin-stat-value">${value}</span>
         ${sub ? `<span class="admin-stat-sub">${sub}</span>` : ''}
         ${bar}
       </div>`;
+  }
+
+  /* ================= ve lai khong cuop con tro ================= */
+
+  // O dang duoc go / dang mo danh sach chon: ve lai luc nay se mat chu vua go
+  // hoac dong dropdown giua chung. Checkbox va nut bam thi khong tinh.
+  function isEditingControl(el) {
+    if (!el) return false;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+    if (el.tagName !== 'INPUT') return false;
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'color', 'range'].includes(el.type);
+  }
+
+  function isBusy(scope) {
+    const el = document.activeElement;
+    return !!(el && scope && scope.contains(el) && isEditingControl(el));
+  }
+
+  const FOCUS_ATTRS = ['data-field', 'data-option', 'data-correct', 'data-edit', 'data-select', 'data-action', 'data-remove-option'];
+
+  function focusSelector(el) {
+    for (const attr of FOCUS_ATTRS) {
+      if (el.hasAttribute(attr)) return `[${attr}="${CSS.escape(el.getAttribute(attr))}"]`;
+    }
+    return el.id ? `#${CSS.escape(el.id)}` : null;
+  }
+
+  // Ve lai 1 danh sach theo khoa (data-key) thay vi thay ca khoi bang innerHTML:
+  //  - phan tu nao keep(el) tra true (dang sua do, dang focus...) duoc giu NGUYEN,
+  //    khong mat chu dang go, khong dong dropdown dang mo
+  //  - phan tu con lai duoc thay bang ban moi
+  //  - neu o dang focus bi thay, focus lai dung o tuong ung trong ban moi
+  // items: [{ key, html }] ; tra ve so phan tu da giu nguyen.
+  function patchList(container, items, { keep, empty } = {}) {
+    if (!items.length) {
+      container.innerHTML = empty || '';
+      return 0;
+    }
+
+    const active = document.activeElement;
+    let focusRef = null;
+    if (active && active !== document.body && container.contains(active)) {
+      const owner = [...container.children].find((child) => child.contains(active));
+      focusRef = {
+        el: active,
+        key: owner ? owner.dataset.key : null,
+        selector: focusSelector(active),
+        start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+        end: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
+      };
+    }
+
+    const existing = new Map();
+    [...container.children].forEach((child) => {
+      if (child.dataset.key) existing.set(child.dataset.key, child);
+    });
+
+    const tpl = document.createElement('template');
+    let kept = 0;
+    const nodes = items.map((item) => {
+      const key = String(item.key);
+      const old = existing.get(key);
+      if (old && keep && keep(old)) {
+        kept += 1;
+        return old;
+      }
+      tpl.innerHTML = item.html.trim();
+      const el = tpl.content.firstElementChild;
+      el.dataset.key = key;
+      return el;
+    });
+
+    nodes.forEach((node, i) => {
+      const at = container.children[i];
+      if (at !== node) container.insertBefore(node, at || null);
+    });
+    while (container.children.length > nodes.length) container.lastElementChild.remove();
+
+    if (focusRef && document.activeElement !== focusRef.el) {
+      let target = focusRef.el.isConnected ? focusRef.el : null;
+      if (!target && focusRef.key && focusRef.selector) {
+        const owner = [...container.children].find((child) => child.dataset.key === focusRef.key);
+        target = owner ? owner.querySelector(focusRef.selector) : null;
+      }
+      if (target && !target.disabled) {
+        target.focus({ preventScroll: true });
+        if (focusRef.start !== null && typeof target.setSelectionRange === 'function') {
+          try {
+            target.setSelectionRange(focusRef.start, focusRef.end);
+          } catch (err) {
+            /* input type number khong ho tro chon vung chu */
+          }
+        }
+      }
+    }
+    return kept;
+  }
+
+  /* ================= hen gio / gop lenh ================= */
+
+  // Gop nhieu lan goi lien tiep thanh 1 (vd 1 lan "chia nhom cho tat ca" phat
+  // 4 su kien socket lien nhau -> chi tai lai 1 lan). maxWait: dang co su kien
+  // don dap (luot boc tham lien tuc) thi van cap nhat it nhat moi maxWait ms.
+  function debounce(fn, wait = 300, maxWait = 1500) {
+    let timer = null;
+    let first = 0;
+    function run() {
+      timer = null;
+      first = 0;
+      fn();
+    }
+    function schedule() {
+      const now = Date.now();
+      if (!first) first = now;
+      clearTimeout(timer);
+      timer = setTimeout(run, Math.max(0, Math.min(wait, first + maxWait - now)));
+    }
+    schedule.flush = () => {
+      if (timer) {
+        clearTimeout(timer);
+        run();
+      }
+    };
+    schedule.cancel = () => {
+      clearTimeout(timer);
+      timer = null;
+      first = 0;
+    };
+    return schedule;
+  }
+
+  // Ham tai du lieu chi chay 1 ban tai 1 thoi diem: dang tai ma co yeu cau moi
+  // thi chay them DUNG 1 lan sau khi xong, ket qua cu khong de len ket qua moi.
+  function serial(fn) {
+    let running = null;
+    let again = false;
+    function run() {
+      if (running) {
+        again = true;
+        return running;
+      }
+      running = (async () => {
+        try {
+          await fn();
+        } finally {
+          running = null;
+          if (again) {
+            again = false;
+            run();
+          }
+        }
+      })();
+      return running;
+    }
+    return run;
+  }
+
+  // Dang ky nhieu su kien socket cung goi 1 ham (da gop lenh)
+  function onLive(events, handler, wait) {
+    const fire = debounce(handler, wait === undefined ? 300 : wait);
+    if (socket) events.forEach((evt) => socket.on(evt, fire));
+    return fire;
   }
 
   /* ================= goi API ================= */
@@ -442,6 +770,7 @@ window.AdminCommon = (function () {
 
     if (method === 'GET') {
       url += `${path.includes('?') ? '&' : '?'}secret=${encodeURIComponent(secret)}`;
+      options.cache = 'no-store';
     } else {
       options.body = JSON.stringify({ ...(body || {}), secret });
     }
@@ -460,16 +789,28 @@ window.AdminCommon = (function () {
       /* response khong phai JSON (vd 502 tu proxy) */
     }
 
+    if (res.status === 401 && authState === 'valid') {
+      // Ma bi mat vua bi doi tren may chu -> khoa lai giao dien
+      authState = 'invalid';
+      syncAuthDot();
+      setTimeout(notifyAuthChange, 0);
+    }
+
     if (!res.ok) {
       throw new Error(data.error || 'Có lỗi xảy ra');
     }
     return data;
   }
 
-  // Bao boc 1 thao tac: tu khoa nut, hien trang thai, bat loi va hien message.
+  // Bao boc 1 thao tac: tu khoa nut + hien vong xoay, hien trang thai, bat loi
+  // va hien message.
   async function run(button, msgEl, pendingText, task) {
     const originalDisabled = button ? button.disabled : false;
-    if (button) button.disabled = true;
+    if (button) {
+      button.disabled = true;
+      button.classList.add('is-loading');
+      button.setAttribute('aria-busy', 'true');
+    }
     setMsg(msgEl, pendingText);
 
     try {
@@ -480,7 +821,11 @@ window.AdminCommon = (function () {
       toast(text, 'err');
       return null;
     } finally {
-      if (button) button.disabled = originalDisabled;
+      if (button) {
+        button.classList.remove('is-loading');
+        button.removeAttribute('aria-busy');
+        button.disabled = originalDisabled;
+      }
     }
   }
 
@@ -492,18 +837,43 @@ window.AdminCommon = (function () {
 
   /* ================= dieu huong ================= */
 
+  function setNav(open) {
+    if (!sidebarEl) return;
+    sidebarEl.classList.toggle('is-open', open);
+    if (navScrim) navScrim.hidden = !open;
+    if (navToggle) {
+      navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? 'Đóng menu' : 'Mở menu');
+    }
+    if (open) {
+      const current = sidebarEl.querySelector('.admin-tab.is-active') || sidebarEl.querySelector('a');
+      if (current) setTimeout(() => current.focus({ preventScroll: true }), 30);
+    }
+  }
+
   function closeNav() {
-    if (sidebarEl) sidebarEl.classList.remove('is-open');
-    if (navScrim) navScrim.hidden = true;
+    if (sidebarEl && sidebarEl.classList.contains('is-open')) setNav(false);
   }
 
   if (navToggle) {
-    navToggle.addEventListener('click', () => {
-      const open = sidebarEl.classList.toggle('is-open');
-      if (navScrim) navScrim.hidden = !open;
-    });
+    navToggle.addEventListener('click', () => setNav(!sidebarEl.classList.contains('is-open')));
   }
   if (navScrim) navScrim.addEventListener('click', closeNav);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !sidebarEl || !sidebarEl.classList.contains('is-open')) return;
+    closeNav();
+    if (navToggle) navToggle.focus();
+  });
+
+  // Phong to cua so khi menu dang mo tren dien thoai -> dong lai, khong de lop
+  // phu ket lai tren man hinh rong
+  const wideScreen = window.matchMedia ? window.matchMedia('(min-width: 881px)') : null;
+  if (wideScreen && wideScreen.addEventListener) {
+    wideScreen.addEventListener('change', (e) => {
+      if (e.matches) closeNav();
+    });
+  }
 
   // Chuyen sang khu vuc khac = sang trang khac
   function showTab(name) {
@@ -521,7 +891,7 @@ window.AdminCommon = (function () {
       /* sessionStorage bi chan, bo qua */
     }
     const el = document.querySelector(`[data-badge="${name}"]`);
-    if (el) el.textContent = text;
+    if (el && el.textContent !== text) el.textContent = text;
   }
 
   // Module cua trang dang ky ham tai du lieu cua minh. Giu nguyen ten onTab de
@@ -554,17 +924,31 @@ window.AdminCommon = (function () {
   // Nhac tai lai khi may chu co ban moi (xem js/version-guard.js)
   if (window.VersionGuard) window.VersionGuard.bind(socket);
 
+  // Mat ket noi luc dang kiem tra ma -> noi lai thi kiem tra lai
+  if (socket) {
+    socket.on('connect', () => {
+      if (authState === 'offline') revalidate();
+    });
+  }
+
   syncAuthDot();
 
   // Chay ham tai du lieu cua trang sau khi cac module phia sau da dang ky xong
-  window.addEventListener('DOMContentLoaded', reloadActive);
+  // VA ma bi mat da kiem tra xong.
+  function start() {
+    authReady.then(reloadActive);
+  }
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', start);
+  else setTimeout(start, 0);
 
   return {
     socket,
     getSecret,
     canEdit,
+    authState: () => authState,
     onSecretChange,
     applyEditLock,
+    setAllowed,
     downloadCsv,
     downloadBlob,
     escapeHtml,
@@ -573,6 +957,7 @@ window.AdminCommon = (function () {
     genderIcon,
     genderClass,
     timeAgo,
+    timeHtml,
     statTile,
     setMsg,
     done,
@@ -585,5 +970,11 @@ window.AdminCommon = (function () {
     activeTab,
     reloadActive,
     setBadge,
+    isBusy,
+    isEditingControl,
+    patchList,
+    debounce,
+    serial,
+    onLive,
   };
 })();

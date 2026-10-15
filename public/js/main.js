@@ -733,12 +733,17 @@ function reconcileResult() {
 
   const found = myGroupFromState(myName);
   if (found) {
-    const changed = !lastResult || lastResult.group.id !== found.group.id;
-    if (lastResult && changed) {
+    const me = { name: myName, isLeader: !!found.member.isLeader, id: found.member.id };
+    if (!lastResult) {
+      showResult(me, found.group, false);
+    } else if (lastResult.group.id !== found.group.id) {
       showToast(`ℹ️ Admin đã chuyển bạn sang ${found.group.name}`, 'info', 5000);
-    }
-    if (changed || lastResult) {
-      showResult({ name: myName, isLeader: !!found.member.isLeader, id: found.member.id }, found.group, false);
+      showResult(me, found.group, false);
+    } else {
+      // Cung nhom: chi cap nhat danh sach dong doi, khong chay lai hieu ung
+      lastResult.member = me;
+      lastResult.group = found.group;
+      renderResultMates(me, found.group);
     }
     return;
   }
@@ -1388,12 +1393,12 @@ function scheduleReload({ members = false } = {}) {
 
 /* ---------- luot boc tham ---------- */
 
-async function doRandom(name, { isInit = false } = {}) {
+async function doRandom(name) {
   const myEpoch = epoch;
   pendingRandomName = name;
   hideError();
   updateRandomForm();
-  if (!isInit) randomBtn.classList.add('spinning');
+  randomBtn.classList.add('spinning');
 
   try {
     const data = await fetchJson('/api/random', {
@@ -1403,37 +1408,32 @@ async function doRandom(name, { isInit = false } = {}) {
     });
     if (myEpoch !== epoch) return;
 
-    const celebrate = !isInit && !data.alreadyRandomized;
+    const celebrate = !data.alreadyRandomized;
     if (celebrate) {
       isSpinning = true;
       hideResult();
       updateRandomForm();
-      const theme = themeForGroup(data.group);
       playSpin();
-      await runSlotMachine(theme);
+      await runSlotMachine(themeForGroup(data.group));
       if (myEpoch !== epoch) return; // admin reset giua luc dang quay
     }
 
     localStorage.setItem(STORAGE_KEY, data.member.name);
     isSpinning = false;
-    pendingRandomName = null;
     await loadGroups();
     if (myEpoch !== epoch) return;
-    // Admin vua xoa ket qua trong luc quay thi khong chuc mung mot nhom da mat
+    // Doi chieu voi du lieu moi nhat (admin co the vua chuyen nhom trong luc quay);
+    // neu da bi xoa thi lan tai nhom ke tiep reconcileResult se an ket qua di.
     const found = myGroupFromState(data.member.name);
     const group = found ? found.group : data.group;
-    showResult({ ...data.member, isLeader: found ? !!found.member.isLeader : data.member.isLeader }, group, celebrate);
-    if (!celebrate && !isInit) {
+    const member = { ...data.member, isLeader: found ? !!found.member.isLeader : !!data.member.isLeader };
+    showResult(member, group, celebrate);
+    if (!celebrate) {
       showToast(`Bạn đã bốc thăm trước đó — vẫn là ${group.name} nhé!`, 'info', 4000);
     }
   } catch (err) {
     if (myEpoch !== epoch) return;
     slotMachine.classList.add('hidden');
-    if (isInit) {
-      // Ten da luu khong con dung (bi xoa / bi loai khoi vong) -> quen di, cho chon lai
-      if (err.status === 404 || err.status === 403) localStorage.removeItem(STORAGE_KEY);
-      if (err.status === 404) return;
-    }
     if (err.data && err.data.locked) applyRandomLock(true);
     showError(err.status ? err.message : 'Không thể kết nối máy chủ');
   } finally {
@@ -1446,13 +1446,22 @@ async function doRandom(name, { isInit = false } = {}) {
   }
 }
 
-// Mo lai ket qua da boc (luu theo ten trong localStorage) - may chu tra lai dung nhom cu
+// Mo lai ket qua da boc (ten luu trong localStorage) bang cach TRA CUU danh sach nhom.
+// Truoc day goi lai POST /api/random: ai vua bi admin xoa ket qua ma tai lai trang
+// thi bi boc tham lai luon, khong can bam gi.
 function restoreSavedResult() {
   const myName = localStorage.getItem(STORAGE_KEY);
   if (!myName || currentPhase !== 'random') return false;
-  memberSelect.value = myName;
-  doRandom(myName, { isInit: true });
-  return true;
+  const found = myGroupFromState(myName);
+  if (found) {
+    memberSelect.value = myName;
+    showResult({ id: found.member.id, name: myName, isLeader: !!found.member.isLeader }, found.group, false);
+    return true;
+  }
+  localStorage.removeItem(STORAGE_KEY);
+  if ([...memberSelect.options].some((o) => o.value === myName)) memberSelect.value = myName;
+  updateRandomForm();
+  return false;
 }
 
 randomBtn.addEventListener('click', () => {

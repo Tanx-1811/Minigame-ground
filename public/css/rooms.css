@@ -1,55 +1,131 @@
 /* ===================================================================
    Trang ghep phong ngu (public)
-   Chia 3 khoi ro rang: (1) tong quan so lieu, (2) khu quay ghep phong
-   cua ban, (3) danh sach phong tach theo gioi tinh.
-   Khong dung box-shadow - phan tach bang vien + nen + khoang trang.
+   Thu tu: site-nav -> banner -> hero -> (1) khu quay cua ban -> (2) tong quan
+   so lieu -> (3) danh sach phong tach theo gioi tinh -> (4) nguoi chua ghep.
+   Moi mau lay tu bien trong theme.css. Khong dung box-shadow - phan tach bang
+   vien 1px + nen chong lop + gradient mo.
    =================================================================== */
 
-:root {
-  --rm-surface: #ffffff;
-  --rm-surface-2: #f8fafc;
-  --rm-surface-3: #f1f5f9;
-  --rm-border: #e3e9f2;
-  --rm-border-strong: #cbd5e1;
-  --rm-muted: #64748b;
-  --rm-female: #db2777;
-  --rm-female-soft: #fdf2f8;
-  --rm-female-line: #f9a8d4;
-  --rm-male: #2563eb;
-  --rm-male-soft: #eff6ff;
-  --rm-male-line: #bfdbfe;
-  --rm-ok: #15803d;
-  --rm-ok-soft: #f0fdf4;
-  --rm-ok-line: #bbf7d0;
-  --rm-warn: #b45309;
-  --rm-warn-soft: #fffbeb;
-  --rm-warn-line: #fcd34d;
-  --rm-r-lg: 18px;
-  --rm-r: 12px;
-  --rm-r-sm: 9px;
+/* Sac do theo gioi tinh: dat --tone* tren khoi cha, con ben trong chi doc bien */
+.rooms-body .is-female {
+  --tone: var(--female);
+  --tone-soft: var(--female-soft);
+  --tone-line: var(--female-line);
 }
+
+.rooms-body .is-male {
+  --tone: var(--male);
+  --tone-soft: var(--male-soft);
+  --tone-line: var(--male-line);
+}
+
+.rooms-body .is-none {
+  --tone: var(--muted);
+  --tone-soft: var(--surface-2);
+  --tone-line: var(--line);
+}
+
+/* ---------- nen trang ---------- */
+
+/* style.css de .bg-decor la position: fixed -> anh chup ca trang (va mot so trinh
+   duyet di dong khi cuon dai) chi phu dung 1 man hinh dau, phan duoi lo nen tron.
+   O trang nay cho nen trai dai theo chieu cao tai lieu (body da la position: relative). */
+.rooms-body {
+  background: var(--bg);
+}
+
+.rooms-body .bg-decor {
+  position: absolute;
+  inset: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 3%, var(--accent-soft) 0%, transparent 34%),
+    radial-gradient(circle at 92% 46%, var(--female-soft) 0%, transparent 36%),
+    radial-gradient(circle at 8% 88%, var(--male-soft) 0%, transparent 40%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+}
+
+.rooms-body .blob {
+  opacity: 0.35;
+}
+
+.rooms-body .blob-1 {
+  background: radial-gradient(circle, var(--male-line), transparent 70%);
+}
+
+.rooms-body .blob-2 {
+  background: radial-gradient(circle, var(--accent-line), transparent 70%);
+}
+
+.rooms-body .blob-3 {
+  top: 30%;
+  background: radial-gradient(circle, var(--female-line), transparent 70%);
+}
+
+/* ---------- khung trang ---------- */
 
 .rooms-page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 16px 72px;
+  padding: 0 16px 56px;
 }
 
-/* ---------- hero ---------- */
+/* style.css dung class .hidden; trang nay dung thuoc tinh hidden -> bao dam
+   khong bi display cua class khac ghi de */
+.rooms-page [hidden] {
+  display: none !important;
+}
+
+.rooms-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rooms-stack > * {
+  min-width: 0;
+}
+
+/* ---------- banner + hero ---------- */
+
+.rooms-banner {
+  max-width: 900px;
+  margin: 20px auto 0;
+  padding: 0;
+}
 
 .rooms-hero {
   text-align: center;
-  padding: 0 0 26px;
+  padding: 24px 0 26px;
 }
 
-.rooms-hero .company-banner {
-  margin-bottom: 22px;
+.rooms-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.rooms-hero-badge .lucide,
+.rooms-hero-badge [data-lucide] {
+  color: var(--accent);
 }
 
 .rooms-hero h1 {
-  margin: 12px 0 8px;
-  font-size: clamp(1.65rem, 4vw, 2.3rem);
-  background: linear-gradient(120deg, var(--color-primary-hover), var(--color-primary) 55%, var(--color-primary-2));
+  margin: 14px 0 8px;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent) 60%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -57,174 +133,86 @@
 
 .rooms-hero .subtitle {
   margin: 0 auto;
-  max-width: 62ch;
-  color: var(--rm-muted);
-  font-size: clamp(0.9rem, 2vw, 1rem);
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: clamp(0.92rem, 2vw, 1.02rem);
   line-height: 1.6;
-}
-
-.rooms-nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.rooms-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--rm-border);
-  border-radius: 999px;
-  background: var(--rm-surface);
-  color: var(--rm-muted);
-  text-decoration: none;
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.rooms-nav a:hover {
-  border-color: var(--color-primary-2);
-  color: var(--color-primary);
 }
 
 /* ---------- the noi dung ---------- */
 
 .rooms-card {
-  background: var(--rm-surface);
-  border: 1px solid var(--rm-border);
-  border-radius: var(--rm-r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
   overflow: hidden;
-}
-
-.rooms-card + .rooms-card {
-  margin-top: 18px;
 }
 
 .rooms-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 15px 22px;
-  background: var(--rm-surface-2);
-  border-bottom: 1px solid var(--rm-border);
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border-bottom: 1px solid var(--line);
+}
+
+.rooms-card-icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.rooms-card-titles {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rooms-card-head h2 {
   margin: 0;
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-size: 1.06rem;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--ink);
 }
 
 .rooms-card-head p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   font-size: 0.84rem;
   line-height: 1.5;
-  color: var(--rm-muted);
+  color: var(--muted);
+}
+
+.rooms-card-head > .chip {
+  flex: 0 0 auto;
 }
 
 .rooms-card-body {
-  padding: 22px;
+  padding: 20px;
 }
 
-/* ---------- o thong ke ---------- */
-
-.rooms-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr));
-  gap: 12px;
+/* Khu quay la hanh dong chinh -> vien va dau the mang mau nhan */
+.rooms-spin-card {
+  border-color: var(--accent-line);
+  border-top: 3px solid var(--accent);
 }
 
-.rooms-stats:empty {
-  display: none;
+.rooms-spin-card .rooms-card-head {
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface) 72%);
+  border-bottom-color: var(--accent-line);
 }
 
-.rooms-stat {
-  padding: 13px 15px;
-  border: 1px solid var(--rm-border);
-  border-left: 3px solid var(--rm-border-strong);
-  border-radius: var(--rm-r);
-  background: var(--rm-surface);
-}
-
-.rooms-stat-label {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 0.71rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--rm-muted);
-}
-
-.rooms-stat-value {
-  display: block;
-  font-size: 1.3rem;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-}
-
-.rooms-stat-sub {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.76rem;
-  color: var(--rm-muted);
-}
-
-.rooms-stat.is-female { border-left-color: var(--rm-female); }
-.rooms-stat.is-male { border-left-color: var(--rm-male); }
-.rooms-stat.is-ok { border-left-color: #22c55e; }
-
-.rooms-stat.is-warn {
-  border-left-color: var(--rm-warn-line);
-  background: var(--rm-warn-soft);
-}
-
-.rooms-stat.is-warn .rooms-stat-label,
-.rooms-stat.is-warn .rooms-stat-sub {
-  color: var(--rm-warn);
-}
-
-.rooms-progress {
-  margin-top: 18px;
-}
-
-/* ---------- chip / nhan ---------- */
-
-.rooms-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
-  border: 1px solid var(--rm-border);
-  border-radius: 999px;
-  background: var(--rm-surface-2);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--rm-muted);
-  white-space: nowrap;
-}
-
-.rooms-chip.is-ok {
-  border-color: var(--rm-ok-line);
-  background: var(--rm-ok-soft);
-  color: var(--rm-ok);
-}
-
-.rooms-chip.is-warn {
-  border-color: var(--rm-warn-line);
-  background: var(--rm-warn-soft);
-  color: var(--rm-warn);
-}
-
-.rooms-chip.is-mine {
-  border-color: var(--rm-male-line);
-  background: var(--rm-male-soft);
-  color: var(--color-primary-hover);
+.rooms-spin-card .rooms-card-icon {
+  border-color: transparent;
+  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+  color: var(--on-accent);
 }
 
 /* ---------- form quay ---------- */
@@ -236,114 +224,199 @@
   align-items: flex-end;
 }
 
-.rooms-form .field {
+.rooms-field {
   flex: 1 1 260px;
+  min-width: 0;
 }
 
-.rooms-form label {
+.rooms-field label {
   display: block;
   margin-bottom: 6px;
-  font-size: 0.73rem;
-  font-weight: 800;
+  font-size: 0.74rem;
+  font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--rm-muted);
+  color: var(--muted);
 }
 
-.rooms-form select {
+.rooms-select {
+  position: relative;
+}
+
+.rooms-select select {
   width: 100%;
-  height: 48px;
-  padding: 0 14px;
-  border: 1px solid var(--rm-border);
-  border-radius: var(--rm-r-sm);
-  background: var(--rm-surface);
-  color: var(--color-text);
+  min-height: 48px;
+  padding: 0 42px 0 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
   font-family: inherit;
   font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--fast), background var(--fast);
 }
 
-.rooms-form select:hover {
-  border-color: var(--rm-border-strong);
+.rooms-select select:hover:not(:disabled) {
+  border-color: var(--accent-line);
 }
 
-.rooms-form select:focus {
-  border-color: var(--color-primary);
-  outline: 2px solid rgba(37, 99, 235, 0.16);
-  outline-offset: 0;
+/* Vong focus lay tu :focus-visible chung trong theme.css; o day chi doi mau vien */
+.rooms-select select:focus {
+  border-color: var(--accent);
+}
+
+.rooms-select select:disabled {
+  background: var(--surface-3);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.rooms-select > .lucide,
+.rooms-select > [data-lucide] {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
 }
 
 .rooms-draw-btn {
   flex: 0 0 auto;
-  height: 48px;
-  padding: 0 26px;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--rm-r-sm);
-  background: linear-gradient(120deg, var(--color-primary), var(--color-primary-2));
-  color: #fff;
+  min-height: 48px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid var(--accent-strong);
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: var(--on-accent);
   font-family: inherit;
   font-size: 1rem;
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition: filter var(--fast), transform var(--fast), background var(--fast);
 }
 
-.rooms-draw-btn:hover:not(:disabled) {
-  filter: brightness(1.07);
+@media (hover: hover) {
+  .rooms-draw-btn:hover:not(:disabled) {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+  }
+}
+
+.rooms-draw-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .rooms-draw-btn:disabled {
-  background: var(--rm-surface-3);
-  border-color: var(--rm-border);
-  color: var(--rm-muted);
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--muted);
   cursor: not-allowed;
+}
+
+/* Dang quay: van giu mau nhan de nguoi dung biet he thong dang lam viec */
+.rooms-draw-btn.is-spinning:disabled {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+  cursor: progress;
+}
+
+.rooms-draw-btn.is-spinning .lucide {
+  animation: rm-spin 0.9s linear infinite;
+}
+
+@keyframes rm-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ---------- dong trang thai ---------- */
 
-.rooms-my-gender {
+.rooms-me {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 14px 0 0;
-  padding: 11px 14px;
-  border: 1px solid var(--rm-border);
-  border-radius: var(--rm-r-sm);
-  background: var(--rm-surface-2);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   font-size: 0.88rem;
-  color: var(--color-text);
+  line-height: 1.5;
+  color: var(--ink-2);
 }
 
-.rooms-my-gender:empty {
+.rooms-me strong {
+  color: var(--ink);
+}
+
+.rooms-me:empty,
+.rooms-notice:empty,
+.rooms-error:empty,
+.rooms-result-wrap:empty {
   display: none;
 }
 
-.rooms-notice {
-  margin: 12px 0 0;
-  padding: 11px 14px;
-  border: 1px solid var(--rm-warn-line);
-  border-radius: var(--rm-r-sm);
-  background: var(--rm-warn-soft);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: var(--rm-warn);
-}
-
+.rooms-notice,
 .rooms-error {
   margin: 12px 0 0;
   padding: 11px 14px;
-  border: 1px solid #fecaca;
-  border-radius: var(--rm-r-sm);
-  background: #fef2f2;
+  border: 1px solid;
+  border-radius: var(--r-sm);
   font-size: 0.88rem;
-  color: var(--color-error);
+  line-height: 1.5;
+}
+
+.rooms-notice {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.rooms-error {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* ---------- vong quay ---------- */
 
 .rooms-reel {
-  margin-top: 18px;
-  height: 88px;
+  position: relative;
+  margin-top: 16px;
+  height: 88px; /* = REEL_ITEM_HEIGHT trong rooms.js */
   overflow: hidden;
-  border: 1px solid var(--rm-border);
-  border-radius: var(--rm-r);
-  background: var(--rm-surface-2);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  background: linear-gradient(180deg, var(--surface-3), var(--surface) 50%, var(--surface-3));
+  transition: border-color var(--slow), background var(--slow);
+}
+
+.rooms-reel::after {
+  content: '';
+  position: absolute;
+  inset: 10px 12px;
+  border: 1px dashed var(--accent-line);
+  border-radius: var(--r-sm);
+  pointer-events: none;
+}
+
+.rooms-reel.is-done {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .rooms-reel-strip {
@@ -359,54 +432,300 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-text);
+  padding: 0 16px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ink);
+  text-align: center;
 }
 
 /* ---------- ket qua ---------- */
 
+.rooms-result-wrap {
+  margin-top: 16px;
+}
+
 .rooms-result {
-  margin-top: 18px;
-  padding: 20px 22px;
-  border: 1px solid var(--rm-male-line);
-  border-left: 4px solid var(--color-primary);
-  border-radius: var(--rm-r);
-  background: var(--rm-male-soft);
+  scroll-margin-top: 80px; /* chua cho thanh dieu huong dinh */
+  padding: 18px 20px 20px;
+  border: 1px solid var(--tone-line, var(--accent-line));
+  border-left: 4px solid var(--tone, var(--accent));
+  border-radius: var(--r);
+  background: linear-gradient(135deg, var(--tone-soft, var(--accent-soft)), var(--surface) 78%);
 }
 
 .rooms-result.pop {
-  animation: roomsPop 0.45s ease;
+  animation: rm-pop 0.45s var(--ease);
 }
 
-@keyframes roomsPop {
+@keyframes rm-pop {
   0% { transform: scale(0.96); opacity: 0; }
   60% { transform: scale(1.01); }
   100% { transform: scale(1); opacity: 1; }
 }
 
-.rooms-result-room {
-  margin: 0 0 6px;
-  font-size: 1.22rem;
+.rooms-result-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rooms-result-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tone, var(--accent));
+}
+
+.rooms-result-room {
+  margin: 8px 0 4px;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .rooms-result-mates {
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.55;
-  color: var(--rm-muted);
+  color: var(--muted);
 }
 
 .rooms-result-mates strong {
-  color: var(--color-text);
+  color: var(--ink);
+}
+
+.rooms-result-people {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
+  gap: 8px;
+}
+
+.rooms-result .room-card-note {
+  margin-top: 12px;
+}
+
+/* ---------- nguoi trong phong (dung chung the phong + ket qua + danh sach cho) ---------- */
+
+.rm-avatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--tone-line, var(--line));
+  border-radius: 50%;
+  background: var(--tone-soft, var(--surface-3));
+  color: var(--tone, var(--ink-2));
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.is-me > .rm-avatar {
+  border-color: var(--tone, var(--accent));
+  background: var(--tone, var(--accent));
+  color: var(--surface);
+}
+
+.rm-me-tag {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 9px;
+  border-radius: var(--r-pill);
+  background: var(--tone, var(--accent));
+  color: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.room-bed-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.room-bed,
+.rooms-result-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.rooms-result-person {
+  background: var(--surface);
+}
+
+.room-bed.is-me,
+.rooms-result-person.is-me {
+  border-color: var(--tone, var(--accent));
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.room-bed.is-empty,
+.rooms-result-person.is-empty {
+  justify-content: center;
+  gap: 6px;
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+/* ---------- o thong ke ---------- */
+
+.rooms-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: 12px;
+}
+
+.rooms-stats:empty {
+  display: none;
+}
+
+.rooms-stat {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tone, var(--line-strong));
+  border-radius: var(--r);
+  background: linear-gradient(160deg, var(--tone-soft, var(--surface-2)), var(--surface) 70%);
+}
+
+.rooms-stat.is-accent {
+  --tone: var(--accent);
+  --tone-soft: var(--accent-soft);
+  --tone-line: var(--accent-line);
+}
+
+.rooms-stat.is-ok {
+  --tone: var(--ok);
+  --tone-soft: var(--ok-soft);
+  --tone-line: var(--ok-line);
+}
+
+.rooms-stat.is-warn {
+  --tone: var(--warn);
+  --tone-soft: var(--warn-soft);
+  --tone-line: var(--warn-line);
+}
+
+.rooms-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.rooms-stat-label .lucide,
+.rooms-stat-label [data-lucide] {
+  color: var(--tone, var(--muted));
+}
+
+.rooms-stat-value {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.rooms-stat-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.rooms-stat.is-warn .rooms-stat-sub {
+  color: var(--warn);
+}
+
+.rooms-progress {
+  margin-top: 18px;
+}
+
+.rooms-progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.rooms-progress-label .num {
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.rooms-progress .meter {
+  height: 10px;
+}
+
+.rooms-nogender {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--r-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.rooms-nogender .lucide {
+  margin-top: 0.2em;
+  vertical-align: 0;
 }
 
 /* ---------- danh sach phong theo gioi tinh ---------- */
 
+.rooms-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 6px;
+}
+
 .rooms-section {
-  margin-top: 26px;
+  min-width: 0;
 }
 
 .rooms-section-head {
@@ -416,147 +735,152 @@
   gap: 12px;
   padding: 0 0 12px;
   margin-bottom: 14px;
-  border-bottom: 1px solid var(--rm-border);
+  border-bottom: 1px solid var(--line);
 }
 
 .rooms-section-icon {
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: var(--rm-r);
-  border: 1px solid var(--rm-border);
-  background: var(--rm-surface);
-  font-size: 1rem;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--r);
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 1.1rem;
+}
+
+.rooms-section-titles {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rooms-section-head h2 {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--ink);
 }
 
 .rooms-section-head p {
   margin: 2px 0 0;
-  font-size: 0.82rem;
-  color: var(--rm-muted);
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 .rooms-section-meta {
-  margin-left: auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-}
-
-.rooms-section.is-female .rooms-section-icon {
-  border-color: var(--rm-female-line);
-  background: var(--rm-female-soft);
-}
-
-.rooms-section.is-male .rooms-section-icon {
-  border-color: var(--rm-male-line);
-  background: var(--rm-male-soft);
+  gap: 6px;
 }
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(258px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
   gap: 14px;
 }
 
 /* ---------- the phong ---------- */
 
 .room-card {
-  border: 1px solid var(--rm-border);
-  border-top: 3px solid var(--accent, var(--color-primary));
-  border-radius: var(--rm-r);
-  background: var(--rm-surface);
-  overflow: hidden;
-}
-
-.room-card.is-mine {
-  border-color: var(--color-primary);
-  background: var(--rm-male-soft);
-}
-
-.room-card-top {
+  min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--tone, var(--accent));
+  border-radius: var(--r);
+  background: var(--surface);
+  transition: border-color var(--fast);
+}
+
+.room-card-head {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 15px 10px;
 }
 
-.room-card-top h3 {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 700;
+.room-card-title {
   min-width: 0;
+}
+
+.room-card-title h3 {
+  margin: 0 0 7px;
+  font-size: 1.02rem;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+.room-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .room-card-count {
   flex: 0 0 auto;
-  padding: 3px 9px;
-  border: 1px solid var(--rm-border);
-  border-radius: 999px;
-  background: var(--rm-surface-2);
-  font-size: 0.75rem;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font-size: 0.82rem;
   font-weight: 800;
-  color: var(--rm-muted);
+  color: var(--ink-2);
 }
 
 .room-card.is-full .room-card-count {
-  border-color: var(--rm-ok-line);
-  background: var(--rm-ok-soft);
-  color: var(--rm-ok);
+  border-color: var(--ok-line);
+  background: var(--ok-soft);
+  color: var(--ok);
 }
 
-.room-card-meter {
-  height: 5px;
-  margin: 0 15px;
-  border-radius: 999px;
-  background: var(--rm-surface-3);
-  overflow: hidden;
+.room-card .meter > span {
+  background: var(--tone, var(--accent));
 }
 
-.room-card-meter span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent, var(--color-primary));
-  transition: width 0.4s ease;
+.room-card .meter.is-ok > span {
+  background: var(--ok);
 }
 
-.room-card.is-full .room-card-meter span {
-  background: #22c55e;
+.room-card.is-mine {
+  border-color: var(--tone, var(--accent));
+  background: linear-gradient(160deg, var(--tone-soft, var(--accent-soft)), var(--surface) 65%);
 }
 
-.room-card-body {
-  padding: 12px 15px 15px;
+.room-card.is-locked {
+  background: var(--surface-2);
 }
 
-.room-card-note {
-  margin: 0 0 10px;
-  font-size: 0.79rem;
-  color: var(--rm-muted);
-  font-style: italic;
+.room-card.is-locked .room-bed.is-empty {
+  border-color: var(--warn-line);
+  color: var(--warn);
 }
 
 .room-mine-flag {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 10px;
-  padding: 3px 10px;
-  border: 1px solid var(--color-primary);
-  border-radius: 999px;
-  background: var(--rm-surface);
-  font-size: 0.74rem;
+  gap: 6px;
+  padding: 3px 11px;
+  border-radius: var(--r-pill);
+  background: var(--tone, var(--accent));
+  color: var(--surface);
+  font-size: 0.76rem;
   font-weight: 800;
-  color: var(--color-primary-hover);
+}
+
+.room-card-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  font-style: italic;
 }
 
 .room-beds {
@@ -568,85 +892,152 @@
   gap: 7px;
 }
 
-.room-bed {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 10px;
-  border: 1px solid var(--rm-border);
-  border-radius: var(--rm-r-sm);
-  background: var(--rm-surface-2);
-  font-size: 0.88rem;
-}
-
-.room-bed.is-empty {
-  border-style: dashed;
-  background: transparent;
-  color: var(--rm-muted);
-  font-size: 0.82rem;
-  font-style: italic;
-  justify-content: center;
-}
-
-.room-bed.is-me {
-  border-color: var(--color-primary);
-  background: var(--rm-surface);
-  font-weight: 700;
-}
-
-.room-bed .avatar {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 0.71rem;
-  font-weight: 700;
-}
+/* ---------- trang thai rong / dang tai / dong / loi ---------- */
 
 .rooms-empty {
-  padding: 34px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 32px 20px;
   text-align: center;
-  color: var(--rm-muted);
+  color: var(--muted);
   font-size: 0.9rem;
-  line-height: 1.6;
-  border: 1px dashed var(--rm-border-strong);
-  border-radius: var(--rm-r-lg);
-  background: var(--rm-surface);
+  line-height: 1.5;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
 }
 
-.rooms-footer {
-  margin-top: 34px;
-  padding-top: 20px;
-  border-top: 1px solid var(--rm-border);
+.rooms-empty strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.rooms-empty-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 1.25rem;
+}
+
+.rooms-closed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 22px;
   text-align: center;
-  color: var(--rm-muted);
-  font-size: 0.84rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface) 60%);
 }
 
-@media (max-width: 620px) {
-  .rooms-card-head,
-  .rooms-card-body {
-    padding: 15px;
-  }
+.rooms-closed-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--r-lg);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 1.6rem;
+}
 
-  .rooms-form .field,
-  .rooms-draw-btn {
-    flex: 1 1 100%;
-  }
+.rooms-closed h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ink);
+}
 
-  .rooms-section-meta {
-    margin-left: 0;
-    width: 100%;
-  }
+.rooms-closed p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.rooms-closed-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 18px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: border-color var(--fast);
+}
+
+.rooms-closed-link:hover {
+  border-color: var(--accent);
+}
+
+.rooms-load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--r);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.rooms-load-error-text {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.rooms-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--danger);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rooms-retry-btn:hover {
+  border-color: var(--danger);
 }
 
 /* ---------- danh sach nguoi chua ghep phong ---------- */
 
 .rooms-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -656,34 +1047,102 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 6px 7px;
-  border: 1px solid var(--rm-border);
-  border-radius: 999px;
-  background: var(--rm-surface-2);
+  max-width: 100%;
+  min-height: 40px;
+  padding: 4px 12px 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
   font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.rooms-pending .rm-me-tag {
+  margin-left: 0;
 }
 
 .rooms-pending.is-me {
-  border-color: var(--color-primary);
-  background: var(--rm-male-soft);
-  font-weight: 700;
-}
-
-.rooms-pending .avatar {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 0.68rem;
+  border-color: var(--tone, var(--accent));
+  background: var(--tone-soft, var(--accent-soft));
   font-weight: 700;
 }
 
 .rooms-pending-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.76rem;
-  color: var(--rm-muted);
+  font-weight: 600;
+  color: var(--tone, var(--muted));
   white-space: nowrap;
+}
+
+/* ---------- chan trang ---------- */
+
+.rooms-footer {
+  margin-top: 34px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.rooms-footer p {
+  margin: 0;
+}
+
+/* ---------- man hinh hep ---------- */
+
+@media (max-width: 620px) {
+  .rooms-hero {
+    padding: 20px 0 22px;
+  }
+
+  .rooms-card-head {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
+
+  .rooms-card-body {
+    padding: 16px;
+  }
+
+  .rooms-field,
+  .rooms-draw-btn {
+    flex: 1 1 100%;
+  }
+
+  .rooms-section-meta {
+    width: 100%;
+  }
+
+  .rooms-result {
+    padding: 16px;
+  }
+}
+
+/* Dien thoai: 4 o thong ke xep 2x2 gon thay vi 4 hang dai */
+@media (max-width: 560px) {
+  .rooms-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .rooms-stat {
+    padding: 12px;
+  }
+
+  .rooms-stat-value {
+    font-size: 1.3rem;
+  }
+
+  .rooms-stat-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  .rooms-stack {
+    gap: 14px;
+  }
 }
