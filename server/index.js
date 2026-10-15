@@ -41,7 +41,34 @@ function computeBuildId() {
   return hash.digest('hex').slice(0, 12);
 }
 
-const BUILD_ID = computeBuildId();
+// Phai doc lai tu dia, KHONG duoc tinh mot lan luc khoi dong: sua CSS/JS trong
+// luc server dang chay ma van tay khong doi thi duong dan ?v= giu nguyen, ma
+// duong dan do dang duoc cache "immutable" mot nam - trinh duyet se bam vao ban
+// CSS cu mai mai. Trieu chung dung la "giao dien admin bi vo" du file da sua.
+// Doc lai toi da 1 lan/giay de khong stat ca thu muc public cho moi request.
+let buildIdCache = { value: null, at: 0 };
+
+function getBuildId() {
+  const now = Date.now();
+  if (buildIdCache.value && now - buildIdCache.at < 1000) return buildIdCache.value;
+  buildIdCache = { value: computeBuildId(), at: now };
+  return buildIdCache.value;
+}
+
+// Phien ban rieng cua TUNG file: sua mot file thi chi duong dan cua file do doi,
+// nhung file khac van nam yen trong cache cua trinh duyet.
+function assetVersion(urlPath) {
+  const full = path.join(__dirname, '..', 'public', urlPath.replace(/^\/+/, ''));
+  try {
+    const stat = fs.statSync(full);
+    return crypto.createHash('sha1').update(`${stat.size}:${stat.mtimeMs}`).digest('hex').slice(0, 12);
+  } catch (err) {
+    // Khong doc duoc thi quay ve van tay chung, van con hon de duong dan tran
+    return getBuildId();
+  }
+}
+
+const BUILD_ID = getBuildId();
 
 const app = express();
 const server = http.createServer(app);
@@ -55,11 +82,11 @@ app.use(express.json());
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
-// Phuc vu HTML: chen ?v=<BUILD_ID> vao moi duong dan /js/... va /css/...
+// Phuc vu HTML: chen ?v=<phien ban cua rieng file do> vao moi duong dan /js/... va /css/...
 //
 // Nho vay trinh duyet duoc phep cache cac file do VINH VIEN (duong dan co phien
 // ban nen khong bao gio cu), ma sua code xong van chac chan nhan ban moi vi
-// BUILD_ID doi -> duong dan doi. Truoc day moi file deu phai hoi lai may chu
+// phien ban cua file do doi -> duong dan doi. Truoc day moi file deu phai hoi lai may chu
 // mot lan (no-cache); voi admin tach thanh nhieu trang thi moi lan bam sang
 // trang khac la mot loat request kiem tra lai - cham thay ro.
 const htmlCache = new Map();
@@ -67,13 +94,24 @@ const htmlCache = new Map();
 function renderHtml(filePath) {
   const stat = fs.statSync(filePath);
   const cached = htmlCache.get(filePath);
-  if (cached && cached.mtimeMs === stat.mtimeMs) return cached.html;
 
-  const html = fs
-    .readFileSync(filePath, 'utf8')
-    .replace(/(src|href)="(\/(?:js|css)\/[^"?]+)"/g, `$1="$2?v=${BUILD_ID}"`);
+  // Cache phai tinh ca cac file HTML nay tham chieu: sua rieng CSS thi HTML
+  // khong doi mtime, nhung chuoi ?v= ben trong bat buoc phai doi theo.
+  if (cached && cached.mtimeMs === stat.mtimeMs) {
+    const key = cached.assets.map(assetVersion).join('|');
+    if (key === cached.assetKey) return cached.html;
+  }
 
-  htmlCache.set(filePath, { mtimeMs: stat.mtimeMs, html });
+  const assets = [];
+  const html = fs.readFileSync(filePath, 'utf8').replace(
+    /(src|href)="(\/(?:js|css)\/[^"?]+)"/g,
+    (match, attr, assetPath) => {
+      assets.push(assetPath);
+      return `${attr}="${assetPath}?v=${assetVersion(assetPath)}"`;
+    }
+  );
+
+  htmlCache.set(filePath, { mtimeMs: stat.mtimeMs, assets, assetKey: assets.map(assetVersion).join('|'), html });
   return html;
 }
 
@@ -112,12 +150,12 @@ app.use(
 
 app.use((req, res, next) => {
   req.io = io;
-  req.buildId = BUILD_ID;
+  req.buildId = getBuildId();
   next();
 });
 
 // Client doi chieu gia tri nay voi ban no dang chay de biet co can tai lai khong
-app.get('/api/version', (req, res) => res.json({ build: BUILD_ID }));
+app.get('/api/version', (req, res) => res.json({ build: getBuildId() }));
 
 app.use('/api', apiRouter);
 app.use('/api', quizRouter);
@@ -130,7 +168,7 @@ function broadcastOnlineCount() {
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
-  socket.emit('app:version', { build: BUILD_ID });
+  socket.emit('app:version', { build: getBuildId() });
   broadcastOnlineCount();
 
   socket.on('disconnect', () => {

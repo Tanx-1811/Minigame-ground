@@ -371,25 +371,6 @@ body {
 }
 
 /* Lien ket sang trang khac (vd trang ghep phong ngu) */
-.page-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  font-size: 0.86rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.page-link:hover {
-  border-color: var(--color-primary-2);
-  color: var(--color-primary);
-}
-
 .rules-modal {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -1759,14 +1740,6 @@ body {
   color: var(--muted);
 }
 
-.intro-links {
-  margin: 16px 0 0;
-}
-
-.intro-links[hidden] {
-  display: none;
-}
-
 /* ---------- nhan nho ---------- */
 
 .header-badge {
@@ -2084,5 +2057,100 @@ body {
   .header-badge {
     font-size: 0.75rem;
     padding: 6px 13px;
+  }
+}
+
+/* ---------- the dan sang buoc ghep phong (cuoi man hinh random) ---------- */
+
+.rooms-cta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+}
+
+.rooms-cta[hidden] {
+  display: none;
+}
+
+.rooms-cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r);
+  border: 1px solid var(--accent-line);
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.rooms-cta-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.rooms-cta-body {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.rooms-cta-title {
+  margin: 8px 0 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.rooms-cta-desc {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.rooms-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 22px;
+  height: var(--control);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background var(--fast), border-color var(--fast);
+}
+
+.rooms-cta-btn:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.rooms-cta-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+@media (max-width: 560px) {
+  .rooms-cta {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .rooms-cta-btn {
+    width: 100%;
+    justify-content: center;
   }
 }

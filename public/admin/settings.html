@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="vi"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Cấu hình &amp; Reset · Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/theme.css">
-<link rel="stylesheet" href="/css/admin.css">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/theme.css" />
+<link rel="stylesheet" href="/css/admin.css" />
 </head>
 <body data-admin-page="settings">
   <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
@@ -24,8 +25,6 @@
 
               <div id="systemStats" class="admin-stats"></div>
 
-              
-
               <div class="admin-card">
                 <div class="admin-card-head">
                   <div>
@@ -39,15 +38,15 @@
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="leaderCountInput"><i data-lucide="crown"></i> Số Nhóm Trưởng chốt từ quiz</label>
-                      <input id="leaderCountInput" type="number" min="1" max="100">
+                      <input id="leaderCountInput" type="number" min="1" max="100" />
                     </div>
                     <div class="admin-field">
                       <label for="roomCapacityInput"><i data-lucide="bed-double"></i> Sức chứa phòng mặc định</label>
-                      <input id="roomCapacityInput" type="number" min="1" max="50">
+                      <input id="roomCapacityInput" type="number" min="1" max="50" />
                     </div>
                     <div class="admin-field">
                       <label for="groupCapacityInput"><i data-lucide="users-round"></i> Giới hạn người mỗi nhóm</label>
-                      <input id="groupCapacityInput" type="number" min="0" max="500">
+                      <input id="groupCapacityInput" type="number" min="0" max="500" />
                       <span class="admin-field-hint">0 = không giới hạn (vẫn chia đều giữa các nhóm)</span>
                     </div>
                     <div class="admin-field">
@@ -61,7 +60,9 @@
                   <button id="saveSettingsBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu cấu hình</button>
                   <p id="settingsMsg" class="admin-msg"></p>
                 </div>
-              </div><details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              </div>
+
+              <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="database-backup"></i> Sao lưu &amp; phục hồi</h3>
                     <p>Tải toàn bộ dữ liệu về một file JSON trước khi sự kiện bắt đầu. Khi cần, nạp lại file đó để quay về đúng trạng thái cũ.</p>
@@ -71,12 +72,14 @@
                   <div class="admin-btn-row">
                     <button id="backupExportBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="hard-drive-download"></i> Tải file sao lưu</button>
                     <button id="backupImportBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="hard-drive-upload"></i> Phục hồi từ file...</button>
-                    <input id="backupFileInput" type="file" accept="application/json,.json" class="visually-hidden">
+                    <input id="backupFileInput" type="file" accept="application/json,.json" class="visually-hidden" />
                   </div>
                   <p class="admin-help">Phục hồi sẽ <strong>xóa sạch</strong> thành viên, nhóm, phòng và câu hỏi đang có rồi thay bằng dữ liệu trong file. Không thể hoàn tác.</p>
                   <p id="backupMsg" class="admin-msg"></p>
                 </div>
-              </details><details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              </details>
+
+              <details class="admin-card is-danger is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="triangle-alert"></i> Reset toàn bộ</h3>
                     <p>Xóa kết quả chia nhóm và toàn bộ tiến độ quiz (điểm số, nhóm trưởng) của <strong>tất cả thành viên</strong> để chơi lại từ đầu. Không thể hoàn tác.</p>
@@ -84,25 +87,26 @@
                 </summary>
                 <div class="admin-card-body">
                   <label class="admin-checkbox">
-                    <input id="resetIncludeRooms" type="checkbox">
+                    <input id="resetIncludeRooms" type="checkbox" />
                     <span>Xóa luôn kết quả ghép phòng ngủ
                       <small>Danh sách phòng vẫn được giữ lại, chỉ bỏ người ra khỏi phòng.</small>
                     </span>
                   </label>
                   <label class="admin-checkbox">
-                    <input id="resetKeepPinned" type="checkbox" checked="">
+                    <input id="resetKeepPinned" type="checkbox" checked />
                     <span>Giữ nguyên những người đã ghim
                       <small>Người được ghim vẫn ở nguyên nhóm và phòng của họ.</small>
                     </span>
                   </label>
                   <label class="admin-checkbox">
-                    <input id="resetIncludeActivity" type="checkbox">
+                    <input id="resetIncludeActivity" type="checkbox" />
                     <span>Xóa luôn nhật ký thao tác</span>
                   </label>
                   <button id="resetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Reset toàn bộ ngay</button>
                   <p id="msg" class="admin-msg"></p>
                 </div>
-              </details></section>
+              </details>
+            </section>
     </main>
   </div>
 
@@ -113,7 +117,5 @@
   <script src="/js/admin-common.js"></script>
   <script src="/js/admin-settings.js"></script>
   <script src="/js/admin-danger.js"></script>
-
-
-
-</body></html>
+</body>
+</html>

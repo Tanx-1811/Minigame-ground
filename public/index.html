@@ -69,9 +69,6 @@
       </button>
 
       <p class="intro-hint">Các nhóm đang chờ bạn tham gia</p>
-      <p class="intro-links" data-ui-show="showRoomsPage">
-        <a class="page-link" href="/rooms.html"><i data-lucide="bed-double"></i> Ghép phòng ngủ (nam/nữ riêng)</a>
-      </p>
     </div>
   </section>
 
@@ -92,9 +89,11 @@
         <span class="quiz-name-pick-icon"><i data-lucide="graduation-cap"></i></span>
         <div class="field">
           <label for="quizMemberSelect">Tên của bạn</label>
-          <select id="quizMemberSelect">
-            <option value="">-- Chọn tên --</option>
-          </select>
+          <span class="quiz-name-pick-select">
+            <select id="quizMemberSelect">
+              <option value="">-- Chọn tên --</option>
+            </select>
+          </span>
         </div>
         <button id="quizStartBtn" type="button" class="start-btn">
           <span class="btn-icon"><i data-lucide="brain"></i></span> Bắt đầu trả lời
@@ -151,9 +150,6 @@
       </span>
       <h1 data-ui-text="brandTitle">Random Chia Nhóm</h1>
       <p class="subtitle" data-ui-text="brandSubtitle">Chọn tên của bạn và bấm Random để biết mình thuộc nhóm nào</p>
-      <p class="intro-links" data-ui-show="showRoomsPage">
-        <a class="page-link" href="/rooms.html"><i data-lucide="bed-double"></i> Ghép phòng ngủ (nam/nữ riêng)</a>
-      </p>
     </header>
 
     <main class="container">
@@ -239,6 +235,18 @@
         <div class="groups-grid" id="groupsGrid">
           <!-- cac nhom se duoc render boi main.js -->
         </div>
+      </section>
+
+      <section class="rooms-cta" data-ui-show="showRoomsPage">
+        <span class="rooms-cta-icon"><i data-lucide="bed-double"></i></span>
+        <div class="rooms-cta-body">
+          <span class="section-step">Bước 3 · Sau khi đã có nhóm</span>
+          <h2 class="rooms-cta-title">Ghép phòng ngủ</h2>
+          <p class="rooms-cta-desc">Chơi xong và biết mình thuộc nhóm nào rồi thì sang bước chọn phòng — nam và nữ ở riêng, mỗi người chỉ chọn một lần.</p>
+        </div>
+        <a class="rooms-cta-btn" href="/rooms.html">
+          <i data-lucide="door-open"></i> Vào ghép phòng ngủ
+        </a>
       </section>
     </main>
 
