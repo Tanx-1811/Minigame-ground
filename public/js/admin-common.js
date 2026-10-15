@@ -266,6 +266,10 @@ window.AdminCommon = (function () {
     secretWatchers.add(handler);
   }
 
+  // Trang thai ma trang dang hien (lan tai du lieu gan nhat). Chi khi trang thai
+  // CHOT (khong tinh "dang kiem tra") khac voi trang thai nay moi tai lai.
+  let shownState = null;
+
   // Bao cho trang biet quyen sua vua doi: chi 1 lan tai lai du lieu (truoc day
   // vua goi watcher vua goi reloadActive -> moi trang tai 2 lan).
   function notifyAuthChange() {
@@ -282,13 +286,14 @@ window.AdminCommon = (function () {
 
   let validateSeq = 0;
 
+  // Hoi may chu ma dang nhap co dung khong. Tra ve null neu nguoi dung da go
+  // tiep trong luc cho (ket qua da cu, bo qua).
   async function validateSecret() {
     const secret = getSecret();
     if (!secret) {
       checkedSecret = '';
       return 'none';
     }
-    if (secret === checkedSecret && authState !== 'checking' && authState !== 'offline') return authState;
 
     const seq = ++validateSeq;
     let next;
@@ -298,31 +303,28 @@ window.AdminCommon = (function () {
     } catch (err) {
       next = 'offline';
     }
-    // Nguoi dung da go tiep trong luc cho -> ket qua nay da cu
-    if (seq !== validateSeq || secret !== getSecret()) return authState;
+    if (seq !== validateSeq || secret !== getSecret()) return null;
     checkedSecret = secret;
     return next;
   }
 
   async function revalidate() {
-    const before = authState;
-    const beforeEdit = canEdit();
     if (getSecret()) {
       authState = 'checking';
       syncAuthDot();
     }
     const next = await validateSecret();
-    if (next === authState && authState !== 'checking') return;
+    if (next === null) return;
     authState = next;
     syncAuthDot();
-    if (beforeEdit !== canEdit() || (before !== next && before !== 'checking')) notifyAuthChange();
+    if (authState !== shownState) notifyAuthChange();
   }
 
   // Lan dau mo trang: kiem tra ma da luu truoc roi moi tai du lieu, de khong
   // phai tai 2 lan (1 lan chi xem, 1 lan day du).
   const authReady = getSecret()
     ? validateSecret().then((state) => {
-        authState = state;
+        if (state) authState = state;
         syncAuthDot();
       })
     : Promise.resolve();
@@ -343,22 +345,22 @@ window.AdminCommon = (function () {
     } catch (err) {
       /* sessionStorage bi chan, bo qua */
     }
-    secretDirty = true;
-    const hadEdit = canEdit();
+    clearTimeout(secretDebounce);
+    validateSeq += 1; // bo ket qua kiem tra dang cho (neu co)
+
+    // Vua xoa het ma thi khoa ngay, khong cho het thoi gian cho
     if (!getSecret()) {
-      authState = 'none';
-    } else if (getSecret() !== checkedSecret) {
-      authState = 'checking';
-    }
-    syncAuthDot();
-    // Vua xoa ma thi khoa ngay, khong cho het thoi gian cho
-    if (hadEdit && !canEdit() && !getSecret()) {
       secretDirty = false;
       checkedSecret = '';
-      notifyAuthChange();
+      authState = 'none';
+      syncAuthDot();
+      if (shownState !== 'none') notifyAuthChange();
       return;
     }
-    clearTimeout(secretDebounce);
+
+    secretDirty = true;
+    authState = 'checking';
+    syncAuthDot();
     secretDebounce = setTimeout(commitSecret, 600);
   });
 
@@ -908,6 +910,7 @@ window.AdminCommon = (function () {
   }
 
   function reloadActive() {
+    shownState = authState;
     pageHandlers.forEach((fn) => {
       try {
         fn();

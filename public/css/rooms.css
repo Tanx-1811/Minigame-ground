@@ -149,9 +149,11 @@
 }
 
 .rooms-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 8px;
   padding: 16px 20px;
   background: linear-gradient(180deg, var(--surface-2), var(--surface));
   border-bottom: 1px solid var(--line);
@@ -171,7 +173,6 @@
 }
 
 .rooms-card-titles {
-  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -191,7 +192,7 @@
 }
 
 .rooms-card-head > .chip {
-  flex: 0 0 auto;
+  justify-self: end;
 }
 
 .rooms-card-body {
@@ -345,7 +346,6 @@
 
 .rooms-me {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 14px 0 0;
@@ -356,6 +356,15 @@
   font-size: 0.88rem;
   line-height: 1.5;
   color: var(--ink-2);
+}
+
+.rooms-me > span:not(.chip) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rooms-me > .chip {
+  flex: 0 0 auto;
 }
 
 .rooms-me strong {
@@ -1067,6 +1076,29 @@
   font-weight: 700;
 }
 
+.rooms-pending-more {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.rooms-pending-more:hover {
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+}
+
 .rooms-pending-tag {
   display: inline-flex;
   align-items: center;
@@ -1100,8 +1132,14 @@
   }
 
   .rooms-card-head {
-    flex-wrap: wrap;
+    grid-template-columns: auto minmax(0, 1fr);
     padding: 14px 16px;
+  }
+
+  /* Chip trang thai xuong dong, thang hang voi tieu de thay vi dung 1 minh */
+  .rooms-card-head > .chip {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .rooms-card-body {
@@ -1145,4 +1183,23 @@
   .rooms-stack {
     gap: 14px;
   }
+
+  /* Danh sach cho dai -> tren dien thoai chi hien vai nguoi dau, bam de xem het */
+  .rooms-pending-list.is-collapsed > .is-extra {
+    display: none;
+  }
+
+  .rooms-pending-more {
+    display: flex;
+  }
+}
+
+/* "2  dang xem": khoang gap cua flex cong them &nbsp; trong nhan -> 2 khoang trang.
+   Sua tam o day cho trang nay (markup site-nav dung chung trong theme.css). */
+.rooms-body .site-nav-online {
+  gap: 0;
+}
+
+.rooms-body .site-nav-online .dot {
+  margin-right: 7px;
 }

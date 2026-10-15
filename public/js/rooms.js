@@ -16,6 +16,7 @@ const NAME_KEY = 'randomTeam_roomName';
 const REEL_ITEM_HEIGHT = 88; // dong bo voi --reel-h trong rooms.css
 const REEL_LENGTH = 16;
 const RELOAD_DEBOUNCE_MS = 150;
+const PENDING_PREVIEW = 8; // dien thoai: so nguoi chua ghep hien san truoc khi bam "Xem them"
 
 const memberSelect = document.getElementById('roomsMemberSelect');
 const drawBtn = document.getElementById('roomsDrawBtn');
@@ -76,6 +77,7 @@ let mineToastTimer = null;
 let lastResetAt = 0;
 let lastResultKey = '';
 let drawLabelKey = '';
+let pendingExpanded = false;
 
 const reduceMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
@@ -599,23 +601,36 @@ function renderPending() {
   pendingCard.hidden = pending.length === 0;
   if (!pending.length) return;
 
-  // Nguoi da co gioi tinh (co the quay ngay) xep truoc, chua dat gioi tinh xep sau
-  const ordered = [...pending.filter((m) => m.gender), ...pending.filter((m) => !m.gender)];
+  // Ban dang chon dung dau, roi den nguoi da co gioi tinh (quay duoc ngay), chua dat gioi tinh xep sau
+  const others = pending.filter((m) => m.name !== me);
+  const ordered = [
+    ...pending.filter((m) => m.name === me),
+    ...others.filter((m) => m.gender),
+    ...others.filter((m) => !m.gender),
+  ];
+  const extra = ordered.length - PENDING_PREVIEW;
 
   pendingCount.textContent = `${pending.length} người`;
-  pendingList.innerHTML = `<ul class="rooms-pending-list">${ordered
-    .map((m) => {
+  pendingList.innerHTML = `<ul class="rooms-pending-list ${pendingExpanded ? '' : 'is-collapsed'}">${ordered
+    .map((m, i) => {
       const meta = genderMeta(m.gender);
       const isMe = m.name === me;
+      const cls = ['rooms-pending', `is-${meta.tone}`];
+      if (isMe) cls.push('is-me');
+      if (i >= PENDING_PREVIEW) cls.push('is-extra');
       return `
-        <li class="rooms-pending is-${meta.tone} ${isMe ? 'is-me' : ''}">
+        <li class="${cls.join(' ')}">
           ${avatarHtml(m.name)}
           <span class="room-bed-name">${escapeHtml(m.name)}</span>
           ${isMe ? '<span class="rm-me-tag">Bạn</span>' : ''}
           <span class="rooms-pending-tag">${ic(meta.lucide)} ${meta.label}</span>
         </li>`;
     })
-    .join('')}</ul>`;
+    .join('')}</ul>${
+    extra > 0
+      ? `<button type="button" class="rooms-pending-more" aria-expanded="${pendingExpanded}">${ic(pendingExpanded ? 'chevron-up' : 'chevron-down')} <span>${pendingExpanded ? 'Thu gọn' : `Xem thêm ${extra} người`}</span></button>`
+      : ''
+  }`;
 }
 
 function renderAll() {
@@ -906,6 +921,15 @@ async function draw() {
 }
 
 drawBtn.addEventListener('click', draw);
+
+pendingList.addEventListener('click', (event) => {
+  const btn = event.target.closest('.rooms-pending-more');
+  if (!btn) return;
+  pendingExpanded = !pendingExpanded;
+  renderPending();
+  const next = pendingList.querySelector('.rooms-pending-more');
+  if (next) next.focus();
+});
 retryBtn.addEventListener('click', reloadAll);
 
 memberSelect.addEventListener('change', () => {
