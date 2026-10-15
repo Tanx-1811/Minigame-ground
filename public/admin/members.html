@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="robots" content="noindex, nofollow" />
+<html lang="vi"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>Thành viên · Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/theme.css" />
-<link rel="stylesheet" href="/css/admin.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/admin.css">
 </head>
 <body data-admin-page="members">
   <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
@@ -30,8 +29,7 @@
 
               <div id="memberStats" class="admin-stats"></div>
 
-              <div class="admin-card">
-                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="user-plus"></i> Thêm thành viên</h3>
                     <p>Tên là cách hệ thống nhận ra từng người nên không được trùng với ai khác.</p>
@@ -41,7 +39,7 @@
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="newMemberName"><i data-lucide="user"></i> Họ tên</label>
-                      <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A" />
+                      <input id="newMemberName" type="text" placeholder="VD: Nguyễn Văn A">
                     </div>
                     <div class="admin-field">
                       <label for="newMemberGender"><i data-lucide="venus-and-mars"></i> Giới tính</label>
@@ -61,10 +59,7 @@
                   <button id="addMemberBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm thành viên</button>
                   <p id="addMemberMsg" class="admin-msg"></p>
                 </div>
-              </details>
-
-              <div class="admin-card">
-                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              </details><details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="file-up"></i> Thêm nhiều người một lúc</h3>
                     <p>Mỗi dòng một người: <code>Họ tên, Giới tính, Tên nhóm</code>. Hai cột sau có thể bỏ trống. Tên đã có sẵn sẽ được bỏ qua.</p>
@@ -80,9 +75,7 @@
                   <button id="memberImportBtn" class="admin-btn" type="button"><i data-lucide="file-up"></i> Thêm tất cả</button>
                   <p id="memberImportMsg" class="admin-msg"></p>
                 </div>
-              </details>
-
-              <div class="admin-card">
+              </details><div class="admin-card">
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="table"></i> Danh sách thành viên</h3>
@@ -104,12 +97,12 @@
                   <div class="admin-toolbar">
                     <div class="admin-field">
                       <label for="memberFilter"><i data-lucide="search"></i> Tìm thành viên</label>
-                      <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1" />
+                      <input id="memberFilter" type="search" placeholder="Nhập tên để lọc..." data-always-enabled="1">
                     </div>
                     <div class="admin-filter-chips" id="memberFilterChips"></div>
                   </div>
 
-                  <div id="memberBulkBar" class="admin-bulkbar" hidden>
+                  <div id="memberBulkBar" class="admin-bulkbar" hidden="">
                     <span id="memberBulkCount" class="admin-bulkbar-count"><i data-lucide="check-check"></i></span>
                     <div class="admin-bulkbar-actions">
                       <button type="button" class="admin-row-btn" data-bulk="gender-female">Đặt Nữ</button>
@@ -149,7 +142,7 @@
                     <table class="admin-table">
                       <thead>
                         <tr>
-                          <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" title="Chọn tất cả" data-always-enabled="1" /></th>
+                          <th class="admin-cell-check"><input id="memberSelectAll" type="checkbox" title="Chọn tất cả" data-always-enabled="1"></th>
                           <th></th>
                           <th data-sort="name">Họ tên</th>
                           <th data-sort="gender">Giới tính</th>
@@ -166,8 +159,7 @@
                   </div>
                   <p id="memberMsg" class="admin-msg"></p>
                 </div>
-              </div>
-            </section>
+              </div></section>
     </main>
   </div>
 
@@ -177,5 +169,7 @@
   <script src="/js/version-guard.js"></script>
   <script src="/js/admin-common.js"></script>
   <script src="/js/admin-members.js"></script>
-</body>
-</html>
+
+
+
+</body></html>

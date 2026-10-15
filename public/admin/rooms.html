@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="robots" content="noindex, nofollow" />
+<html lang="vi"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>Phòng ngủ · Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/theme.css" />
-<link rel="stylesheet" href="/css/admin.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/admin.css">
 </head>
 <body data-admin-page="rooms">
   <!-- Thanh tren + sidebar do js/admin-common.js tu dung, khai bao mot cho duy nhat -->
@@ -30,6 +29,8 @@
 
               <div id="roomStats" class="admin-stats"></div>
 
+              
+
               <div class="admin-card">
                 <div class="admin-card-head">
                   <div>
@@ -41,11 +42,11 @@
                   <div class="admin-form-grid is-tight">
                     <div class="admin-field">
                       <label for="roomAutoCapacity"><i data-lucide="users"></i> Sức chứa mỗi phòng</label>
-                      <input id="roomAutoCapacity" type="number" min="1" max="50" value="2" />
+                      <input id="roomAutoCapacity" type="number" min="1" max="50" value="2">
                     </div>
                     <div class="admin-field">
                       <label for="roomAutoPrefix"><i data-lucide="type"></i> Tiền tố tên phòng</label>
-                      <input id="roomAutoPrefix" type="text" value="Phòng" />
+                      <input id="roomAutoPrefix" type="text" value="Phòng">
                     </div>
                   </div>
                   <p class="admin-help">Ví dụ: <strong>9 nữ</strong> với sức chứa <strong>2</strong> sẽ tạo <strong>5 phòng nữ</strong>. Gọi lại nhiều lần cũng không tạo trùng — chỉ bù số phòng còn thiếu, và chỉ tính những người được tham gia ghép phòng.</p>
@@ -58,17 +59,14 @@
                     <button id="roomResetBtn" class="admin-btn admin-btn-danger" type="button"><i data-lucide="rotate-ccw"></i> Reset ghép phòng</button>
                   </div>
                   <label class="admin-checkbox">
-                    <input id="roomKeepPinned" type="checkbox" checked />
+                    <input id="roomKeepPinned" type="checkbox" checked="">
                     <span>Giữ nguyên những người đã ghim
                       <small>Người được ghim phòng sẽ không bị xáo lại hay bị đưa ra khỏi phòng.</small>
                     </span>
                   </label>
                   <p id="roomActionMsg" class="admin-msg"></p>
                 </div>
-              </div>
-
-              <div class="admin-card">
-                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              </div><details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
                     <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
@@ -78,7 +76,7 @@
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="newRoomName"><i data-lucide="tag"></i> Tên phòng</label>
-                      <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+                      <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1">
                     </div>
                     <div class="admin-field">
                       <label for="newRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
@@ -89,19 +87,17 @@
                     </div>
                     <div class="admin-field">
                       <label for="newRoomCapacity"><i data-lucide="users"></i> Sức chứa</label>
-                      <input id="newRoomCapacity" type="number" min="1" max="50" value="2" />
+                      <input id="newRoomCapacity" type="number" min="1" max="50" value="2">
                     </div>
                     <div class="admin-field">
                       <label for="newRoomNote"><i data-lucide="sticky-note"></i> Ghi chú</label>
-                      <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công" />
+                      <input id="newRoomNote" type="text" placeholder="VD: tầng 2, có ban công">
                     </div>
                   </div>
                   <button id="addRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Thêm phòng</button>
                   <p id="addRoomMsg" class="admin-msg"></p>
                 </div>
-              </details>
-
-              <div class="admin-card">
+              </details><div class="admin-card">
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="user-round-search"></i> Chưa có phòng</h3>
@@ -113,10 +109,7 @@
                   <div id="pendingList"></div>
                   <p id="pendingMsg" class="admin-msg"></p>
                 </div>
-              </div>
-
-              <div class="admin-card">
-                <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+              </div><details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="arrow-left-right"></i> Đổi chỗ hai người</h3>
                     <p>Hai người cùng giới tính sẽ hoán đổi phòng cho nhau — không cần quan tâm phòng có còn chỗ trống hay không.</p>
@@ -136,9 +129,7 @@
                   <button id="swapBtn" class="admin-btn admin-btn-secondary" type="button"><i data-lucide="arrow-left-right"></i> Đổi chỗ</button>
                   <p id="swapMsg" class="admin-msg"></p>
                 </div>
-              </details>
-
-              <div class="admin-card">
+              </details><div class="admin-card">
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="list"></i> Danh sách phòng</h3>
@@ -151,7 +142,7 @@
                   <div class="admin-toolbar">
                     <div class="admin-field">
                       <label for="roomFilter"><i data-lucide="search"></i> Tìm phòng / tên người</label>
-                      <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1" />
+                      <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1">
                     </div>
                     <div class="admin-filter-chips" id="roomFilterChips"></div>
                   </div>
@@ -164,8 +155,7 @@
                   <div id="roomList"></div>
                   <p id="roomListMsg" class="admin-msg"></p>
                 </div>
-              </div>
-            </section>
+              </div></section>
     </main>
   </div>
 
@@ -175,5 +165,7 @@
   <script src="/js/version-guard.js"></script>
   <script src="/js/admin-common.js"></script>
   <script src="/js/admin-rooms.js"></script>
-</body>
-</html>
+
+
+
+</body></html>
