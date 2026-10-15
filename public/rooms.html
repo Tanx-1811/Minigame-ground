@@ -13,7 +13,21 @@
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="stylesheet" href="/css/rooms.css" />
 </head>
-<body>
+<body class="rooms-body" data-ui-title="roomsTitle">
+  <header class="site-nav">
+    <a class="site-nav-brand" href="/">
+      <span class="site-nav-logo"><i data-lucide="dices"></i></span>
+      <span class="site-nav-brand-text">DIMACO Minigame</span>
+    </a>
+    <nav class="site-nav-links" aria-label="Chọn trang">
+      <a href="/"><i data-lucide="users"></i> Chia nhóm</a>
+      <a href="/rooms.html" aria-current="page"><i data-lucide="bed-double"></i> Ghép phòng</a>
+    </nav>
+    <div class="site-nav-tools">
+      <span id="onlineBadge" class="site-nav-online" title="Số người đang xem trang"><span class="dot is-live"></span> <span id="onlineCount">--</span><span class="site-nav-online-label">&nbsp;đang xem</span></span>
+    </div>
+  </header>
+
   <div class="bg-decor" aria-hidden="true">
     <span class="blob blob-1"></span>
     <span class="blob blob-2"></span>
@@ -21,101 +35,119 @@
   </div>
   <div id="toastContainer" class="toast-container"></div>
 
-  <div class="fx-dock" role="toolbar" aria-label="Thông tin">
-    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">
-      <span class="dot is-live"></span> --
-    </span>
-  </div>
+  <main class="rooms-page">
+    <div class="company-banner rooms-banner">
+      <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
+    </div>
 
-  <div class="rooms-page">
     <header class="rooms-hero">
-      <div class="company-banner">
-        <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
-      </div>
-      <span class="header-badge"><i data-lucide="bed-double"></i> Nam ở với nam · Nữ ở với nữ</span>
+      <span class="header-badge rooms-hero-badge"><i data-lucide="venus-and-mars"></i> Nam ở với nam · Nữ ở với nữ</span>
       <h1 data-ui-text="roomsTitle">Ghép Phòng Ngủ</h1>
       <p class="subtitle" data-ui-text="roomsSubtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ trống.</p>
-      <nav class="rooms-nav">
-        <a href="/"><i data-lucide="dices"></i> Trang random chia nhóm</a>
-      </nav>
     </header>
 
-    <section class="rooms-card">
-      <div class="rooms-card-head">
-        <div>
-          <h2><i data-lucide="chart-no-axes-column"></i> Tổng quan</h2>
-          <p>Tình hình ghép phòng của cả nhóm, cập nhật ngay khi có người quay.</p>
-        </div>
-      </div>
-      <div class="rooms-card-body">
-        <div id="roomsStats" class="rooms-stats"></div>
-
-        <div class="progress-wrap rooms-progress">
-          <div class="progress-label">
-            <span id="roomsProgressText">Đã ghép 0/0 người</span>
-            <span id="roomsProgressPct" class="num">0%</span>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="roomsProgressFill"></div>
-          </div>
-        </div>
-      </div>
+    <!-- Admin tat trang ghep phong (showRoomsPage = false) -->
+    <section id="roomsClosed" class="rooms-closed" hidden>
+      <span class="rooms-closed-icon" aria-hidden="true"><i data-lucide="door-closed"></i></span>
+      <h2>Ghép phòng đang tạm đóng</h2>
+      <p>Admin đã tạm đóng phần ghép phòng ngủ. Khi được mở lại, trang này sẽ tự cập nhật — bạn không cần tải lại trang.</p>
+      <a class="rooms-closed-link" href="/"><i data-lucide="users"></i> Sang trang chia nhóm</a>
     </section>
 
-    <section class="rooms-card">
-      <div class="rooms-card-head">
-        <div>
-          <h2><i data-lucide="dices"></i> Quay phòng của bạn</h2>
-          <p>Mỗi người chỉ quay một lần — tải lại trang vẫn giữ đúng phòng đã quay.</p>
-        </div>
-      </div>
-      <div class="rooms-card-body">
-        <div class="rooms-form">
-          <div class="field">
-            <label for="roomsMemberSelect">Tên của bạn</label>
-            <select id="roomsMemberSelect">
-              <option value="">-- Chọn tên --</option>
-            </select>
+    <div id="roomsLoadError" class="rooms-load-error" role="alert" hidden>
+      <span class="rooms-load-error-text"><i data-lucide="circle-alert"></i> <span id="roomsLoadErrorText">Không thể tải dữ liệu phòng.</span></span>
+      <button type="button" id="roomsRetryBtn" class="rooms-retry-btn"><i data-lucide="refresh-cw"></i> Thử lại</button>
+    </div>
+
+    <div id="roomsMain" class="rooms-stack">
+      <!-- (1) Khu quay - hanh dong chinh cua trang -->
+      <section class="rooms-card rooms-spin-card" aria-labelledby="roomsSpinTitle">
+        <div class="rooms-card-head">
+          <span class="rooms-card-icon" aria-hidden="true"><i data-lucide="dices"></i></span>
+          <div class="rooms-card-titles">
+            <h2 id="roomsSpinTitle">Quay phòng của bạn</h2>
+            <p>Mỗi người chỉ quay một lần — tải lại trang vẫn giữ đúng phòng đã quay.</p>
           </div>
-          <button id="roomsDrawBtn" class="rooms-draw-btn" type="button">
-            <i data-lucide="dices"></i> Quay ghép phòng
-          </button>
+          <span id="roomsRoundChip" class="chip is-ok rooms-round-chip"><span class="dot"></span> Đang mở</span>
         </div>
+        <div class="rooms-card-body">
+          <div class="rooms-form">
+            <div class="rooms-field">
+              <label for="roomsMemberSelect">Tên của bạn</label>
+              <div class="rooms-select">
+                <select id="roomsMemberSelect">
+                  <option value="">-- Chọn tên --</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </div>
+            </div>
+            <button id="roomsDrawBtn" class="rooms-draw-btn" type="button" disabled>
+              <i data-lucide="dices"></i><span>Quay ghép phòng</span>
+            </button>
+          </div>
 
-        <p id="roomsMyGender" class="rooms-my-gender"></p>
-        <p id="roomsNotice" class="rooms-notice hidden"></p>
-        <p id="roomsError" class="rooms-error hidden"></p>
+          <p id="roomsMyGender" class="rooms-me"></p>
+          <p id="roomsNotice" class="rooms-notice" aria-live="polite"></p>
+          <p id="roomsError" class="rooms-error" role="alert"></p>
 
-        <div id="roomsReel" class="rooms-reel hidden">
-          <div class="rooms-reel-strip" id="roomsReelStrip"></div>
+          <div id="roomsReel" class="rooms-reel" aria-hidden="true" hidden>
+            <div class="rooms-reel-strip" id="roomsReelStrip"></div>
+          </div>
+
+          <div id="roomsResult" class="rooms-result-wrap" aria-live="polite"></div>
         </div>
+      </section>
 
-        <div id="roomsResult" class="rooms-result hidden">
-          <p id="roomsResultRoom" class="rooms-result-room"></p>
-          <p id="roomsResultMates" class="rooms-result-mates"></p>
+      <!-- (2) Tong quan so lieu -->
+      <section class="rooms-card" aria-labelledby="roomsOverviewTitle">
+        <div class="rooms-card-head">
+          <span class="rooms-card-icon" aria-hidden="true"><i data-lucide="chart-no-axes-column"></i></span>
+          <div class="rooms-card-titles">
+            <h2 id="roomsOverviewTitle">Tổng quan</h2>
+            <p>Tình hình ghép phòng của cả nhóm, cập nhật ngay khi có người quay.</p>
+          </div>
         </div>
+        <div class="rooms-card-body">
+          <div id="roomsStats" class="rooms-stats"></div>
+
+          <div class="rooms-progress">
+            <div class="rooms-progress-label">
+              <span id="roomsProgressText">Đang tải…</span>
+              <span id="roomsProgressPct" class="num">0%</span>
+            </div>
+            <div id="roomsProgressBar" class="meter" role="progressbar" aria-label="Tiến độ ghép phòng" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+              <span id="roomsProgressFill" style="width:0%"></span>
+            </div>
+          </div>
+          <p id="roomsNoGender" class="rooms-nogender" hidden></p>
+        </div>
+      </section>
+
+      <!-- (3) Danh sach phong theo gioi tinh -->
+      <div id="roomsList" class="rooms-sections">
+        <p class="rooms-empty"><i data-lucide="hourglass"></i> Đang tải danh sách phòng…</p>
       </div>
-    </section>
 
-    <div id="roomsList"></div>
-
-    <section class="rooms-card" id="roomsPendingCard" hidden>
-      <div class="rooms-card-head">
-        <div>
-          <h2><i data-lucide="hourglass"></i> Chưa ghép phòng</h2>
-          <p>Những bạn chưa quay — vào quay để biết mình ở phòng nào nhé!</p>
+      <!-- (4) Nguoi chua ghep phong -->
+      <section class="rooms-card" id="roomsPendingCard" aria-labelledby="roomsPendingTitle" hidden>
+        <div class="rooms-card-head">
+          <span class="rooms-card-icon" aria-hidden="true"><i data-lucide="hourglass"></i></span>
+          <div class="rooms-card-titles">
+            <h2 id="roomsPendingTitle">Chưa ghép phòng</h2>
+            <p>Những bạn chưa quay — vào quay để biết mình ở phòng nào nhé!</p>
+          </div>
+          <span id="roomsPendingCount" class="chip num"></span>
         </div>
-        <span id="roomsPendingCount" class="rooms-chip"></span>
-      </div>
-      <div class="rooms-card-body">
-        <div id="roomsPendingList"></div>
-      </div>
-    </section>
+        <div class="rooms-card-body">
+          <div id="roomsPendingList"></div>
+        </div>
+      </section>
+    </div>
 
     <footer class="rooms-footer">
       <p data-ui-text="footerText">Ngủ cùng phòng là anh em một nhà</p>
     </footer>
-  </div>
+  </main>
 
   <script src="/js/icon-set.js"></script>
   <script src="/js/icons.js"></script>

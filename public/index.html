@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#4f46e5" />
 <title>Dimaco · Random Chia Nhóm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,33 +13,46 @@
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="stylesheet" href="/css/quiz.css" />
 </head>
-<body>
+<body data-ui-title="brandTitle">
   <div class="bg-decor" aria-hidden="true">
     <span class="blob blob-1"></span>
     <span class="blob blob-2"></span>
     <span class="blob blob-3"></span>
   </div>
-  <canvas id="confettiCanvas" class="hidden"></canvas>
-  <canvas id="fireworksCanvas" class="hidden"></canvas>
+  <canvas id="confettiCanvas" class="hidden" aria-hidden="true"></canvas>
+  <canvas id="fireworksCanvas" class="hidden" aria-hidden="true"></canvas>
   <div id="toastContainer" class="toast-container"></div>
+  <!-- Doc cho trinh doc man hinh: ket qua, dem nguoc, het gio... -->
+  <div id="srLive" class="sr-live" aria-live="polite"></div>
 
-  <div class="fx-dock" role="toolbar" aria-label="Tuỳ chỉnh giao diện">
-    <button type="button" id="soundToggleBtn" class="fx-btn" title="Bật/tắt âm thanh" aria-label="Bật/tắt âm thanh">
-      <i data-lucide="volume-2"></i>
-    </button>
-    <button type="button" id="fxToggleBtn" class="fx-btn" title="Bật/tắt hiệu ứng con trỏ" aria-label="Bật/tắt hiệu ứng con trỏ">
-      <i data-lucide="sparkles"></i>
-    </button>
-    <span id="onlineBadge" class="online-badge" title="Số người đang xem trang">
-      <span class="dot is-live"></span> --
-    </span>
-  </div>
+  <header class="site-nav">
+    <a class="site-nav-brand" href="/">
+      <span class="site-nav-logo"><i data-lucide="dices"></i></span>
+      <span class="site-nav-brand-text">DIMACO Minigame</span>
+    </a>
+    <nav class="site-nav-links" aria-label="Chọn trang">
+      <a href="/" aria-current="page"><i data-lucide="users"></i> Chia nhóm</a>
+      <a href="/rooms.html" data-ui-show="showRoomsPage"><i data-lucide="bed-double"></i> Ghép phòng</a>
+    </nav>
+    <div class="site-nav-tools">
+      <button type="button" id="soundToggleBtn" class="site-nav-tool" aria-pressed="true" title="Bật/tắt âm thanh" aria-label="Âm thanh">
+        <i data-lucide="volume-2"></i>
+      </button>
+      <button type="button" id="fxToggleBtn" class="site-nav-tool" aria-pressed="true" title="Bật/tắt hiệu ứng con trỏ" aria-label="Hiệu ứng con trỏ">
+        <i data-lucide="sparkles"></i>
+      </button>
+      <span id="onlineBadge" class="site-nav-online" title="Số người đang xem trang">
+        <span class="dot is-live"></span> <span id="onlineCount" class="num">--</span><span class="site-nav-online-label">&nbsp;đang xem</span>
+      </span>
+    </div>
+  </header>
 
   <button type="button" id="backToTopBtn" class="back-to-top hidden" aria-label="Lên đầu trang">
     <i data-lucide="arrow-up"></i>
   </button>
 
-  <section id="introScreen" class="intro-screen">
+  <!-- ========== man hinh cho / gioi thieu ========== -->
+  <section id="introScreen" class="intro-screen" aria-labelledby="introTitle">
     <div class="intro-particles" aria-hidden="true"></div>
 
     <div class="company-banner intro-banner">
@@ -51,11 +64,36 @@
         <i data-lucide="sparkles"></i>
         <span data-ui-text="brandBadge">Mãi mãi là anh em nha mọi người cho dù vào nhóm nào thì mọi người cũng nhẹ tay với nhau</span>
       </span>
-      <h1 class="intro-title" data-ui-text="brandTitle">Bốc Thăm Chia Nhóm</h1>
+      <h1 id="introTitle" class="intro-title" data-ui-text="brandTitle">Bốc Thăm Chia Nhóm</h1>
       <p class="intro-subtitle" data-ui-text="brandSubtitle">Chọn tên của bạn, nhấn nút và khám phá bạn thuộc đội nào!</p>
 
-      <div id="countdownBlock" class="countdown-block hidden">
-        <p class="countdown-label"><i data-lucide="hourglass"></i> Bốc thăm sẽ mở sau</p>
+      <!-- Ba buoc cua buoi choi - main.js to sang buoc dang mo -->
+      <ol id="eventSteps" class="event-steps" aria-label="Các bước của sự kiện">
+        <li class="event-step" data-step="quiz">
+          <span class="event-step-icon"><i data-lucide="brain"></i></span>
+          <span class="event-step-body">
+            <strong>Quiz</strong>
+            <small class="event-step-status">Chọn Nhóm Trưởng</small>
+          </span>
+        </li>
+        <li class="event-step" data-step="random">
+          <span class="event-step-icon"><i data-lucide="dices"></i></span>
+          <span class="event-step-body">
+            <strong>Bốc thăm</strong>
+            <small class="event-step-status">Chia nhóm</small>
+          </span>
+        </li>
+        <li class="event-step" data-step="rooms" data-ui-show="showRoomsPage">
+          <span class="event-step-icon"><i data-lucide="bed-double"></i></span>
+          <span class="event-step-body">
+            <strong>Ghép phòng</strong>
+            <small class="event-step-status">Nam / nữ riêng</small>
+          </span>
+        </li>
+      </ol>
+
+      <div id="countdownBlock" class="countdown-block hidden" role="timer" aria-label="Thời gian còn lại">
+        <p class="countdown-label"><i data-lucide="hourglass"></i> Sự kiện bắt đầu sau</p>
         <div class="countdown-tiles">
           <div class="countdown-tile"><span id="cdDays" class="num">00</span><small>Ngày</small></div>
           <div class="countdown-tile"><span id="cdHours" class="num">00</span><small>Giờ</small></div>
@@ -64,81 +102,97 @@
         </div>
       </div>
 
-      <button id="startBtn" type="button" class="start-btn">
-        <span class="btn-icon"><i data-lucide="dices"></i></span>
-        <span id="startBtnText" data-ui-text="startButtonText">Bắt đầu bốc thăm</span>
+      <button id="startBtn" type="button" class="start-btn" disabled>
+        <span id="startBtnIcon" class="btn-icon"><i data-lucide="dices"></i></span>
+        <span id="startBtnText">Đang tải...</span>
       </button>
 
-      <p class="intro-hint">Các nhóm đang chờ bạn tham gia</p>
+      <p id="introHint" class="intro-hint">Các nhóm đang chờ bạn tham gia</p>
     </div>
   </section>
 
-  <section id="quizScreen" class="quiz-screen hidden">
-    <div class="company-banner">
-      <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
-    </div>
-
+  <!-- ========== vong quiz chon nhom truong ========== -->
+  <section id="quizScreen" class="quiz-screen hidden" aria-labelledby="quizTitle">
     <header class="quiz-header">
-      <span class="quiz-mascot"><i data-lucide="brain"></i></span>
-      <span class="header-badge"><i data-lucide="target"></i> Vòng chọn Nhóm Trưởng</span>
-      <h1 data-ui-text="quizTitle">Ai sẽ là Nhóm Trưởng?</h1>
+      <span class="header-badge"><i data-lucide="target"></i> Bước 1 · Vòng chọn Nhóm Trưởng</span>
+      <h1 id="quizTitle" data-ui-text="quizTitle">Ai sẽ là Nhóm Trưởng?</h1>
       <p class="subtitle" data-ui-text="quizSubtitle">Trả lời đúng &amp; nhanh nhất để có cơ hội trở thành Nhóm Trưởng. Chốt xong Nhóm Trưởng thì vòng Random mới mở!</p>
     </header>
 
     <main class="quiz-container">
-      <div id="quizNamePick" class="quiz-name-pick">
-        <span class="quiz-name-pick-icon"><i data-lucide="graduation-cap"></i></span>
+      <!-- 1. chon ten -->
+      <div id="quizNamePick" class="quiz-card quiz-name-pick">
+        <span class="quiz-card-icon"><i data-lucide="graduation-cap"></i></span>
+        <h2 class="quiz-card-title">Bạn là ai?</h2>
+        <p class="quiz-card-desc">Chọn đúng tên của bạn để vào phòng chờ. Khi Admin bấm bắt đầu, cả nhóm cùng làm bài một lúc.</p>
         <div class="field">
           <label for="quizMemberSelect">Tên của bạn</label>
-          <span class="quiz-name-pick-select">
-            <select id="quizMemberSelect">
-              <option value="">-- Chọn tên --</option>
-            </select>
-          </span>
+          <select id="quizMemberSelect">
+            <option value="">-- Chọn tên --</option>
+          </select>
         </div>
-        <button id="quizStartBtn" type="button" class="start-btn">
-          <span class="btn-icon"><i data-lucide="brain"></i></span> Bắt đầu trả lời
+        <button id="quizStartBtn" type="button" class="start-btn is-block">
+          <span class="btn-icon"><i data-lucide="play"></i></span> <span>Vào phòng chờ</span>
         </button>
+        <ul class="quiz-rules">
+          <li><i data-lucide="list-checks"></i> <span id="quizRuleCount">Trắc nghiệm nhiều lựa chọn</span></li>
+          <li><i data-lucide="zap"></i> <span>Cùng điểm thì ai nhanh hơn xếp trên</span></li>
+          <li><i data-lucide="crown"></i> <span id="quizRuleLeaders">Người dẫn đầu làm Nhóm Trưởng</span></li>
+        </ul>
       </div>
 
-      <div id="quizWaiting" class="quiz-waiting hidden">
-        <span class="quiz-waiting-icon"><i data-lucide="hourglass"></i></span>
-        <p class="quiz-waiting-headline">Đã vào phòng chờ, đợi Admin bấm bắt đầu...</p>
+      <!-- 2. phong cho -->
+      <div id="quizWaiting" class="quiz-card quiz-waiting hidden">
+        <span class="quiz-card-icon is-pulse"><i data-lucide="hourglass"></i></span>
+        <h2 class="quiz-card-title">Đã vào phòng chờ</h2>
+        <p class="quiz-card-desc">Xin chào <strong id="quizWaitingName"></strong>! Đợi Admin bấm bắt đầu — câu hỏi đầu tiên sẽ tự hiện ra.</p>
         <p id="quizWaitingCount" class="quiz-waiting-count">0 người đã sẵn sàng</p>
         <ul id="quizWaitingList" class="quiz-waiting-list"></ul>
+        <button id="quizChangeNameBtn" type="button" class="link-btn">Không phải bạn? Chọn tên khác</button>
       </div>
 
+      <!-- 3. lam bai -->
       <div id="quizPlay" class="quiz-play hidden">
-        <div class="quiz-progress">
-          <div class="quiz-progress-top">
-            <span id="quizProgressLabel" class="quiz-progress-label"></span>
-            <span id="quizProgressScore" class="quiz-progress-score"></span>
-          </div>
-          <div id="quizProgressDots" class="quiz-progress-dots"></div>
+        <div class="quiz-hud">
+          <span id="quizProgressLabel" class="quiz-hud-pill"></span>
+          <span id="quizTimer" class="quiz-timer hidden" aria-hidden="true">
+            <i data-lucide="timer"></i> <span id="quizTimerText" class="num">--</span>
+          </span>
+          <span id="quizProgressScore" class="quiz-hud-pill is-score"></span>
         </div>
+        <div id="quizProgressDots" class="quiz-progress-dots" aria-hidden="true"></div>
+        <div id="quizTimebar" class="quiz-timebar hidden" aria-hidden="true"><span id="quizTimebarFill"></span></div>
         <div class="quiz-question-card">
+          <p id="quizQuestionMeta" class="quiz-question-meta"></p>
           <h2 id="quizQuestionText" class="quiz-question-text"></h2>
-          <div id="quizOptions" class="quiz-options"></div>
-          <p id="quizFeedback" class="quiz-feedback hidden"></p>
+          <div id="quizOptions" class="quiz-options" role="group" aria-labelledby="quizQuestionText"></div>
+          <p id="quizFeedback" class="quiz-feedback hidden" role="status" aria-live="polite"></p>
         </div>
       </div>
 
-      <div id="quizDone" class="quiz-done hidden">
-        <span class="quiz-done-icon"><i data-lucide="party-popper"></i></span>
-        <p class="quiz-done-headline">Bạn đã trả lời xong tất cả câu hỏi!</p>
-        <p class="quiz-done-score">Điểm của bạn: <strong id="quizMyScore" class="num">0</strong></p>
+      <!-- 4. xong bai -->
+      <div id="quizDone" class="quiz-card quiz-done hidden">
+        <span class="quiz-card-icon is-gold"><i data-lucide="party-popper"></i></span>
+        <h2 class="quiz-card-title">Bạn đã hoàn thành!</h2>
+        <div class="quiz-done-stats">
+          <div><span id="quizMyScore" class="num">0</span><small>điểm</small></div>
+          <div><span id="quizMyRank" class="num">—</span><small>thứ hạng</small></div>
+          <div><span id="quizMyTime" class="num">—</span><small>tổng thời gian</small></div>
+        </div>
         <h3 class="quiz-leaderboard-title"><i data-lucide="trophy"></i> Bảng xếp hạng tạm thời</h3>
+        <p id="quizLeaderNote" class="quiz-leaderboard-note"></p>
         <ol id="quizLeaderboardList" class="quiz-leaderboard-list"></ol>
-        <p class="quiz-hint"><i data-lucide="hourglass"></i> Đang chờ Admin chốt Nhóm Trưởng để mở khóa vòng Random...</p>
+        <p class="quiz-hint"><i data-lucide="hourglass"></i> Đang chờ Admin chốt Nhóm Trưởng để mở vòng bốc thăm...</p>
       </div>
     </main>
 
-    <div id="quizCountdownOverlay" class="quiz-countdown-overlay hidden">
-      <span id="quizCountdownNumber" class="quiz-countdown-number">3</span>
+    <div id="quizCountdownOverlay" class="quiz-countdown-overlay hidden" role="alert">
+      <span id="quizCountdownNumber" class="quiz-countdown-number num">3</span>
       <p class="quiz-countdown-hint">Chuẩn bị vào làm bài...</p>
     </div>
   </section>
 
+  <!-- ========== vong boc tham chia nhom ========== -->
   <div id="appScreen" class="app-screen hidden">
     <div class="company-banner">
       <img src="/img/dimaco-banner.png" alt="Công ty TNHH Thiết kế Quản lý và Quảng cáo DIMACO" />
@@ -154,13 +208,18 @@
     </header>
 
     <main class="container">
-      <section class="random-panel">
+      <section class="random-panel" aria-labelledby="randomPanelTitle">
         <div class="section-head">
           <div>
-            <h2><i data-lucide="dices"></i> Bốc thăm của bạn</h2>
+            <h2 id="randomPanelTitle"><i data-lucide="dices"></i> Bốc thăm của bạn</h2>
             <p>Chọn đúng tên mình rồi bấm Random — mỗi người chỉ bốc một lần duy nhất.</p>
           </div>
-          <span class="section-step">Bước 1</span>
+          <span class="section-step">Bước 2</span>
+        </div>
+
+        <div id="leaderNotice" class="notice is-gold hidden">
+          <i data-lucide="crown"></i>
+          <span id="leaderNoticeText"></span>
         </div>
 
         <div class="progress-wrap">
@@ -168,44 +227,63 @@
             <span id="progressText">Đã random 0/0 người</span>
             <span id="progressPct" class="num">0%</span>
           </div>
-          <div class="progress-bar">
+          <div id="progressBar" class="progress-bar" role="progressbar" aria-labelledby="progressText" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div class="progress-fill" id="progressFill"></div>
           </div>
         </div>
 
         <div class="groups-preview" id="groupsPreview"></div>
 
-        <div class="random-form">
+        <div id="lockNotice" class="notice is-warn hidden" role="status">
+          <i data-lucide="lock"></i>
+          <span>Vòng chia nhóm đang tạm khóa — chờ Admin mở lại rồi bấm Random nhé.</span>
+        </div>
+
+        <div id="randomForm" class="random-form">
           <div class="field">
             <label for="memberSelect">Tên của bạn</label>
             <select id="memberSelect">
               <option value="">-- Chọn tên --</option>
             </select>
           </div>
-          <button id="randomBtn" type="button"><span class="btn-icon"><i data-lucide="dices"></i></span> Random ngay</button>
+          <button id="randomBtn" type="button"><span class="btn-icon"><i data-lucide="dices"></i></span> <span id="randomBtnText">Random ngay</span></button>
         </div>
 
         <div class="panel-meta">
           <span id="remainingText" class="remaining-text"></span>
-          <button type="button" id="rulesBtn" class="rules-link"><i data-lucide="circle-help"></i> Cách chơi</button>
+          <span class="panel-meta-actions">
+            <button type="button" id="notMeBtn" class="link-btn hidden"><i data-lucide="user-round-search"></i> Chọn tên khác</button>
+            <button type="button" id="rulesBtn" class="rules-link"><i data-lucide="circle-help"></i> Cách chơi</button>
+          </span>
         </div>
 
-        <div id="slotMachine" class="slot-machine hidden">
+        <div id="slotMachine" class="slot-machine hidden" aria-hidden="true">
           <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip0"></div></div>
           <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip1"></div></div>
           <div class="slot-reel"><div class="slot-reel-strip" id="reelStrip2"></div></div>
         </div>
 
-        <div id="resultBox" class="result-box hidden">
-          <p id="resultText"></p>
+        <div id="resultBox" class="result-card hidden">
+          <div class="result-card-head">
+            <span id="resultIcon" class="result-icon" aria-hidden="true"></span>
+            <div class="result-card-title">
+              <p class="result-kicker">Bạn thuộc về</p>
+              <h3 id="resultGroup" class="result-group"></h3>
+              <p id="resultName" class="result-name"></p>
+            </div>
+          </div>
           <p id="resultMotto" class="result-motto"></p>
+          <div id="resultMatesWrap" class="result-mates">
+            <p class="result-mates-title"><i data-lucide="users-round"></i> Đồng đội <span id="resultMatesCount" class="num"></span></p>
+            <ul id="resultMates" class="result-mates-list"></ul>
+          </div>
           <div class="result-actions">
-            <button id="shareBtn" type="button" class="share-btn hidden"><i data-lucide="image-down"></i> Tải ảnh</button>
-            <button id="copyResultBtn" type="button" class="share-btn hidden"><i data-lucide="clipboard-copy"></i> Copy kết quả</button>
-            <button id="nativeShareBtn" type="button" class="share-btn hidden"><i data-lucide="share-2"></i> Chia sẻ</button>
+            <button id="shareBtn" type="button" class="share-btn"><i data-lucide="image-down"></i> Tải ảnh</button>
+            <button id="copyResultBtn" type="button" class="share-btn"><i data-lucide="clipboard-copy"></i> Copy kết quả</button>
+            <button id="nativeShareBtn" type="button" class="share-btn"><i data-lucide="share-2"></i> Chia sẻ</button>
           </div>
         </div>
-        <p id="errorText" class="error-text hidden"></p>
+        <p id="errorText" class="error-text hidden" role="alert"></p>
       </section>
 
       <section class="stats-col">
@@ -221,11 +299,11 @@
         </div>
       </section>
 
-      <section class="groups-section">
+      <section class="groups-section" aria-labelledby="groupsTitle">
         <div class="groups-toolbar">
           <div class="groups-toolbar-title">
-            <h2 class="groups-title"><i data-lucide="layout-grid"></i> Danh sách các nhóm</h2>
-            <span class="section-step">Bước 2 · Xem kết quả</span>
+            <h2 id="groupsTitle" class="groups-title"><i data-lucide="layout-grid"></i> Danh sách các nhóm</h2>
+            <span class="section-step">Xem kết quả</span>
           </div>
           <div class="search-field">
             <span class="search-icon"><i data-lucide="search"></i></span>
@@ -243,7 +321,7 @@
         <div class="rooms-cta-body">
           <span class="section-step">Bước 3 · Sau khi đã có nhóm</span>
           <h2 class="rooms-cta-title">Ghép phòng ngủ</h2>
-          <p class="rooms-cta-desc">Chơi xong và biết mình thuộc nhóm nào rồi thì sang bước chọn phòng — nam và nữ ở riêng, mỗi người chỉ chọn một lần.</p>
+          <p class="rooms-cta-desc">Biết mình thuộc nhóm nào rồi thì sang bước chọn phòng — nam và nữ ở riêng, mỗi người chỉ quay một lần.</p>
         </div>
         <a class="rooms-cta-btn" href="/rooms.html">
           <i data-lucide="door-open"></i> Vào ghép phòng ngủ
@@ -251,12 +329,12 @@
       </section>
     </main>
 
-    <dialog id="rulesModal" class="rules-modal">
-      <h3><i data-lucide="target"></i> Cách chơi</h3>
+    <dialog id="rulesModal" class="rules-modal" aria-labelledby="rulesTitle">
+      <h3 id="rulesTitle"><i data-lucide="target"></i> Cách chơi</h3>
       <ol>
         <li>Chọn đúng tên của bạn trong danh sách.</li>
         <li>Bấm <strong>Random ngay</strong> và chờ 3 cột quay dừng lại.</li>
-        <li>Hệ thống chọn ngẫu nhiên một nhóm còn chỗ, luôn chia đều số lượng giữa các nhóm.</li>
+        <li>Hệ thống chọn ngẫu nhiên một nhóm còn chỗ, luôn chia đều số lượng giữa các nhóm. Các Nhóm Trưởng luôn ở các nhóm khác nhau.</li>
         <li>Mỗi người chỉ random 1 lần — random lại hoặc tải lại trang vẫn ra đúng nhóm cũ.</li>
         <li>Sau khi có kết quả, bạn có thể tải ảnh kết quả để chia sẻ.</li>
       </ol>
@@ -268,7 +346,7 @@
     </footer>
   </div>
 
-  <canvas id="shareCanvas" class="hidden" width="800" height="800"></canvas>
+  <canvas id="shareCanvas" class="hidden" width="800" height="800" aria-hidden="true"></canvas>
 
   <script src="/js/icon-set.js"></script>
   <script src="/js/icons.js"></script>
