@@ -163,7 +163,8 @@
     return (
       '<option value="">— Chưa có phòng</option>' +
       rooms
-        .filter((r) => r.gender === member.gender)
+        // Phong nam hoac nu dang trong / dang cung gioi cung hien ra
+        .filter((r) => r.id === member.roomId || A.roomAccepts(r, member.gender))
         .map((r) => {
           const isCurrent = r.id === member.roomId;
           const isFull = r.occupancy >= r.capacity && !isCurrent;
@@ -325,7 +326,7 @@
         rooms
           .map(
             (r) =>
-              `<option value="${r.id}">${A.escapeHtml(r.name)} · ${A.genderLabel(r.gender)} (${r.occupancy}/${
+              `<option value="${r.id}">${A.escapeHtml(r.name)} · ${A.roomTypeLabel(A.roomGender(r))} (${r.occupancy}/${
                 r.capacity
               })</option>`
           )

@@ -71,8 +71,13 @@
     return { state: 'open', desc: `${count}. Còn ${groups.pending} người chưa bốc thăm.` };
   }
 
+  // Tong so phong = phong dang la nam + dang la nu + phong nam hoac nu chua co ai
+  function totalRoomCount(rooms) {
+    return rooms.byGender.MALE.rooms + rooms.byGender.FEMALE.rooms + (rooms.openRooms ? rooms.openRooms.rooms : 0);
+  }
+
   function roomStep(flow, rooms) {
-    const totalRooms = rooms.byGender.MALE.rooms + rooms.byGender.FEMALE.rooms;
+    const totalRooms = totalRoomCount(rooms);
     // Ai chua dat gioi tinh thi chua the co phong -> chua the "hoan tat"
     const doneAll = rooms.noGender === 0 && rooms.eligible > 0 && rooms.assigned >= rooms.eligible;
     const parts = [`${rooms.assigned}/${rooms.eligible} người đã có phòng · ${totalRooms} phòng`];
@@ -128,7 +133,8 @@
     const gaps = ['FEMALE', 'MALE']
       .map((gender) => ({
         label: gender === 'FEMALE' ? 'nữ' : 'nam',
-        missing: r.byGender[gender].members - r.byGender[gender].capacity,
+        // Server da chia phong nam hoac nu dang trong cho ben thieu
+        missing: r.shortage ? r.shortage[gender] : r.byGender[gender].members - r.byGender[gender].capacity,
       }))
       .filter((x) => x.missing > 0);
 
@@ -243,7 +249,7 @@
 
     A.setBadge('members', data.members.total);
     A.setBadge('groups', data.groups.totalGroups);
-    A.setBadge('rooms', data.rooms.byGender.MALE.rooms + data.rooms.byGender.FEMALE.rooms);
+    A.setBadge('rooms', totalRoomCount(data.rooms));
     A.setBadge('questions', data.quiz.questions);
   }
 

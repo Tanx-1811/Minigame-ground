@@ -32,7 +32,7 @@
               <div class="admin-page-head">
                 <div>
                   <h2><i data-lucide="bed-double"></i> Phòng ngủ</h2>
-                  <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính, chưa khóa và còn chỗ. Sức chứa 2 nghĩa là ghép cặp đôi.</p>
+                  <p>Nam ở với nam, nữ ở với nữ — tuyệt đối không xếp chung. Phòng <strong>Nam hoặc nữ</strong> nhận cả hai khi còn trống: người đầu tiên vào quyết định đó là phòng nam hay nữ. Sức chứa 2 nghĩa là ghép cặp đôi.</p>
                 </div>
                 <div class="admin-page-head-actions">
                   <button id="roomExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
@@ -82,21 +82,60 @@
 
               <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
+                    <h3><i data-lucide="list-ordered"></i> Thêm nhiều phòng một lúc</h3>
+                    <p>Dán danh sách số phòng (cách nhau bằng dấu phẩy hoặc xuống dòng), hệ thống tạo đủ theo đúng thứ tự đã nhập.</p>
+                  </div>
+                </summary>
+                <div class="admin-card-body">
+                  <div class="admin-field">
+                    <label for="bulkRoomNames"><i data-lucide="list"></i> Số / tên phòng</label>
+                    <textarea id="bulkRoomNames" rows="3" placeholder="VD: 202, 110, 111, 105, 108"></textarea>
+                  </div>
+                  <div class="admin-form-grid is-tight">
+                    <div class="admin-field">
+                      <label for="bulkRoomPrefix"><i data-lucide="type"></i> Tiền tố tên phòng</label>
+                      <input id="bulkRoomPrefix" type="text" value="Phòng" aria-describedby="bulkRoomPrefixHint" />
+                      <span class="admin-field-hint" id="bulkRoomPrefixHint">"202" thành "Phòng 202". Để trống nếu muốn giữ nguyên.</span>
+                    </div>
+                    <div class="admin-field">
+                      <label for="bulkRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
+                      <select id="bulkRoomGender">
+                        <option value="ANY">Nam hoặc nữ</option>
+                        <option value="FEMALE">Chỉ nữ</option>
+                        <option value="MALE">Chỉ nam</option>
+                      </select>
+                    </div>
+                    <div class="admin-field">
+                      <label for="bulkRoomCapacity"><i data-lucide="users"></i> Sức chứa mỗi phòng</label>
+                      <input id="bulkRoomCapacity" type="number" min="1" max="50" value="2" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <p class="admin-help"><strong>Nam hoặc nữ</strong>: phòng trống ai vào cũng được, nhưng người đầu tiên vào quyết định đó là phòng nam hay nữ — sau đó chỉ nhận người cùng giới. Phòng trùng tên với phòng đã có sẽ được bỏ qua. Sức chứa từng phòng sửa riêng được ở danh sách bên dưới.</p>
+                  <div class="admin-btn-row">
+                    <button id="bulkRoomBtn" class="admin-btn" type="button"><i data-lucide="plus"></i> Tạo các phòng</button>
+                  </div>
+                  <p id="bulkRoomMsg" class="admin-msg" aria-live="polite"></p>
+                </div>
+              </details>
+
+              <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
+                  <div>
                     <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
-                    <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
+                    <p>Thêm từng phòng một. Tên phòng không được trùng nhau.</p>
                   </div>
                 </summary>
                 <div class="admin-card-body">
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="newRoomName"><i data-lucide="tag"></i> Tên phòng</label>
-                      <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+                      <input id="newRoomName" type="text" placeholder="VD: Phòng 202" />
                     </div>
                     <div class="admin-field">
                       <label for="newRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
                       <select id="newRoomGender">
-                        <option value="FEMALE">Nữ</option>
-                        <option value="MALE">Nam</option>
+                        <option value="ANY">Nam hoặc nữ</option>
+                        <option value="FEMALE">Chỉ nữ</option>
+                        <option value="MALE">Chỉ nam</option>
                       </select>
                     </div>
                     <div class="admin-field">

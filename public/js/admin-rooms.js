@@ -1,8 +1,9 @@
 // Tab "Phong ngu": tao phong, ghep nguoi, sua/khoa/xoa tung phong, doi cho 2 nguoi.
 //
 // Nguyen tac: nam o voi nam, nu o voi nu - moi o chon phong chi liet ke phong
-// dung gioi tinh va con cho. Phong bi KHOA van giu nguoi dang o nhung khong
-// nhan them ai khi random.
+// nhan duoc gioi tinh do. Phong "nam hoac nu" (gender = null) nhan ca hai khi
+// con trong, nguoi dau tien vao quyet dinh phong la nam hay nu. Phong bi KHOA
+// van giu nguoi dang o nhung khong nhan them ai khi random.
 //
 // The phong dang mo o sua (co thay doi chua luu / dang go) va dong "chua co
 // phong" dang mo o chon thi GIU NGUYEN khi co cap nhat realtime.
@@ -21,6 +22,13 @@
   const resetBtn = document.getElementById('roomResetBtn');
   const keepPinned = document.getElementById('roomKeepPinned');
   const actionMsg = document.getElementById('roomActionMsg');
+
+  const bulkNames = document.getElementById('bulkRoomNames');
+  const bulkPrefix = document.getElementById('bulkRoomPrefix');
+  const bulkGender = document.getElementById('bulkRoomGender');
+  const bulkCapacity = document.getElementById('bulkRoomCapacity');
+  const bulkBtn = document.getElementById('bulkRoomBtn');
+  const bulkMsg = document.getElementById('bulkRoomMsg');
 
   const newName = document.getElementById('newRoomName');
   const newGender = document.getElementById('newRoomGender');
@@ -49,17 +57,21 @@
 
   const FILTERS = [
     { key: 'all', label: 'Tất cả', icon: 'layers', test: () => true },
-    { key: 'female', label: 'Phòng nữ', icon: 'venus', test: (r) => r.gender === 'FEMALE' },
-    { key: 'male', label: 'Phòng nam', icon: 'mars', test: (r) => r.gender === 'MALE' },
+    { key: 'female', label: 'Phòng nữ', icon: 'venus', test: (r) => A.roomGender(r) === 'FEMALE' },
+    { key: 'male', label: 'Phòng nam', icon: 'mars', test: (r) => A.roomGender(r) === 'MALE' },
+    { key: 'flex', label: 'Nam hoặc nữ', icon: 'venus-and-mars', test: (r) => !r.gender },
     { key: 'free', label: 'Còn chỗ', icon: 'door-open', test: (r) => r.occupancy < r.capacity },
     { key: 'full', label: 'Đã kín', icon: 'door-closed', test: (r) => r.occupancy >= r.capacity },
     { key: 'empty', label: 'Đang trống', icon: 'ghost', test: (r) => r.occupancy === 0 },
     { key: 'locked', label: 'Đang khóa', icon: 'lock', test: (r) => r.locked },
   ];
 
+  // Phong nam hoac nu nam rieng 1 khu (khong nhay qua lai giua khu nam / nu moi
+  // khi co nguoi vao ra), the phong tu hien dang la phong nam hay nu.
   const SECTIONS = [
-    { gender: 'FEMALE', label: 'Phòng nữ', icon: 'venus' },
-    { gender: 'MALE', label: 'Phòng nam', icon: 'mars' },
+    { key: 'FEMALE', label: 'Phòng nữ', icon: 'venus', test: (r) => r.gender === 'FEMALE' },
+    { key: 'MALE', label: 'Phòng nam', icon: 'mars', test: (r) => r.gender === 'MALE' },
+    { key: 'FLEX', label: 'Phòng nam hoặc nữ', icon: 'venus-and-mars', test: (r) => !r.gender },
   ];
 
   let activeFilter = 'all';
@@ -74,11 +86,12 @@
 
   // Phong chia theo gioi nen tong suc chua du van co the thieu cho cho 1 ben,
   // va nguoi chua dat gioi tinh van can 1 cho (chua biet ben nao).
+  // Phong nam hoac nu dang trong da duoc server chia cho ben thieu (stats.shortage).
   function capacityTile(st) {
     const gaps = ['FEMALE', 'MALE']
       .map((gender) => ({
         label: gender === 'FEMALE' ? 'nữ' : 'nam',
-        missing: st.byGender[gender].members - st.byGender[gender].capacity,
+        missing: st.shortage ? st.shortage[gender] : st.byGender[gender].members - st.byGender[gender].capacity,
       }))
       .filter((x) => x.missing > 0);
 
@@ -100,6 +113,8 @@
       sub = 'Đủ chỗ cho mọi người';
       variant = 'ok';
     }
+    const open = st.openRooms && st.openRooms.rooms;
+    if (open) sub += ` · ${open} phòng chưa có ai (nam hoặc nữ)`;
     return A.statTile({ icon: 'door-open', label: 'Tổng sức chứa', value: `${st.totalCapacity} chỗ`, sub, variant });
   }
 
@@ -194,12 +209,24 @@
       </div>`;
   }
 
+  // Phong nam hoac nu: the hien dang la phong gi (trong thi nhan ca hai)
+  function flexTag(room) {
+    if (room.gender) return '';
+    const current = A.roomGender(room);
+    return current
+      ? `<span class="admin-tag ${A.genderClass(current)}">${A.icon(A.genderIcon(current), 'ic-sm')} Đang là phòng ${A.genderLabel(
+          current
+        ).toLowerCase()}</span>`
+      : `<span class="admin-tag">${A.icon('venus-and-mars', 'ic-sm')} Nam hoặc nữ</span>`;
+  }
+
   function roomCardHtml(room) {
     const pct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
     const scope = `r${room.id}`;
     const isOpen = expanded.has(room.id);
+    const current = A.roomGender(room);
     const classes = [
-      A.genderClass(room.gender),
+      A.genderClass(current),
       room.isFull ? 'is-full' : '',
       room.locked ? 'is-locked' : '',
       room.occupancy === 0 ? 'is-empty' : '',
@@ -211,7 +238,8 @@
       <div class="admin-room ${classes}" data-room-id="${room.id}">
         <div class="admin-room-top">
           <div class="admin-room-name">
-            <span>${A.icon(A.genderIcon(room.gender))} ${A.escapeHtml(room.name)}</span>
+            <span>${A.icon(current ? A.genderIcon(current) : 'venus-and-mars')} ${A.escapeHtml(room.name)}</span>
+            ${flexTag(room)}
             ${room.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : ''}
           </div>
           <span class="admin-room-count" title="Số người / sức chứa">${room.occupancy}/${room.capacity}</span>
@@ -248,8 +276,9 @@
             <div class="admin-field">
               <label for="${scope}-gender">Dành cho</label>
               <select id="${scope}-gender" data-edit="gender">
-                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>Nữ</option>
-                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>Nam</option>
+                <option value="ANY" ${!room.gender ? 'selected' : ''}>Nam hoặc nữ</option>
+                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>Chỉ nữ</option>
+                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>Chỉ nam</option>
               </select>
             </div>
             <div class="admin-field">
@@ -275,7 +304,7 @@
     const read = (field) => card.querySelector(`[data-edit="${field}"]`).value.trim();
     const body = {};
     if (read('name') !== room.name) body.name = read('name');
-    if (read('gender') !== room.gender) body.gender = read('gender');
+    if (read('gender') !== (room.gender || 'ANY')) body.gender = read('gender');
     if (read('capacity') !== String(room.capacity)) body.capacity = read('capacity');
     if (read('note') !== (room.note || '')) body.note = read('note');
     return body;
@@ -306,18 +335,18 @@
         <p>${
           rooms.length
             ? 'Thử đổi bộ lọc hoặc xóa từ khóa tìm kiếm.'
-            : 'Dùng "Tạo phòng tự động" ở trên để hệ thống tạo đủ phòng cho cả nam và nữ.'
+            : 'Dùng "Thêm nhiều phòng một lúc" để nhập danh sách số phòng, hoặc "Tạo phòng tự động" ở trên.'
         }</p></div>`;
       return;
     }
 
-    // Khung 2 khu nam / nu dung 1 lan, sau do chi ve lai tung the trong moi khu
+    // Khung cac khu (nu / nam / nam hoac nu) dung 1 lan, sau do chi ve lai tung the trong moi khu
     let wrap = roomList.querySelector(':scope > .admin-room-list');
     if (!wrap) {
       roomList.innerHTML = `<div class="admin-room-list">${SECTIONS.map(
         (section) => `
-          <section class="admin-room-section" data-section="${section.gender}" aria-label="${section.label}">
-            <div class="admin-room-group-head ${A.genderClass(section.gender)}">
+          <section class="admin-room-section" data-section="${section.key}" aria-label="${section.label}">
+            <div class="admin-room-group-head ${A.genderClass(section.key)}">
               ${A.icon(section.icon)} ${section.label}
               <span class="admin-chip" data-section-count></span>
             </div>
@@ -328,8 +357,8 @@
     }
 
     SECTIONS.forEach((section) => {
-      const box = wrap.querySelector(`[data-section="${section.gender}"]`);
-      const ofGender = list.filter((r) => r.gender === section.gender);
+      const box = wrap.querySelector(`[data-section="${section.key}"]`);
+      const ofGender = list.filter(section.test);
       box.hidden = !ofGender.length;
       const people = ofGender.reduce((sum, r) => sum + r.occupancy, 0);
       const slots = ofGender.reduce((sum, r) => sum + r.capacity, 0);
@@ -359,7 +388,7 @@
     const options = member.gender
       ? '<option value="">Chọn phòng…</option>' +
         rooms
-          .filter((r) => r.gender === member.gender)
+          .filter((r) => A.roomAccepts(r, member.gender))
           .map((r) => {
             const full = r.occupancy >= r.capacity;
             return `<option value="${r.id}" ${full ? 'disabled' : ''}>${A.escapeHtml(r.name)} (${r.occupancy}/${r.capacity})${
@@ -480,6 +509,7 @@
       if (roomRes.defaultCapacity) {
         if (!autoCapacity.dataset.touched) autoCapacity.value = roomRes.defaultCapacity;
         if (!newCapacity.dataset.touched) newCapacity.value = roomRes.defaultCapacity;
+        if (!bulkCapacity.dataset.touched) bulkCapacity.value = roomRes.defaultCapacity;
       }
 
       render();
@@ -493,6 +523,9 @@
   });
   newCapacity.addEventListener('input', () => {
     newCapacity.dataset.touched = '1';
+  });
+  bulkCapacity.addEventListener('input', () => {
+    bulkCapacity.dataset.touched = '1';
   });
 
   /* ---------- loc ---------- */
@@ -691,6 +724,29 @@
 
   /* ---------- them phong ---------- */
 
+  bulkBtn.addEventListener('click', async () => {
+    const data = await A.run(bulkBtn, bulkMsg, 'Đang tạo phòng...', () =>
+      A.request('POST', '/api/admin/rooms/bulk-create', {
+        names: bulkNames.value,
+        prefix: bulkPrefix.value,
+        gender: bulkGender.value,
+        capacity: bulkCapacity.value,
+      })
+    );
+    if (!data) return;
+
+    const parts = [];
+    if (data.created.length) parts.push(`Đã tạo ${data.created.length} phòng: ${data.created.map((r) => r.name).join(', ')}.`);
+    if (data.skipped.length) parts.push(`Bỏ qua ${data.skipped.length} phòng đã có: ${data.skipped.join(', ')}.`);
+    if (data.created.length) {
+      A.done(bulkMsg, parts.join(' '));
+      bulkNames.value = '';
+    } else {
+      A.setMsg(bulkMsg, parts.join(' ') || 'Không có phòng nào mới.', 'warn');
+    }
+    load();
+  });
+
   addBtn.addEventListener('click', async () => {
     const data = await A.run(addBtn, addMsg, 'Đang thêm...', () =>
       A.request('POST', '/api/admin/rooms', {
@@ -842,9 +898,10 @@
   exportBtn.addEventListener('click', () => {
     const rows = [['Phòng', 'Dành cho', 'Sức chứa', 'Số người', 'Trạng thái', 'Ghi chú', 'Thành viên']];
     visibleRooms().forEach((r) => {
+      const current = A.roomGender(r);
       rows.push([
         r.name,
-        A.genderLabel(r.gender),
+        r.gender ? A.genderLabel(r.gender) : `Nam hoặc nữ${current ? ` (đang là ${A.genderLabel(current).toLowerCase()})` : ''}`,
         r.capacity,
         r.occupancy,
         r.locked ? 'Đang khóa' : r.isFull ? 'Đã kín' : 'Còn chỗ',
