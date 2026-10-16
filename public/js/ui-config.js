@@ -49,8 +49,6 @@ window.UiConfig = (function () {
       root.style.setProperty('--accent', ui.accentColor);
       const onAccent = onAccentColor(ui.accentColor);
       if (onAccent) root.style.setProperty('--on-accent', onAccent);
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', ui.accentColor);
     }
 
     const titleKey = (document.body && document.body.dataset.uiTitle) || 'brandTitle';
