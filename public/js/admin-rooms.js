@@ -126,6 +126,9 @@
     const f = stats.byGender.FEMALE;
     const m = stats.byGender.MALE;
     const notPlaced = stats.pending + stats.noGender;
+    // Phong nam hoac nu chua co ai: ben nao cung vao duoc
+    const openCap = stats.openRooms ? stats.openRooms.capacity : 0;
+    const openNote = openCap ? ` + ${openCap} chỗ phòng chung` : '';
 
     // Luon 6 o de luoi 6 / 3 / 2 cot khong le
     statsBox.innerHTML = [
@@ -147,14 +150,14 @@
         icon: 'venus',
         label: 'Phòng nữ',
         value: f.rooms,
-        sub: `${f.assigned}/${f.members} người · ${f.capacity} chỗ`,
+        sub: `${f.assigned}/${f.members} người · ${f.capacity} chỗ${openNote}`,
         variant: 'female',
       }),
       A.statTile({
         icon: 'mars',
         label: 'Phòng nam',
         value: m.rooms,
-        sub: `${m.assigned}/${m.members} người · ${m.capacity} chỗ`,
+        sub: `${m.assigned}/${m.members} người · ${m.capacity} chỗ${openNote}`,
         variant: 'male',
       }),
       capacityTile(stats),

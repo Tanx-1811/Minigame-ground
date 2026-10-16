@@ -51,6 +51,8 @@ const GENDER_SECTIONS = [
   { gender: 'MALE', icon: '👨', lucide: 'mars', label: 'Nam', tone: 'male' },
 ];
 const UNKNOWN_GENDER = { gender: null, icon: '❔', lucide: 'circle-help', label: 'Chưa đặt', tone: 'none' };
+// Phong "nam hoac nu" (gender = null) dang trong: chua thuoc ve gioi nao
+const FLEX_GENDER = { gender: null, icon: '🛏️', lucide: 'venus-and-mars', label: 'Nam hoặc nữ', tone: 'none' };
 
 let members = [];
 let membersLoaded = false;
@@ -178,9 +180,33 @@ function roomedIds() {
   return ids;
 }
 
-// Giong pickRoom() phia server: dung gioi tinh, khong khoa, con cho
+// Giong pickRoom() phia server: khong khoa, con cho (gioi tinh xet o roomAccepts)
 function isAvailable(room) {
   return !room.locked && room.occupancy < room.capacity;
+}
+
+// Gioi dang ap dung cua phong (giong activeGender() o server/rooms.js): phong co
+// dinh -> gioi cua phong; phong nam hoac nu -> gioi nguoi dang o, trong -> null
+function roomGender(room) {
+  if (room.gender) return room.gender;
+  const first = (room.members || []).find((m) => m.gender);
+  return first ? first.gender : null;
+}
+
+function roomAccepts(room, gender) {
+  const current = roomGender(room);
+  return !current || current === gender;
+}
+
+function roomMeta(room) {
+  const current = roomGender(room);
+  return current ? genderMeta(current) : FLEX_GENDER;
+}
+
+function roomChip(room) {
+  const meta = roomMeta(room);
+  const cls = meta.tone === 'none' ? 'is-muted' : `is-${meta.tone}`;
+  return `<span class="chip ${cls}">${ic(meta.lucide)} ${meta.label}</span>`;
 }
 
 function normalizeRoom(room) {
@@ -200,15 +226,17 @@ function emptyGenderStats() {
   return { members: 0, assigned: 0, rooms: 0, capacity: 0, free: 0, lockedRooms: 0 };
 }
 
+// Phong nam hoac nu dang trong tinh rieng vao "open" - ben nao vao truoc thi thanh cua ben do
+
 // Tinh lai so lieu tu members + rooms dang hien thi de moi con so luon khop voi
 // danh sach phong (ke ca ngay sau 1 luot quay, khi chua co rooms:updated).
 // Chua tai duoc members thi dung so lieu server gui kem.
 function computeStats() {
   const byGender = { MALE: emptyGenderStats(), FEMALE: emptyGenderStats() };
+  const open = emptyGenderStats();
 
   rooms.forEach((room) => {
-    const g = byGender[room.gender];
-    if (!g) return;
+    const g = byGender[roomGender(room)] || open;
     g.rooms += 1;
     g.capacity += room.capacity;
     if (room.locked) g.lockedRooms += 1;
@@ -227,6 +255,7 @@ function computeStats() {
       pending: serverStats.pending || 0,
       noGender: serverStats.noGender || 0,
       byGender,
+      open,
     };
   }
 
@@ -247,7 +276,7 @@ function computeStats() {
     }
   });
 
-  return { eligible: members.length, assigned, pending, noGender, byGender };
+  return { eligible: members.length, assigned, pending, noGender, byGender, open };
 }
 
 /* ---------- render ---------- */
@@ -267,9 +296,10 @@ function renderStats() {
   const s = computeStats();
   const female = s.byGender.FEMALE;
   const male = s.byGender.MALE;
+  const open = s.open;
   const allDone = s.eligible > 0 && s.assigned >= s.eligible;
-  const freeTotal = female.free + male.free;
-  const lockedRooms = female.lockedRooms + male.lockedRooms;
+  const freeTotal = female.free + male.free + open.free;
+  const lockedRooms = female.lockedRooms + male.lockedRooms + open.lockedRooms;
 
   let assignedSub;
   if (!s.eligible) assignedSub = 'Chưa có ai trong danh sách';
@@ -277,7 +307,11 @@ function renderStats() {
   else if (s.pending) assignedSub = `Còn ${s.pending} người chưa quay`;
   else assignedSub = 'Chờ admin đặt giới tính';
 
-  const genderSub = (g) => (g.rooms ? `${g.rooms} phòng · còn ${g.free} chỗ` : 'Chưa có phòng');
+  // Cho con vao duoc cua 1 gioi = cho trong phong cua gioi do + phong chua co ai
+  const genderSub = (g) => {
+    if (g.rooms) return `${g.rooms} phòng · còn ${g.free + open.free} chỗ`;
+    return open.rooms ? `Vào phòng trống bất kỳ · ${open.free} chỗ` : 'Chưa có phòng';
+  };
 
   roomsStats.innerHTML = [
     statTile({
@@ -293,7 +327,11 @@ function renderStats() {
       icon: 'door-open',
       label: 'Chỗ trống',
       value: `${freeTotal}`,
-      sub: lockedRooms ? `${lockedRooms} phòng đang khóa` : `${rooms.length} phòng`,
+      sub: lockedRooms
+        ? `${lockedRooms} phòng đang khóa`
+        : open.rooms
+          ? `${open.rooms}/${rooms.length} phòng chưa có ai`
+          : `${rooms.length} phòng`,
       variant: lockedRooms ? 'warn' : '',
     }),
   ].join('');
@@ -315,7 +353,8 @@ function renderStats() {
   }
 }
 
-function roomCardHtml(room, meta, me) {
+function roomCardHtml(room, me) {
+  const meta = roomMeta(room);
   const isMine = !!me && room.members.some((m) => m.name === me);
   const isFull = room.occupancy >= room.capacity;
   const fillPct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
@@ -348,7 +387,7 @@ function roomCardHtml(room, meta, me) {
         <div class="room-card-title">
           <h3>${escapeHtml(room.name)}</h3>
           <div class="room-card-tags">
-            ${genderChip(room.gender)}
+            ${roomChip(room)}
             ${room.locked ? `<span class="chip is-warn">${ic('lock')} Đã khóa</span>` : ''}
             ${isFull ? `<span class="chip is-ok">${ic('check')} Đủ người</span>` : ''}
           </div>
@@ -378,8 +417,24 @@ function renderRooms() {
   }
 
   const me = myName();
-  roomsList.innerHTML = GENDER_SECTIONS.map((meta) => {
-    const sectionRooms = rooms.filter((r) => r.gender === meta.gender);
+  // Phong co dinh chia theo gioi; phong nam hoac nu nam chung 1 khu (khong nhay khu
+  // moi khi co nguoi vao), the phong tu hien dang la phong nam hay nu.
+  const flexOnly = rooms.every((r) => !r.gender);
+  const sections = [
+    ...GENDER_SECTIONS.map((meta) => ({
+      meta,
+      title: `Phòng ${meta.label.toLowerCase()}`,
+      list: rooms.filter((r) => r.gender === meta.gender),
+    })),
+    {
+      meta: FLEX_GENDER,
+      title: flexOnly ? 'Danh sách phòng' : 'Phòng nam hoặc nữ',
+      note: 'nam, nữ ở riêng phòng',
+      list: rooms.filter((r) => !r.gender),
+    },
+  ];
+
+  roomsList.innerHTML = sections.map(({ meta, title, note, list: sectionRooms }) => {
     if (!sectionRooms.length) return '';
 
     const people = sectionRooms.reduce((sum, r) => sum + r.occupancy, 0);
@@ -389,12 +444,14 @@ function renderRooms() {
     const allFull = people >= capacity;
 
     return `
-      <section class="rooms-section is-${meta.tone}" aria-label="Phòng ${meta.label.toLowerCase()}">
+      <section class="rooms-section is-${meta.tone}" aria-label="${title}">
         <div class="rooms-section-head">
           <span class="rooms-section-icon" aria-hidden="true">${ic(meta.lucide)}</span>
           <div class="rooms-section-titles">
-            <h2>Phòng ${meta.label.toLowerCase()}</h2>
-            <p><span class="num">${sectionRooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người</p>
+            <h2>${title}</h2>
+            <p><span class="num">${sectionRooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người${
+              note ? ` · ${note}` : ''
+            }</p>
           </div>
           <div class="rooms-section-meta">
             ${
@@ -405,7 +462,7 @@ function renderRooms() {
             ${lockedCount ? `<span class="chip is-warn">${ic('lock')} ${lockedCount} phòng khóa</span>` : ''}
           </div>
         </div>
-        <div class="rooms-grid">${sectionRooms.map((room) => roomCardHtml(room, meta, me)).join('')}</div>
+        <div class="rooms-grid">${sectionRooms.map((room) => roomCardHtml(room, me)).join('')}</div>
       </section>`;
   }).join('');
 }
@@ -426,7 +483,7 @@ function renderResult(name) {
   if (key === lastResultKey) return true;
   lastResultKey = key;
 
-  const meta = genderMeta(room.gender);
+  const meta = roomMeta(room);
   const mates = room.members.filter((m) => m.name !== name);
   const free = Math.max(0, room.capacity - room.occupancy);
 
@@ -445,7 +502,7 @@ function renderResult(name) {
     <div class="rooms-result is-${meta.tone}">
       <div class="rooms-result-top">
         <span class="rooms-result-kicker">${ic('party-popper')} Phòng của bạn</span>
-        ${genderChip(room.gender)}
+        ${roomChip(room)}
       </div>
       <p class="rooms-result-room">${meta.icon} ${escapeHtml(room.name)}</p>
       <p class="rooms-result-mates">${summary}</p>
@@ -552,12 +609,13 @@ function updateDrawState() {
     return;
   }
 
-  const myRooms = rooms.filter((r) => r.gender === member.gender);
+  // Phong cua gioi minh + phong nam hoac nu con trong / dang cung gioi
+  const myRooms = rooms.filter((r) => roomAccepts(r, member.gender));
   const freeRooms = myRooms.filter(isAvailable);
   const label = meta.label.toLowerCase();
 
   setMeLine(
-    `${genderChip(member.gender)} <span>Còn <strong class="num">${freeRooms.length}</strong> phòng ${label} trống chỗ</span>`
+    `${genderChip(member.gender)} <span>Còn <strong class="num">${freeRooms.length}</strong> phòng còn chỗ cho ${label}</span>`
   );
 
   if (locked) {
@@ -577,8 +635,8 @@ function updateDrawState() {
     const lockedWithSpace = myRooms.some((r) => r.locked && r.occupancy < r.capacity);
     setNotice(
       lockedWithSpace
-        ? `Các phòng ${label} còn chỗ đều đang bị khóa — chờ admin mở khóa nhé.`
-        : `Các phòng ${label} đã kín chỗ — nhờ admin mở thêm phòng.`
+        ? `Các phòng còn chỗ cho ${label} đều đang bị khóa — chờ admin mở khóa nhé.`
+        : `Các phòng cho ${label} đã kín chỗ — nhờ admin mở thêm phòng.`
     );
     return;
   }
@@ -797,8 +855,9 @@ function wait(ms) {
 }
 
 function spinTo(room) {
-  const meta = genderMeta(room.gender);
-  const pool = rooms.filter((r) => r.gender === room.gender && !r.locked);
+  const meta = roomMeta(room);
+  const gender = roomGender(room);
+  const pool = rooms.filter((r) => !r.locked && roomAccepts(r, gender));
   if (!pool.length) pool.push(room);
 
   const items = [];
