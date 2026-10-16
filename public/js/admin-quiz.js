@@ -1,4 +1,8 @@
-// Trang "Vong Quiz": phong cho, bat dau lam bai, bang xep hang, chot Nhom Truong.
+// Trang "Vong Quiz": bat/tat vong Quiz, phong cho, bat dau lam bai, bang xep hang,
+// chot Nhom Truong.
+//
+// Tat vong Quiz: trang chu vao thang boc tham, cac the chay Quiz duoc an di; Nhom
+// Truong (neu can) do admin tick tay o cot NT trang Thanh vien.
 //
 // Nut "Bat dau" chi bat khi dang o giai doan Quiz, co cau hoi va chua bat dau.
 // Bang xep hang lay thang tu su kien quiz:progress (kem san leaderboard), khong
@@ -24,10 +28,40 @@
   const quizAdminLeaderboard = document.getElementById('quizAdminLeaderboard');
   const boardLegend = document.getElementById('quizBoardLegend');
   const quizMsg = document.getElementById('quizMsg');
+  const quizEnabledToggle = document.getElementById('quizEnabledToggle');
+  const quizOffNote = document.getElementById('quizOffNote');
+  const quizModeMsg = document.getElementById('quizModeMsg');
+  const runSections = panel.querySelectorAll('[data-quiz-run]');
 
-  const state = { phase: 'quiz', status: 'waiting', leaderCount: 4, questions: 0, leaders: [], ready: false };
+  const state = {
+    enabled: true,
+    phase: 'quiz',
+    status: 'waiting',
+    leaderCount: 4,
+    questions: 0,
+    leaders: [],
+    ready: false,
+  };
   let lobby = [];
   let board = [];
+
+  /* ---------- bat / tat vong Quiz ---------- */
+
+  function renderMode() {
+    quizEnabledToggle.checked = state.enabled;
+    runSections.forEach((el) => {
+      el.hidden = !state.enabled;
+    });
+
+    quizOffNote.hidden = state.enabled;
+    if (state.enabled) return;
+    const names = state.leaders.map((l) => `<strong>${A.escapeHtml(l.name)}</strong>`).join(', ');
+    quizOffNote.innerHTML = `${
+      state.leaders.length
+        ? `Hiện có ${state.leaders.length} Nhóm Trưởng: ${names}.`
+        : 'Hiện chưa có Nhóm Trưởng nào — không cần thì cứ để trống.'
+    } Muốn chọn Nhóm Trưởng thì tick cột <strong>NT</strong> ở trang <a href="/admin/members.html">Thành viên</a>; các Nhóm Trưởng luôn được bốc vào những nhóm khác nhau.`;
+  }
 
   /* ---------- trang thai chung ---------- */
 
@@ -63,6 +97,7 @@
   }
 
   function syncButtons() {
+    A.setAllowed(quizEnabledToggle, state.ready);
     const noQuestions = state.questions === 0;
     const chosen = state.phase === 'random';
     const active = state.status === 'active';
@@ -163,6 +198,7 @@
 
       lobby = Array.isArray(lobbyRes.members) ? lobbyRes.members : [];
       board = Array.isArray(boardRes) ? boardRes : [];
+      state.enabled = config.quizEnabled !== false;
       state.phase = config.phase;
       state.status = lobbyRes.status || config.quizStatus;
       state.leaderCount = questions.leaderCount || config.leaderCount || 4;
@@ -170,6 +206,7 @@
       state.questions = questions.count;
       state.ready = true;
 
+      renderMode();
       renderLobby();
       renderBoard();
       renderStats();
@@ -180,6 +217,49 @@
   });
 
   /* ---------- thao tac ---------- */
+
+  quizEnabledToggle.addEventListener('change', async () => {
+    const enabled = quizEnabledToggle.checked;
+    const ok = await A.confirmAction(
+      enabled
+        ? {
+            title: 'Bật lại vòng Quiz',
+            message: `Dùng lại vòng Quiz để chọn Nhóm Trưởng?<br />Mọi người đang mở trang sẽ được đưa về màn Quiz, <strong>vòng bốc thăm tạm đóng</strong> cho tới khi bạn chốt Nhóm Trưởng. Kết quả chia nhóm đã có vẫn giữ nguyên.${
+              state.questions ? '' : '<br /><br />Chưa có câu hỏi nào nên trang chủ vẫn vào thẳng bốc thăm cho tới khi bạn thêm câu hỏi.'
+            }`,
+            okText: 'Bật vòng Quiz',
+            danger: false,
+          }
+        : {
+            title: 'Tắt vòng Quiz',
+            message:
+              'Bỏ qua bước trả lời câu hỏi chọn Nhóm Trưởng?<br />Trang chủ sẽ vào thẳng <strong>vòng bốc thăm</strong>; ai đang ở phòng chờ hoặc đang làm quiz được chuyển sang màn chia nhóm ngay. Nhóm Trưởng hiện có và điểm quiz cũ được giữ nguyên.',
+            okText: 'Tắt vòng Quiz',
+            danger: false,
+          }
+    );
+    if (!ok) {
+      quizEnabledToggle.checked = state.enabled;
+      return;
+    }
+
+    quizEnabledToggle.disabled = true;
+    const data = await A.run(null, quizModeMsg, enabled ? 'Đang bật vòng Quiz...' : 'Đang tắt vòng Quiz...', () =>
+      A.request('POST', '/api/admin/quiz/enabled', { enabled })
+    );
+    if (data) {
+      state.enabled = data.quizEnabled;
+      if (data.phase) state.phase = data.phase;
+      if (Array.isArray(data.leaders)) state.leaders = data.leaders;
+      A.done(
+        quizModeMsg,
+        enabled ? 'Đã bật vòng Quiz — trang chủ quay về màn Quiz.' : 'Đã tắt vòng Quiz — mọi người vào thẳng vòng bốc thăm.'
+      );
+      scheduleLoad();
+    }
+    renderMode();
+    syncButtons();
+  });
 
   startQuizBtn.addEventListener('click', async () => {
     const ok = await A.confirmAction({

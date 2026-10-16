@@ -24,9 +24,19 @@
     open: { label: 'Đang mở', icon: 'play', cls: 'is-active' },
     locked: { label: 'Đang khóa', icon: 'lock', cls: 'is-locked' },
     done: { label: 'Hoàn tất', icon: 'circle-check', cls: 'is-done' },
+    off: { label: 'Đã tắt', icon: 'zap', cls: 'is-wait' },
   };
 
   function quizStep(flow, quiz) {
+    if (flow.quizEnabled === false) {
+      const leaders = data.members.leaders;
+      return {
+        state: 'off',
+        desc: `Bỏ qua Quiz — mọi người vào thẳng vòng chia nhóm. ${
+          leaders ? `${leaders} Nhóm Trưởng chọn tay.` : 'Chưa có Nhóm Trưởng.'
+        }`,
+      };
+    }
     if (!quiz.questions) {
       return {
         state: 'done',

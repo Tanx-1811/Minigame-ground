@@ -1085,6 +1085,34 @@ details.admin-card[open] > .admin-card-body {
   min-width: 0;
 }
 
+/* Cong tac chinh cua ca mot trang (vd bat/tat vong Quiz): nam rieng trong 1 the,
+   the da co vien nen bo khung cua cong tac, them dong mo ta ben duoi */
+.admin-switch.is-feature {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.admin-switch.is-feature strong {
+  display: block;
+  font-size: 0.93rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.admin-switch.is-feature small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.admin-stats[hidden] {
+  display: none;
+}
+
 /* O tick that van nam do (doc duoc bang trinh doc man hinh, focus duoc bang
    Tab), chi an di ve mat nhin */
 .admin-switch input {

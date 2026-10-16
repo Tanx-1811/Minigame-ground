@@ -36,9 +36,24 @@
                 </div>
               </div>
 
-              <div id="quizStats" class="admin-stats is-quad-wide" aria-live="polite"></div>
-
               <div class="admin-card">
+                <div class="admin-card-body">
+                  <label class="admin-switch is-feature" for="quizEnabledToggle">
+                    <span>
+                      <strong>Dùng vòng Quiz để chọn Nhóm Trưởng</strong>
+                      <small>Tắt khi không cần trả lời câu hỏi: trang chủ bỏ qua bước Quiz, mọi người vào thẳng vòng bốc thăm.</small>
+                    </span>
+                    <input id="quizEnabledToggle" type="checkbox" role="switch" checked data-keep-disabled="1" />
+                    <span class="admin-switch-track" aria-hidden="true"></span>
+                  </label>
+                  <p id="quizOffNote" class="admin-help" hidden></p>
+                  <p id="quizModeMsg" class="admin-msg" aria-live="polite"></p>
+                </div>
+              </div>
+
+              <div id="quizStats" class="admin-stats is-quad-wide" aria-live="polite" data-quiz-run></div>
+
+              <div class="admin-card" data-quiz-run>
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-open"></i> Bước 1 · Phòng chờ</h3>
@@ -57,7 +72,7 @@
                 </div>
               </div>
 
-              <div class="admin-card">
+              <div class="admin-card" data-quiz-run>
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="crown"></i> Bước 2 · Chốt Nhóm Trưởng</h3>
@@ -86,7 +101,7 @@
                 </div>
               </div>
 
-              <details class="admin-card is-danger is-collapsible-head"><summary class="admin-card-head">
+              <details class="admin-card is-danger is-collapsible-head" data-quiz-run><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="rotate-ccw"></i> Làm lại vòng Quiz</h3>
                     <p>Xóa điểm, câu trả lời và bỏ chốt Nhóm Trưởng để mọi người làm lại từ đầu. Không thể hoàn tác.</p>

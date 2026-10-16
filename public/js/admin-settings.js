@@ -52,7 +52,8 @@
   function renderSystem() {
     if (!settings) return;
 
-    const realPhase = settings.phase === 'quiz' && settings.counts.questions === 0 ? 'random' : settings.phase;
+    const quizSkipped = settings.quizEnabled === false || settings.counts.questions === 0;
+    const realPhase = settings.phase === 'quiz' && quizSkipped ? 'random' : settings.phase;
 
     systemStats.innerHTML = [
       A.statTile({ icon: 'users', label: 'Thành viên', value: settings.counts.members, variant: 'accent' }),
@@ -64,7 +65,9 @@
         label: 'Giai đoạn',
         value: realPhase === 'random' ? 'Random' : 'Quiz',
         sub:
-          settings.phase === 'quiz' && realPhase === 'random'
+          settings.quizEnabled === false
+            ? 'Đã tắt vòng Quiz'
+            : settings.phase === 'quiz' && realPhase === 'random'
             ? 'Bỏ qua Quiz — chưa có câu hỏi'
             : realPhase === 'random'
             ? 'Đã chốt Nhóm Trưởng'
@@ -99,8 +102,14 @@
       baseline[key] = server[key];
     });
 
-    phaseHint.textContent =
-      settings.counts.questions === 0
+    // Tat vong Quiz thi khong quay lai giai doan Quiz duoc (may chu cung chan)
+    const quizOption = FIELDS.phase.querySelector('option[value="quiz"]');
+    if (quizOption) quizOption.disabled = settings.quizEnabled === false;
+
+    phaseHint.innerHTML =
+      settings.quizEnabled === false
+        ? 'Vòng Quiz đang tắt nên luôn ở giai đoạn Random — bật lại ở trang <a href="/admin/quiz.html">Vòng Quiz</a>.'
+        : settings.counts.questions === 0
         ? 'Chưa có câu hỏi nào nên mọi người đang thấy thẳng vòng Random, dù chọn Quiz ở đây.'
         : 'Đổi giai đoạn sẽ chuyển màn hình của mọi người đang mở trang ngay lập tức.';
 
