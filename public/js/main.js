@@ -401,25 +401,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ---------- man hinh cho: hat bay + dem nguoc + 3 buoc ---------- */
-
-function setupIntroParticles() {
-  const container = document.querySelector('.intro-particles');
-  if (!container || container.childElementCount) return;
-  const emojis = ['🎉', '✨', '🎊', '⭐', '💫'];
-  const frag = document.createDocumentFragment();
-  for (let i = 0; i < 10; i++) {
-    const span = document.createElement('span');
-    span.className = 'intro-particle';
-    span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-    span.style.left = `${Math.random() * 100}%`;
-    span.style.setProperty('--p-size', `${1 + Math.random() * 1.4}rem`);
-    span.style.setProperty('--p-duration', `${7 + Math.random() * 6}s`);
-    span.style.setProperty('--p-delay', `${Math.random() * 8}s`);
-    frag.appendChild(span);
-  }
-  container.appendChild(frag);
-}
+/* ---------- man hinh cho: dem nguoc + 3 buoc ---------- */
 
 function setStartIcon(name) {
   if (startBtnIcon.dataset.icon === name) return;
@@ -1734,8 +1716,6 @@ if (window.UiConfig) {
     dataReady = true;
     updateStartBtnState();
   });
-
-  setupIntroParticles();
 
   await syncConfig({ cached: true });
   window.UiConfig.bind(socket);

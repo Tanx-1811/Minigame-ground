@@ -2,9 +2,10 @@
    theme.css - he thong thiet ke dung chung cho ca trang cong khai va admin.
    Nap TRUOC style.css / admin.css de cac file do ke thua bien mau o day.
 
-   Quy uoc cua du an: KHONG dung box-shadow o bat ky dau. Chieu sau duoc tao
-   bang vien 1px, lop nen chong nhau va gradient mo - nho vay giao dien van
-   "noi khoi" nhau ma khong can do bong.
+   Quy uoc cua du an: KHONG dung box-shadow o bat ky dau. Giao dien phang:
+   khong nen mo (blur), khong gradient trang tri, khong chu chuyen sac. Cac
+   khoi tach nhau bang vien 1px + nen trung tinh; mau nhan chi danh cho nut
+   chinh, muc dang chon va trang thai can chu y.
    =================================================================== */
 
 :root {
@@ -38,24 +39,24 @@
   --danger-soft: #fef2f2;
   --danger-line: #fecaca;
 
-  /* --- be mat & chu --- */
-  --bg: #f1f4f9;
-  --bg-deep: #e7ecf4;
+  /* --- be mat & chu (thang xam trung tinh, khong ngai xanh/tim) --- */
+  --bg: #f7f7f8;
+  --bg-deep: #f0f0f2;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --surface-3: #f1f5f9;
-  --line: #e4e9f2;
-  --line-strong: #cbd5e1;
-  --ink: #0b1220;
-  --ink-2: #334155;
-  --muted: #5a6882;
-  --muted-2: #74839b;
+  --surface-2: #fafafa;
+  --surface-3: #f2f2f4;
+  --line: #e6e6e9;
+  --line-strong: #d4d4d8;
+  --ink: #111114;
+  --ink-2: #3f3f46;
+  --muted: #64646d;
+  --muted-2: #7d7d87;
 
   /* --- hinh khoi --- */
-  --r-xl: 20px;
-  --r-lg: 16px;
-  --r: 12px;
-  --r-sm: 9px;
+  --r-xl: 14px;
+  --r-lg: 12px;
+  --r: 10px;
+  --r-sm: 8px;
   --r-pill: 999px;
   --control: 42px;
   --control-sm: 34px;
@@ -67,8 +68,8 @@
 }
 
 /* Admin doi mau chu dao (accentColor) -> ui-config.js chi dat lai --accent. Cac sac
-   do con lai tu suy ra tu do, neu khong nut bam se la gradient tu mau moi sang mau
-   tim cu, nen nhat van tim. Trinh duyet cu khong co color-mix thi giu bang mau tinh. */
+   do con lai tu suy ra tu do, neu khong hover nut / nen nhat van la mau tim cu.
+   Trinh duyet cu khong co color-mix thi giu bang mau tinh. */
 @supports (color: color-mix(in srgb, red 50%, blue)) {
   :root:not([data-theme='dark']) {
     --accent-strong: color-mix(in srgb, var(--accent) 84%, #000);
@@ -109,17 +110,17 @@
   --danger-soft: #2d0b0b;
   --danger-line: #991b1b;
 
-  --bg: #080b12;
-  --bg-deep: #05070c;
-  --surface: #0f1522;
-  --surface-2: #141b2b;
-  --surface-3: #1a2334;
-  --line: #222d42;
-  --line-strong: #33415c;
-  --ink: #e8eefb;
-  --ink-2: #c3cddf;
-  --muted: #8b9ab4;
-  --muted-2: #64748b;
+  --bg: #0b0b0d;
+  --bg-deep: #08080a;
+  --surface: #131316;
+  --surface-2: #18181b;
+  --surface-3: #1f1f23;
+  --line: #27272a;
+  --line-strong: #3a3a40;
+  --ink: #f4f4f5;
+  --ink-2: #d4d4d8;
+  --muted: #a1a1aa;
+  --muted-2: #7d7d87;
 }
 
 /* ---------- nen tang ---------- */
@@ -228,27 +229,12 @@ svg.lucide {
   border-radius: var(--r-lg);
 }
 
-/* Vien sang dan tu goc tren trai - tao cam giac co chieu sau ma khong can do bong */
+/* Giu ten lop cu cho tuong thich - nay chi la mot be mat phang */
 .surface-lux {
   position: relative;
-  background: linear-gradient(160deg, var(--surface-2), var(--surface) 46%);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-}
-
-.surface-lux::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border-top: 1px solid rgba(255, 255, 255, 0.7);
-  border-left: 1px solid rgba(255, 255, 255, 0.45);
-  pointer-events: none;
-}
-
-:root[data-theme='dark'] .surface-lux::before {
-  border-top-color: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.05);
 }
 
 /* ---------- nhan / chip ---------- */
@@ -268,15 +254,14 @@ svg.lucide {
   white-space: nowrap;
 }
 
+/* Gioi tinh: chi to mau chu, nen van trung tinh de trang khong bi loang mau */
 .chip.is-male {
-  background: var(--male-soft);
-  border-color: var(--male-line);
+  background: var(--surface);
   color: var(--male);
 }
 
 .chip.is-female {
-  background: var(--female-soft);
-  border-color: var(--female-line);
+  background: var(--surface);
   color: var(--female);
 }
 
@@ -343,10 +328,9 @@ svg.lucide {
 /* ---------- thanh tien do ---------- */
 
 .meter {
-  height: 8px;
+  height: 6px;
   border-radius: var(--r-pill);
   background: var(--surface-3);
-  border: 1px solid var(--line);
   overflow: hidden;
 }
 
@@ -354,16 +338,16 @@ svg.lucide {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  background: var(--accent);
   transition: width var(--slow);
 }
 
 .meter.is-ok > span {
-  background: linear-gradient(90deg, #22c55e, var(--ok));
+  background: var(--ok);
 }
 
 .meter.is-warn > span {
-  background: linear-gradient(90deg, #f59e0b, var(--warn));
+  background: var(--warn);
 }
 
 /* ---------- tien ich ---------- */
@@ -437,8 +421,7 @@ svg.lucide {
   gap: 12px;
   max-width: min(560px, calc(100vw - 24px));
   padding: 11px 13px 11px 16px;
-  border: 1px solid var(--accent-line);
-  border-left: 3px solid var(--accent);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--ink);
@@ -465,17 +448,18 @@ svg.lucide {
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: var(--r-pill);
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+  background: var(--accent);
   color: var(--on-accent);
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 650;
   cursor: pointer;
   white-space: nowrap;
+  transition: background var(--fast);
 }
 
 .version-banner-btn:hover {
-  filter: brightness(1.08);
+  background: var(--accent-strong);
 }
 
 .version-banner-close {
@@ -549,9 +533,7 @@ svg.lucide {
   align-items: center;
   gap: 10px;
   padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-  backdrop-filter: saturate(1.4) blur(12px);
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
@@ -573,8 +555,8 @@ svg.lucide {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+  border-radius: var(--r-sm);
+  background: var(--accent);
   color: var(--on-accent);
 }
 
@@ -585,17 +567,18 @@ svg.lucide {
   margin-left: auto;
   padding: 3px;
   border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface);
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
 }
 
 .site-nav-links a {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 14px;
-  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  border-radius: 6px;
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 650;
@@ -606,12 +589,12 @@ svg.lucide {
 
 .site-nav-links a:hover {
   color: var(--ink);
-  background: var(--surface-3);
 }
 
 .site-nav-links a[aria-current='page'] {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .site-nav-tools {
@@ -626,7 +609,7 @@ svg.lucide {
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink-2);
   cursor: pointer;
@@ -634,8 +617,9 @@ svg.lucide {
 }
 
 .site-nav-tool:hover {
-  color: var(--accent);
-  border-color: var(--accent-line);
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface-2);
 }
 
 .site-nav-tool[aria-pressed='false'] {
@@ -650,7 +634,7 @@ svg.lucide {
   height: 38px;
   padding: 0 13px;
   border: 1px solid var(--line);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink-2);
   font-size: 0.8rem;

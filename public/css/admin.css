@@ -1,10 +1,10 @@
 /* ===================================================================
    Bang dieu khien su kien - giao dien console.
-   Layout: topbar co dinh + sidebar toi + vung noi dung theo trang.
+   Layout: topbar co dinh + sidebar + vung noi dung theo trang.
    Nap sau theme.css (lay bien mau, icon, chip, meter o do).
 
-   Khong dung box-shadow o bat ky dau (quy uoc cua du an) - phan tach cac
-   khoi bang vien 1px, nen chong lop va khoang trang.
+   Khong dung box-shadow / gradient / nen mo (quy uoc cua du an) - phan tach
+   cac khoi bang vien 1px, nen trung tinh va khoang trang.
 
    Quy uoc rieng cua file nay:
    - Kieu co ban cua o nhap viet trong :where() (do uu tien = 0) -> moi khoi
@@ -16,32 +16,28 @@
      cot -> cot bi bop, chu bi cat ("-- Ch"), roi phai va bang min-width.
    =================================================================== */
 
-/* Mau rieng cua khung dieu huong: thanh tren + sidebar LUON toi ca o che do
-   sang, nen khong dung truc tiep --ok / --danger (ban sang cua chung qua toi
-   tren nen nay). */
+/* Khung dieu huong (thanh tren + sidebar) dung chung be mat voi noi dung, chi
+   tach bang vien 1px - tu doi theo che do sang/toi qua bien cua theme.css. */
 :root {
-  --ad-nav-bg: #0b1020;
-  --ad-nav-bg-2: #111831;
-  --ad-nav-line: #1e2742;
-  --ad-nav-text: #aab4cc;
-  --ad-nav-text-strong: #f1f5fd;
-  --ad-nav-hover: rgba(255, 255, 255, 0.06);
-  --ad-nav-ok: #4ade80;
-  --ad-nav-ok-line: #166534;
-  --ad-nav-err: #f87171;
-  --ad-nav-err-line: #991b1b;
-  --ad-nav-warn: #fbbf24;
-  --ad-nav-warn-line: #854d0e;
-  --ad-nav-w: 252px;
-  --ad-topbar-h: 62px;
+  --ad-nav-bg: var(--surface);
+  --ad-nav-bg-2: var(--surface-2);
+  --ad-nav-line: var(--line);
+  --ad-nav-text: var(--muted);
+  --ad-nav-text-strong: var(--ink);
+  --ad-nav-hover: var(--surface-3);
+  --ad-nav-ok: var(--ok);
+  --ad-nav-ok-line: var(--ok-line);
+  --ad-nav-err: var(--danger);
+  --ad-nav-err-line: var(--danger-line);
+  --ad-nav-warn: var(--warn);
+  --ad-nav-warn-line: var(--warn-line);
+  --ad-nav-w: 248px;
+  --ad-topbar-h: 60px;
   --ad-gutter: 28px;
   color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  --ad-nav-bg: #080b14;
-  --ad-nav-bg-2: #0d1322;
-  --ad-nav-line: #1a2236;
   color-scheme: dark;
 }
 
@@ -110,9 +106,9 @@ body {
   height: 36px;
   display: grid;
   place-items: center;
-  border-radius: var(--r);
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
-  border: 1px solid var(--accent-line);
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  border: 1px solid transparent;
   color: var(--on-accent);
   font-size: 1rem;
 }
@@ -366,21 +362,8 @@ body {
 }
 
 .admin-tab.is-active {
-  background: var(--ad-nav-bg-2);
-  border-color: var(--ad-nav-line);
+  background: var(--ad-nav-hover);
   color: var(--ad-nav-text-strong);
-}
-
-/* Vach sang ben trai danh dau trang dang mo */
-.admin-tab.is-active::before {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--accent);
 }
 
 .admin-tab-icon {
@@ -392,7 +375,7 @@ body {
 }
 
 .admin-tab.is-active .admin-tab-icon {
-  color: var(--accent);
+  color: var(--ad-nav-text-strong);
 }
 
 /* So dem nho ben phai moi muc (vd so thanh vien) */
@@ -415,9 +398,8 @@ body {
 }
 
 .admin-tab.is-active .admin-tab-badge {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--on-accent);
+  background: var(--surface);
+  color: var(--ink-2);
 }
 
 .admin-nav-foot {
@@ -506,14 +488,14 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 1.32rem;
-  font-weight: 800;
+  font-weight: 750;
   line-height: 1.3;
   letter-spacing: -0.02em;
 }
 
 .admin-page-head h2 [data-lucide],
 .admin-page-head h2 svg {
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .admin-page-head p {
@@ -564,7 +546,7 @@ body {
   justify-content: space-between;
   gap: 12px 16px;
   padding: 15px 18px;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -624,7 +606,7 @@ details.admin-card > summary.admin-card-head::-webkit-details-marker {
 }
 
 details.admin-card > summary.admin-card-head:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 details.admin-card.is-danger > summary.admin-card-head:hover {
@@ -764,22 +746,11 @@ details.admin-card[open] > .admin-card-body {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  padding: 13px 14px 13px 16px;
+  padding: 13px 15px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
-}
-
-/* Vach mau doc ben trai the - dau hieu phan loai thay cho do bong */
-.admin-stat::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--line-strong);
 }
 
 /* Cho san cho o thong ke / buoc tien trinh truoc khi co du lieu: noi dung ben
@@ -804,26 +775,15 @@ details.admin-card[open] > .admin-card-body {
   }
 }
 
-.admin-stat.is-accent::before {
-  background: var(--accent);
+/* Phan loai the chi the hien o icon nho canh nhan, khong to mau ca the */
+.admin-stat.is-male .admin-stat-label svg {
+  color: var(--male);
 }
-.admin-stat.is-male::before {
-  background: var(--male);
+.admin-stat.is-female .admin-stat-label svg {
+  color: var(--female);
 }
-.admin-stat.is-female::before {
-  background: var(--female);
-}
-.admin-stat.is-ok::before {
-  background: var(--ok);
-}
-.admin-stat.is-warn::before {
-  background: var(--warn);
-}
-.admin-stat.is-danger::before {
-  background: var(--danger);
-}
-.admin-stat.is-gold::before {
-  background: var(--gold);
+.admin-stat.is-gold .admin-stat-label svg {
+  color: var(--gold);
 }
 
 .admin-stat-label {
@@ -847,8 +807,8 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-stat-value {
-  font-size: 1.55rem;
-  font-weight: 800;
+  font-size: 1.5rem;
+  font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
@@ -1185,7 +1145,6 @@ details.admin-card[open] > .admin-card-body {
   color: var(--muted);
   padding: 10px 13px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent-line);
   border-radius: var(--r-sm);
   background: var(--surface-2);
 }
@@ -1214,25 +1173,20 @@ details.admin-card[open] > .admin-card-body {
   padding: 0 17px;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
-  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+  background: var(--accent);
   color: var(--on-accent);
   font-family: inherit;
   font-size: 0.87rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
-  transition: filter var(--fast), transform var(--fast), opacity var(--fast), background var(--fast),
-    border-color var(--fast);
+  transition: opacity var(--fast), background var(--fast), border-color var(--fast), color var(--fast);
 }
 
 .admin-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.admin-btn:active:not(:disabled) {
-  transform: translateY(1px);
+  background: var(--accent-strong);
 }
 
 .admin-btn:disabled {
@@ -1247,29 +1201,43 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-btn-secondary:hover:not(:disabled) {
-  filter: none;
   background: var(--surface-2);
   border-color: var(--muted-2);
 }
 
+/* Nut xoa/reset tren trang: vien do, nen trang - khong lan at nut chinh. Nut
+   xac nhan trong hop thoai moi la nen do dac. */
 .admin-btn-danger {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: var(--on-accent);
+  background: var(--surface);
+  border-color: var(--danger-line);
+  color: var(--danger);
 }
 
-/* Viec dao nguoc duoc (khoa/mo mot vong, mo ngay): noi bat vua phai, khong
-   gianh su chu y voi cac nut xoa thuc su. */
+.admin-btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.admin-dialog .admin-btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.admin-dialog .admin-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 86%, #000);
+}
+
+/* Viec dao nguoc duoc (khoa/mo mot vong, mo ngay): nut vien, chu mau canh bao. */
 .admin-btn-warn {
-  background: var(--warn-soft);
-  border-color: var(--warn-line);
+  background: var(--surface);
+  border-color: var(--line-strong);
   color: var(--warn);
 }
 
 .admin-btn-warn:hover:not(:disabled) {
-  filter: none;
-  background: var(--surface);
-  border-color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
 }
 
 .admin-btn-row {
@@ -1321,9 +1289,9 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-row-btn.is-on {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  color: var(--accent-ink);
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .admin-row-btn.is-primary {
@@ -1440,9 +1408,9 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-filter-chip.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
 }
 
 .admin-filter-count {
@@ -1458,8 +1426,8 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-filter-chip.is-active .admin-filter-count {
-  background: var(--accent-strong);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--surface) 20%, transparent);
+  color: var(--surface);
 }
 
 /* ===================== thanh thao tac hang loat ===================== */
@@ -1475,9 +1443,9 @@ details.admin-card[open] > .admin-card-body {
   gap: 10px 14px;
   flex-wrap: wrap;
   padding: 10px 14px;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r);
-  background: var(--accent-soft);
+  background: var(--surface);
 }
 
 .admin-bulkbar[hidden] {
@@ -1689,19 +1657,16 @@ details.admin-card[open] > .admin-card-body {
 .admin-gender-select {
   font-weight: 650;
   border-color: var(--warn-line);
-  background-color: var(--warn-soft);
   color: var(--warn);
 }
 
 .admin-gender-select.is-male {
-  border-color: var(--male-line);
-  background-color: var(--male-soft);
+  border-color: var(--line);
   color: var(--male);
 }
 
 .admin-gender-select.is-female {
-  border-color: var(--female-line);
-  background-color: var(--female-soft);
+  border-color: var(--line);
   color: var(--female);
 }
 
@@ -1841,21 +1806,19 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-flag.is-on {
-  background: var(--ok-soft);
-  border-color: var(--ok-line);
-  color: var(--ok);
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .admin-flag.is-pin.is-on {
-  background: var(--gold-soft);
-  border-color: var(--gold-line);
   color: var(--gold);
 }
 
 /* Moi ghim nhom HOAC phong (chua ghim ca hai) */
 .admin-flag.is-pin.is-partial {
   border-style: dashed;
-  border-color: var(--gold);
+  border-color: var(--muted-2);
   color: var(--gold);
 }
 
@@ -2049,14 +2012,12 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-tag.is-male {
-  background: var(--male-soft);
-  border-color: var(--male-line);
+  background: var(--surface);
   color: var(--male);
 }
 
 .admin-tag.is-female {
-  background: var(--female-soft);
-  border-color: var(--female-line);
+  background: var(--surface);
   color: var(--female);
 }
 
@@ -2424,8 +2385,19 @@ details.admin-card[open] > .admin-card-body {
   gap: 10px;
   padding: 13px;
   border-bottom: 1px solid var(--line);
-  border-left: 4px solid var(--g-color);
-  background: var(--surface-2);
+  background: var(--surface);
+}
+
+/* Mau nhan dien cua nhom: cham tron nho truoc ten thay cho vach mau */
+.admin-group-title strong::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--g-color);
+  vertical-align: 0.08em;
 }
 
 .admin-group-title {
@@ -2984,18 +2956,13 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-flow-step.is-active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--line-strong);
+  background: var(--surface);
 }
 
-.admin-flow-step.is-done {
-  border-color: var(--ok-line);
-  background: var(--ok-soft);
-}
-
+.admin-flow-step.is-done,
 .admin-flow-step.is-locked {
-  border-color: var(--warn-line);
-  background: var(--warn-soft);
+  background: var(--surface);
 }
 
 .admin-flow-num {
@@ -3056,22 +3023,21 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-flow-step.is-active .admin-flow-badge {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--on-accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
 }
 
-/* --on-accent doi theo che do sang/toi, dung chung cho moi nen dam mau */
 .admin-flow-step.is-done .admin-flow-badge {
-  background: var(--ok);
-  border-color: transparent;
-  color: var(--on-accent);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+  color: var(--ok);
 }
 
 .admin-flow-step.is-locked .admin-flow-badge {
-  background: var(--warn);
-  border-color: transparent;
-  color: var(--on-accent);
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+  color: var(--warn);
 }
 
 .admin-split {
@@ -3093,8 +3059,7 @@ details.admin-card[open] > .admin-card-body {
 }
 
 .admin-dialog::backdrop {
-  background: rgba(8, 11, 18, 0.55);
-  backdrop-filter: blur(3px);
+  background: rgba(10, 10, 12, 0.45);
 }
 
 .admin-dialog-head {
@@ -3155,25 +3120,12 @@ details.admin-card[open] > .admin-card-body {
   gap: 11px;
   padding: 12px 15px;
   border: 1px solid var(--line-strong);
-  border-left: 3px solid var(--accent);
   border-radius: var(--r);
   background: var(--surface);
   font-size: 0.85rem;
   line-height: 1.5;
   pointer-events: auto;
   animation: toast-in 240ms var(--ease);
-}
-
-.admin-toast.is-ok {
-  border-left-color: var(--ok);
-}
-
-.admin-toast.is-err {
-  border-left-color: var(--danger);
-}
-
-.admin-toast.is-warn {
-  border-left-color: var(--warn);
 }
 
 .admin-toast.is-out {
@@ -3307,7 +3259,7 @@ details.admin-card[open] > .admin-card-body {
     position: fixed;
     inset: var(--ad-topbar-h) 0 0;
     z-index: 25;
-    background: rgba(8, 11, 18, 0.5);
+    background: rgba(10, 10, 12, 0.45);
     border: 0;
     padding: 0;
   }
