@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
 const activity = require('../activity');
-const { getLeaderCount, getSetting } = require('../settings');
+const { getLeaderCount, getSetting, setSetting, isQuizEnabled } = require('../settings');
 const { withLock } = require('../lock');
 
 const router = express.Router();
@@ -127,6 +127,9 @@ router.post('/quiz/join', async (req, res) => {
     }
     if (!member.joinQuiz) {
       return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng Quiz lần này' });
+    }
+    if (!(await isQuizEnabled())) {
+      return res.status(400).json({ error: 'Vòng Quiz đã được tắt — mời bạn vào thẳng vòng bốc thăm' });
     }
 
     const status = await quizLobby.getQuizStatus();
@@ -327,11 +330,15 @@ router.post('/admin/quiz/start', async (req, res) => {
   }
 
   try {
-    const [status, phase, total] = await Promise.all([
+    const [status, phase, total, enabled] = await Promise.all([
       quizLobby.getQuizStatus(),
       getSetting('phase'),
       prisma.question.count(),
+      isQuizEnabled(),
     ]);
+    if (!enabled) {
+      return res.status(400).json({ error: 'Vòng Quiz đang tắt — bật lại ở mục "Dùng vòng Quiz" trước' });
+    }
     if ((phase || 'quiz') !== 'quiz') {
       return res.status(400).json({ error: 'Đã chốt Nhóm Trưởng — bấm "Làm lại vòng Quiz" nếu muốn chơi lại' });
     }
@@ -454,8 +461,8 @@ router.post('/admin/quiz/reset', async (req, res) => {
       data: { isLeader: false, quizScore: 0, quizTimeMs: 0 },
     });
 
-    const total = await prisma.question.count();
-    const newPhase = total > 0 ? 'quiz' : 'random';
+    const [total, enabled] = await Promise.all([prisma.question.count(), isQuizEnabled()]);
+    const newPhase = enabled && total > 0 ? 'quiz' : 'random';
     await prisma.setting.upsert({
       where: { key: 'phase' },
       update: { value: newPhase },
@@ -474,6 +481,59 @@ router.post('/admin/quiz/reset', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi reset vòng chọn nhóm trưởng' });
+  }
+});
+
+// POST /api/admin/quiz/enabled - bat/tat vong Quiz chon Nhom Truong.
+// Tat: ca su kien vao thang boc tham; Nhom Truong admin da tick tay va diem quiz cu
+// duoc giu nguyen. Bat lai: quay ve giai doan Quiz (neu co cau hoi) - vong boc tham
+// dong lai cho toi khi chot Nhom Truong. Luu rieng (khong qua form Cau hinh) de reset
+// / phuc hoi khong vo tinh bat lai Quiz.
+router.post('/admin/quiz/enabled', async (req, res) => {
+  const { secret, enabled } = req.body || {};
+
+  if (!process.env.ADMIN_RESET_SECRET || secret !== process.env.ADMIN_RESET_SECRET) {
+    return res.status(401).json({ error: 'Sai mã bí mật' });
+  }
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'Thiếu trạng thái bật/tắt vòng Quiz' });
+  }
+
+  try {
+    if ((await isQuizEnabled()) === enabled) {
+      return res.json({ ok: true, quizEnabled: enabled, unchanged: true });
+    }
+
+    const total = await prisma.question.count();
+    const newPhase = enabled && total > 0 ? 'quiz' : 'random';
+
+    await setSetting('quizEnabled', enabled ? '1' : '0');
+    await setSetting('phase', newPhase);
+    quizLobby.clearLobby();
+    await quizLobby.setQuizStatus('waiting');
+
+    const leaders =
+      newPhase === 'random'
+        ? await prisma.member.findMany({ where: { isLeader: true }, select: { id: true, name: true } })
+        : [];
+
+    req.io.emit('quiz:lobby', { members: [] });
+    // Kem quizEnabled: giai doan co the khong doi (vd da chot xong roi moi tat) nhung
+    // trang chu van phai an/hien buoc Quiz
+    req.io.emit('phase:updated', { phase: newPhase, leaders, quizEnabled: enabled });
+    await activity.log(
+      {
+        type: 'admin',
+        icon: enabled ? 'brain' : 'zap',
+        message: enabled ? 'Bật lại vòng Quiz chọn Nhóm Trưởng' : 'Tắt vòng Quiz — mở thẳng vòng bốc thăm',
+      },
+      req.io
+    );
+
+    res.json({ ok: true, quizEnabled: enabled, phase: newPhase, leaders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi bật/tắt vòng Quiz' });
   }
 });
 

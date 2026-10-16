@@ -9,6 +9,7 @@ const {
   getLeaderCount,
   isRoomsLocked,
   isRandomLocked,
+  isQuizEnabled,
   getPublicUi,
 } = require('../settings');
 const { loadGroupSlots, pickGroup, loadGroupsPayload } = require('../groups');
@@ -17,10 +18,14 @@ const { withLock } = require('../lock');
 const router = express.Router();
 
 async function resolvePhase() {
-  const [phaseSetting, questionCount] = await Promise.all([getSetting('phase'), prisma.question.count()]);
+  const [phaseSetting, questionCount, quizEnabled] = await Promise.all([
+    getSetting('phase'),
+    prisma.question.count(),
+    isQuizEnabled(),
+  ]);
   let phase = phaseSetting || 'quiz';
-  // Chua co cau hoi nao duoc seed thi coi nhu bo qua vong quiz, mo random luon
-  if (phase === 'quiz' && questionCount === 0) {
+  // Admin tat vong Quiz, hoac chua co cau hoi nao -> bo qua quiz, mo random luon
+  if (phase === 'quiz' && (!quizEnabled || questionCount === 0)) {
     phase = 'random';
   }
   return phase;
@@ -29,16 +34,18 @@ async function resolvePhase() {
 // GET /api/config - cau hinh cho man hinh intro (gio mo, phase, noi dung admin tu dat)
 router.get('/config', async (req, res) => {
   try {
-    const [eventStartAt, phase, roomsLocked, randomLocked, roomCount, ui, leaderCount, quizStatus] = await Promise.all([
-      getSetting('eventStartAt'),
-      resolvePhase(),
-      isRoomsLocked(),
-      isRandomLocked(),
-      prisma.room.count(),
-      getPublicUi(),
-      getLeaderCount(),
-      quizLobby.getQuizStatus(),
-    ]);
+    const [eventStartAt, phase, roomsLocked, randomLocked, roomCount, ui, leaderCount, quizStatus, quizEnabled] =
+      await Promise.all([
+        getSetting('eventStartAt'),
+        resolvePhase(),
+        isRoomsLocked(),
+        isRandomLocked(),
+        prisma.room.count(),
+        getPublicUi(),
+        getLeaderCount(),
+        quizLobby.getQuizStatus(),
+        isQuizEnabled(),
+      ]);
 
     const leaders =
       phase === 'random'
@@ -54,6 +61,7 @@ router.get('/config', async (req, res) => {
       roomCount,
       leaderCount,
       quizStatus,
+      quizEnabled,
       ui,
     });
   } catch (err) {
@@ -310,8 +318,8 @@ router.post('/admin/reset', async (req, res) => {
     }
     await prisma.answer.deleteMany({});
 
-    const questionCount = await prisma.question.count();
-    const newPhase = questionCount > 0 ? 'quiz' : 'random';
+    const [questionCount, quizEnabled] = await Promise.all([prisma.question.count(), isQuizEnabled()]);
+    const newPhase = quizEnabled && questionCount > 0 ? 'quiz' : 'random';
     await setSetting('phase', newPhase);
 
     quizLobby.clearLobby();

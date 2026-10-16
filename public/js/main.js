@@ -91,6 +91,8 @@ let countdownReady = false;
 let countdownTimer = null;
 let pendingRandomName = null;
 let currentPhase = 'quiz';
+// Admin tat vong Quiz -> an buoc Quiz, vong boc tham thanh "Buoc 1"
+let quizEnabled = true;
 let randomLocked = false;
 let leaders = [];
 let lastConfig = null;
@@ -447,8 +449,20 @@ function setStep(step, state, status) {
   li.querySelector('.event-step-status').textContent = status;
 }
 
+// Danh so "Buoc N" theo cac buoc dang dung (tat Quiz thi boc tham la buoc 1)
+function renderStepLabels() {
+  const order = quizEnabled ? ['quiz', 'random', 'rooms'] : ['random', 'rooms'];
+  document.querySelectorAll('[data-step-label]').forEach((el) => {
+    const n = order.indexOf(el.dataset.stepLabel) + 1;
+    if (n) el.textContent = `Bước ${n}${el.dataset.stepSuffix || ''}`;
+  });
+}
+
 function renderEventSteps() {
   const config = lastConfig || {};
+  const quizStep = eventSteps.querySelector('[data-step="quiz"]');
+  if (quizStep) quizStep.hidden = !quizEnabled;
+  renderStepLabels();
   if (currentPhase === 'quiz') {
     setStep('quiz', 'current', config.quizStatus === 'active' ? 'Đang diễn ra' : 'Đang mở');
     setStep('random', '', 'Sau vòng Quiz');
@@ -533,6 +547,7 @@ async function syncConfig({ cached = false } = {}) {
     if (!config) throw new Error('Không tải được cấu hình');
     lastConfig = config;
     currentPhase = config.phase || 'quiz';
+    quizEnabled = config.quizEnabled !== false;
     leaders = Array.isArray(config.leaders) ? config.leaders : [];
     randomLocked = !!config.randomLocked;
 
@@ -1542,6 +1557,7 @@ socket.on('phase:updated', (payload) => {
   if (!payload) return;
   const prev = currentPhase;
   currentPhase = payload.phase;
+  if (typeof payload.quizEnabled === 'boolean') quizEnabled = payload.quizEnabled;
   leaders = Array.isArray(payload.leaders) ? payload.leaders : leaders;
   if (lastConfig) lastConfig.phase = currentPhase;
   renderLeaderNotice();

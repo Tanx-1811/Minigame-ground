@@ -12,6 +12,7 @@ const {
   getGroupCapacity,
   isRoomsLocked,
   isRandomLocked,
+  isQuizEnabled,
   parseBool,
   getPublicUi,
   DEFAULTS,
@@ -1160,19 +1161,31 @@ router.post('/admin/questions/:id/move', requireAdmin, async (req, res) => {
 // GET /api/admin/settings - toan bo cau hinh dang ap dung
 router.get('/admin/settings', requireAdmin, async (req, res) => {
   try {
-    const [leaderCount, roomCapacity, groupCapacity, roomsLocked, randomLocked, eventStartAt, phase, quizStatus, ui, counts] =
-      await Promise.all([
-        getLeaderCount(),
-        getRoomCapacity(),
-        getGroupCapacity(),
-        isRoomsLocked(),
-        isRandomLocked(),
-        getSetting('eventStartAt'),
-        getSetting('phase'),
-        quizLobby.getQuizStatus(),
-        getPublicUi(),
-        Promise.all([prisma.member.count(), prisma.group.count(), prisma.room.count(), prisma.question.count()]),
-      ]);
+    const [
+      leaderCount,
+      roomCapacity,
+      groupCapacity,
+      roomsLocked,
+      randomLocked,
+      eventStartAt,
+      phase,
+      quizStatus,
+      quizEnabled,
+      ui,
+      counts,
+    ] = await Promise.all([
+      getLeaderCount(),
+      getRoomCapacity(),
+      getGroupCapacity(),
+      isRoomsLocked(),
+      isRandomLocked(),
+      getSetting('eventStartAt'),
+      getSetting('phase'),
+      quizLobby.getQuizStatus(),
+      isQuizEnabled(),
+      getPublicUi(),
+      Promise.all([prisma.member.count(), prisma.group.count(), prisma.room.count(), prisma.question.count()]),
+    ]);
 
     res.json({
       leaderCount,
@@ -1183,6 +1196,7 @@ router.get('/admin/settings', requireAdmin, async (req, res) => {
       eventStartAt: eventStartAt || null,
       phase: phase || 'quiz',
       quizStatus,
+      quizEnabled,
       ui,
       // Mo ta cac o nhap de trang admin tu dung form, them key moi khong phai sua HTML
       schema: {
@@ -1241,6 +1255,9 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
     if (phase !== undefined && phase !== '') {
       if (!['quiz', 'random'].includes(phase)) {
         return res.status(400).json({ error: 'Phase chỉ nhận giá trị quiz hoặc random' });
+      }
+      if (phase === 'quiz' && !(await isQuizEnabled())) {
+        return res.status(400).json({ error: 'Vòng Quiz đang tắt — bật lại ở trang Vòng Quiz trước' });
       }
       const currentPhase = (await getSetting('phase')) || 'quiz';
       if (phase !== currentPhase) {
@@ -1320,7 +1337,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
   try {
     const globalCapacity = await getGroupCapacity();
 
-    const [members, groupsPayload, roomsPayload, questionCount, answersByMember, phase, quizStatus, leaderCount, locks] =
+    const [members, groupsPayload, roomsPayload, questionCount, answersByMember, phase, quizStatus, leaderCount, locks, quizEnabled] =
       await Promise.all([
         prisma.member.findMany({
           select: {
@@ -1343,6 +1360,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         quizLobby.getQuizStatus(),
         getLeaderCount(),
         Promise.all([isRoomsLocked(), isRandomLocked()]),
+        isQuizEnabled(),
       ]);
 
     const count = (fn) => members.filter(fn).length;
@@ -1375,9 +1393,10 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         finished: questionCount ? answersByMember.filter((row) => row._count._all >= questionCount).length : 0,
       },
       flow: {
-        // Giai doan THUC TE nguoi choi dang thay: chua co cau hoi nao thi bo qua quiz
-        phase: (phase || 'quiz') === 'quiz' && questionCount === 0 ? 'random' : phase || 'quiz',
+        // Giai doan THUC TE nguoi choi dang thay: tat Quiz / chua co cau hoi thi bo qua quiz
+        phase: (phase || 'quiz') === 'quiz' && (!quizEnabled || questionCount === 0) ? 'random' : phase || 'quiz',
         storedPhase: phase || 'quiz',
+        quizEnabled,
         roomsLocked: locks[0],
         randomLocked: locks[1],
       },

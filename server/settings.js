@@ -37,9 +37,10 @@ const TEXT_SETTINGS = {
   accentColor: { label: 'Màu chủ đạo', fallback: '#4f46e5' },
 };
 
-// Khoa vong (roomsLocked / randomLocked) KHONG nam o day: chung co endpoint rieng
-// (/admin/rooms/lock, /admin/settings/lock) phat dung su kien realtime. De chung
-// chung form "Giao dien" thi mot tab admin cu bam luu chu se am tham mo khoa vong.
+// Khoa vong (roomsLocked / randomLocked) va bat/tat vong Quiz (quizEnabled) KHONG
+// nam o day: chung co endpoint rieng (/admin/rooms/lock, /admin/settings/lock,
+// /admin/quiz/enabled) phat dung su kien realtime. De chung chung form "Giao dien"
+// thi mot tab admin cu bam luu chu se am tham mo khoa vong / bat lai Quiz.
 const BOOL_SETTINGS = {
   showLeaderboard: { label: 'Hiện bảng xếp hạng nhóm', fallback: true },
   showActivity: { label: 'Hiện hoạt động gần đây', fallback: true },
@@ -106,6 +107,12 @@ async function isRandomLocked() {
   return parseBool(await getSetting('randomLocked'), false);
 }
 
+// Tat = su kien bo qua buoc chon Nhom Truong bang cau hoi, vao thang boc tham.
+// Nhom Truong (neu can) do admin tick tay o cot NT trang Thanh vien.
+async function isQuizEnabled() {
+  return parseBool(await getSetting('quizEnabled'), true);
+}
+
 // Toan bo noi dung + cong tac hien thi cho 2 trang cong khai, da ap fallback.
 async function getPublicUi() {
   const keys = [...Object.keys(TEXT_SETTINGS), ...Object.keys(BOOL_SETTINGS)];
@@ -139,5 +146,6 @@ module.exports = {
   parseBool,
   isRoomsLocked,
   isRandomLocked,
+  isQuizEnabled,
   getPublicUi,
 };
