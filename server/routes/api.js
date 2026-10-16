@@ -12,7 +12,7 @@ const {
   isQuizEnabled,
   getPublicUi,
 } = require('../settings');
-const { loadGroupSlots, pickGroup, loadGroupsPayload } = require('../groups');
+const { loadGroupSlots, countPendingMales, pickGroup, groupFullReason, loadGroupsPayload } = require('../groups');
 const { withLock } = require('../lock');
 
 const router = express.Router();
@@ -201,6 +201,11 @@ router.post('/random', async (req, res) => {
     if (!member.joinRandom) {
       return res.status(403).json({ error: 'Bạn không nằm trong danh sách tham gia vòng chia nhóm lần này' });
     }
+    if (!member.groupId && !member.gender) {
+      return res
+        .status(400)
+        .json({ error: 'Bạn chưa được đặt giới tính (Nam/Nữ) — nhờ admin cập nhật trước khi random nhóm' });
+    }
 
     // Da random truoc do -> tra ve nhom cu (ke ca khi vong dang khoa: khoa chi chan
     // luot quay MOI, nguoi da co nhom F5 lai van phai thay nhom cua minh)
@@ -219,8 +224,8 @@ router.post('/random', async (req, res) => {
     const globalCapacity = await getGroupCapacity();
 
     // Chua random -> chon nhom theo luat trong server/groups.js: bo qua nhom dang
-    // khoa / da day, uu tien nhom it nguoi nhat (chia deu), random giua cac nhom
-    // bang nhau nen thu tu nhom nao duoc chon van hoan toan ngau nhien.
+    // khoa / da day, moi nhom dung 2 nam, uu tien nhom it nguoi nhat (chia deu), random
+    // giua cac nhom bang nhau nen thu tu nhom nao duoc chon van hoan toan ngau nhien.
     // Chay trong hang doi 'groups' (server/lock.js) de 2 nguoi bam cung luc khong
     // cung doc ra "nhom X con 1 cho"; kiem lai groupId vi bam dup gui 2 request.
     const { randomGroup, updatedMember, fresh } = await withLock('groups', () =>
@@ -235,9 +240,12 @@ router.post('/random', async (req, res) => {
           throw new Error('NO_GROUPS');
         }
 
-        const chosen = pickGroup(slots, { isLeader: member.isLeader });
+        const pendingMales = member.gender === 'MALE' ? 0 : await countPendingMales(tx);
+        const chosen = pickGroup(slots, { isLeader: member.isLeader, gender: member.gender, pendingMales });
         if (!chosen) {
-          throw new Error('GROUPS_FULL');
+          const err = new Error('GROUPS_FULL');
+          err.reason = groupFullReason(slots, member.gender);
+          throw err;
         }
 
         const updated = await tx.member.update({
@@ -285,7 +293,7 @@ router.post('/random', async (req, res) => {
       return res.status(500).json({ error: 'Chưa có nhóm nào trong hệ thống' });
     }
     if (err.message === 'GROUPS_FULL') {
-      return res.status(409).json({ error: 'Tất cả nhóm đã đầy hoặc đang khóa — nhờ admin mở thêm chỗ' });
+      return res.status(409).json({ error: `${err.reason} — nhờ admin hỗ trợ` });
     }
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi random nhóm' });

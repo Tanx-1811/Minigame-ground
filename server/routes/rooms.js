@@ -6,8 +6,12 @@ const { getRoomCapacity, isRoomsLocked, setSetting, getPublicUi } = require('../
 const { withLock } = require('../lock');
 const {
   GENDERS,
-  parseGender,
+  parseRoomGender,
   genderLabel,
+  roomGenderLabel,
+  activeGender,
+  roomGenderError,
+  shortageAfterPool,
   parseCapacity,
   loadRoomSlots,
   pickRoom,
@@ -29,7 +33,8 @@ function drawRoomFor(member) {
       if (current && current.roomId) return { roomId: current.roomId, fresh: false };
 
       const slots = await loadRoomSlots(tx);
-      if (!slots.some((r) => r.gender === member.gender)) {
+      // Khong co phong nao co the danh cho gioi nay (ke ca phong nam hoac nu)
+      if (!slots.some((r) => r.gender === null || r.gender === member.gender)) {
         throw new Error('NO_ROOM_FOR_GENDER');
       }
 
@@ -161,7 +166,7 @@ router.post('/room/random', async (req, res) => {
     if (err.message === 'ROOMS_FULL') {
       return res
         .status(409)
-        .json({ error: 'Các phòng cùng giới tính đã kín chỗ hoặc đang khóa — nhờ admin mở thêm phòng' });
+        .json({ error: 'Không còn phòng nào còn chỗ cho giới tính của bạn (hoặc đang khóa) — nhờ admin mở thêm phòng' });
     }
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi ghép phòng' });
@@ -179,9 +184,9 @@ router.post('/admin/rooms', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Thiếu tên phòng' });
   }
 
-  const parsedGender = parseGender(gender);
-  if (!parsedGender) {
-    return res.status(400).json({ error: 'Phòng phải chọn giới tính Nam hoặc Nữ' });
+  const parsedGender = parseRoomGender(gender);
+  if (parsedGender === undefined) {
+    return res.status(400).json({ error: 'Loại phòng chỉ nhận Nam, Nữ hoặc Nam hoặc nữ' });
   }
 
   const parsedCapacity = parseCapacity(capacity === undefined || capacity === '' ? await getRoomCapacity() : capacity);
@@ -204,7 +209,7 @@ router.post('/admin/rooms', requireAdmin, async (req, res) => {
 
     await emitRooms(req);
     await activity.log(
-      { type: 'admin', icon: 'door-open', message: `Tạo phòng ${room.name} (${genderLabel(room.gender)}, ${room.capacity} chỗ)` },
+      { type: 'admin', icon: 'door-open', message: `Tạo phòng ${room.name} (${roomGenderLabel(room.gender)}, ${room.capacity} chỗ)` },
       req.io
     );
     res.json({ ok: true, room });
@@ -234,8 +239,8 @@ router.put('/admin/rooms/:id', requireAdmin, async (req, res) => {
   }
 
   if (gender !== undefined) {
-    const parsedGender = parseGender(gender);
-    if (!parsedGender) return res.status(400).json({ error: 'Giới tính phòng không hợp lệ' });
+    const parsedGender = parseRoomGender(gender);
+    if (parsedGender === undefined) return res.status(400).json({ error: 'Loại phòng không hợp lệ' });
     data.gender = parsedGender;
   }
 
@@ -271,9 +276,14 @@ router.put('/admin/rooms/:id', requireAdmin, async (req, res) => {
       });
     }
 
-    if (data.gender !== undefined && room.members.some((m) => m.gender !== data.gender)) {
+    // Doi sang phong co dinh: moi nguoi dang o phai dung gioi do. Doi sang phong
+    // nam hoac nu thi luon duoc (nguoi dang o von da cung gioi).
+    const current = activeGender(room, room.members);
+    if (data.gender && current && current !== data.gender) {
       return res.status(400).json({
-        error: `Phòng đang có người ${genderLabel(room.gender)} ở trong — chuyển họ ra trước khi đổi giới tính phòng`,
+        error: `Phòng đang có người ${genderLabel(current)} ở trong — chuyển họ ra trước khi đổi thành phòng ${genderLabel(
+          data.gender
+        ).toLowerCase()}`,
       });
     }
 
@@ -397,18 +407,31 @@ router.post('/admin/rooms/auto-create', requireAdmin, async (req, res) => {
     const created = [];
 
     await prisma.$transaction(async (tx) => {
-      const existingRooms = await tx.room.findMany({ select: { name: true, gender: true, capacity: true } });
+      const existingRooms = await tx.room.findMany({
+        select: { name: true, gender: true, capacity: true, members: { select: { gender: true } } },
+      });
       const usedNames = new Set(existingRooms.map((r) => r.name));
       const last = await tx.room.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
       let order = last ? last.sortOrder : 0;
 
+      // Suc chua da co cua 1 gioi = phong co dinh + phong nam hoac nu dang co nguoi
+      // gioi do; phong nam hoac nu dang trong duoc chia cho ben con thieu.
+      const need = {};
       for (const gender of GENDERS) {
         // Chi dem nhung nguoi THAM GIA vong ghep phong - ai bi loai thi khong can chua cho
         const memberCount = await tx.member.count({ where: { gender, joinRoom: true } });
         const currentCapacity = existingRooms
-          .filter((r) => r.gender === gender)
+          .filter((r) => activeGender(r, r.members) === gender)
           .reduce((sum, r) => sum + r.capacity, 0);
-        const missing = Math.max(0, Math.ceil((memberCount - currentCapacity) / parsedCapacity));
+        need[gender] = Math.max(0, memberCount - currentCapacity);
+      }
+      const shortage = shortageAfterPool(
+        need,
+        existingRooms.filter((r) => !activeGender(r, r.members)).map((r) => r.capacity)
+      );
+
+      for (const gender of GENDERS) {
+        const missing = Math.ceil(shortage[gender] / parsedCapacity);
 
         let index = 1;
         for (let i = 0; i < missing; i++) {
@@ -437,6 +460,93 @@ router.post('/admin/rooms/auto-create', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi tạo phòng tự động' });
+  }
+});
+
+// POST /api/admin/rooms/bulk-create - tao nhieu phong mot luc tu danh sach ten (vd so
+// phong khach san "202, 110, 111"), giu dung thu tu da nhap. Ten da co thi bo qua.
+const MAX_BULK_ROOMS = 200;
+
+router.post('/admin/rooms/bulk-create', requireAdmin, async (req, res) => {
+  const { names, gender, capacity, prefix } = req.body || {};
+
+  const parsedGender = parseRoomGender(gender);
+  if (parsedGender === undefined) {
+    return res.status(400).json({ error: 'Loại phòng chỉ nhận Nam, Nữ hoặc Nam hoặc nữ' });
+  }
+  const parsedCapacity = parseCapacity(capacity === undefined || capacity === '' ? await getRoomCapacity() : capacity);
+  if (!parsedCapacity) {
+    return res.status(400).json({ error: `Sức chứa phải là số từ 1 đến ${MAX_ROOM_CAPACITY}` });
+  }
+
+  // "202" + tien to "Phòng" -> "Phòng 202"; ai go san "Phòng 202" thi giu nguyen
+  const cleanPrefix = typeof prefix === 'string' ? prefix.trim() : '';
+  const raw = Array.isArray(names) ? names : String(names || '').split(/[\n,;]+/);
+  const seen = new Set();
+  const list = [];
+  raw
+    .map((n) => String(n).trim().replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .forEach((n) => {
+      const name = cleanPrefix && !n.toLowerCase().startsWith(cleanPrefix.toLowerCase()) ? `${cleanPrefix} ${n}` : n;
+      if (seen.has(name.toLowerCase())) return;
+      seen.add(name.toLowerCase());
+      list.push(name);
+    });
+
+  if (!list.length) {
+    return res.status(400).json({ error: 'Chưa nhập tên phòng nào' });
+  }
+  if (list.length > MAX_BULK_ROOMS) {
+    return res.status(400).json({ error: `Mỗi lần tạo tối đa ${MAX_BULK_ROOMS} phòng` });
+  }
+  if (list.some((n) => n.length > 191)) {
+    return res.status(400).json({ error: 'Có tên phòng quá dài (tối đa 191 ký tự)' });
+  }
+
+  try {
+    const created = [];
+    const skipped = [];
+
+    await prisma.$transaction(async (tx) => {
+      const existing = new Set((await tx.room.findMany({ select: { name: true } })).map((r) => r.name.toLowerCase()));
+      const last = await tx.room.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
+      let order = last ? last.sortOrder : 0;
+
+      for (const name of list) {
+        if (existing.has(name.toLowerCase())) {
+          skipped.push(name);
+          continue;
+        }
+        order += 1;
+        const room = await tx.room.create({
+          data: { name, gender: parsedGender, capacity: parsedCapacity, sortOrder: order },
+        });
+        created.push({ id: room.id, name: room.name });
+      }
+    });
+
+    await emitRooms(req);
+    if (created.length) {
+      await activity.log(
+        {
+          type: 'admin',
+          icon: 'layout-grid',
+          message: `Tạo ${created.length} phòng (${roomGenderLabel(parsedGender)}, ${parsedCapacity} chỗ): ${created
+            .map((r) => r.name)
+            .join(', ')}`,
+        },
+        req.io
+      );
+    }
+    res.json({ ok: true, created, skipped });
+  } catch (err) {
+    // Cot ten khong phan biet hoa thuong / dau (vd "Phong 1" trung "Phòng 1")
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'Có tên phòng trùng với phòng đã có (không phân biệt dấu, hoa thường)' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi tạo phòng' });
   }
 });
 
@@ -492,18 +602,17 @@ router.post('/admin/rooms/move', requireAdmin, async (req, res) => {
     if (roomId) {
       const room = await prisma.room.findUnique({
         where: { id: roomId },
-        include: { _count: { select: { members: true } } },
+        include: { members: { select: { id: true, gender: true } } },
       });
       if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
       if (!member.gender) {
         return res.status(400).json({ error: `${member.name} chưa có giới tính — đặt giới tính trước khi xếp phòng` });
       }
-      if (room.gender !== member.gender) {
-        return res.status(400).json({
-          error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)}, không xếp được người ${genderLabel(member.gender)}`,
-        });
+      const genderError = roomGenderError(room, room.members, [{ id: member.id, gender: member.gender }]);
+      if (genderError) {
+        return res.status(400).json({ error: genderError });
       }
-      const occupancy = room._count.members - (member.roomId === room.id ? 1 : 0);
+      const occupancy = room.members.length - (member.roomId === room.id ? 1 : 0);
       if (occupancy >= room.capacity) {
         return res.status(400).json({ error: `Phòng "${room.name}" đã kín ${room.capacity} người` });
       }

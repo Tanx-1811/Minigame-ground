@@ -19,7 +19,13 @@ const {
   TEXT_SETTINGS,
   BOOL_SETTINGS,
 } = require('../settings');
-const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
+const {
+  parseGender,
+  roomGenderError,
+  loadRoomsPayload,
+  MAX_ROOM_CAPACITY,
+  parseCapacity,
+} = require('../rooms');
 const { loadGroupsPayload, assignAllPendingGroups } = require('../groups');
 const { withLock } = require('../lock');
 
@@ -138,7 +144,10 @@ router.put('/admin/members/:id', requireAdmin, async (req, res) => {
   const { name, gender, groupId, roomId, isLeader, note } = req.body || {};
 
   try {
-    const member = await prisma.member.findUnique({ where: { id }, include: { room: true } });
+    const member = await prisma.member.findUnique({
+      where: { id },
+      include: { room: { include: { members: { select: { id: true, gender: true } } } } },
+    });
     if (!member) {
       return res.status(404).json({ error: 'Không tìm thấy thành viên' });
     }
@@ -199,27 +208,31 @@ router.put('/admin/members/:id', requireAdmin, async (req, res) => {
 
         const room = await prisma.room.findUnique({
           where: { id: parsedRoomId },
-          include: { _count: { select: { members: true } } },
+          include: { members: { select: { id: true, gender: true } } },
         });
         if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
 
         if (!finalGender) {
           return res.status(400).json({ error: 'Cần đặt giới tính cho thành viên trước khi xếp phòng' });
         }
-        if (room.gender !== finalGender) {
-          return res.status(400).json({
-            error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)}, không xếp được người ${genderLabel(finalGender)}`,
-          });
+        const genderError = roomGenderError(room, room.members, [{ id: member.id, gender: finalGender }]);
+        if (genderError) {
+          return res.status(400).json({ error: genderError });
         }
-        const occupancy = room._count.members - (member.roomId === room.id ? 1 : 0);
+        const occupancy = room.members.length - (member.roomId === room.id ? 1 : 0);
         if (occupancy >= room.capacity) {
           return res.status(400).json({ error: `Phòng "${room.name}" đã kín ${room.capacity} người` });
         }
 
         data.roomId = parsedRoomId;
       }
-    } else if (data.gender !== undefined && member.room && member.room.gender !== data.gender) {
-      // Doi gioi tinh ma dang o phong cua gioi cu -> tu dong dua ra khoi phong
+    } else if (
+      data.gender !== undefined &&
+      member.room &&
+      (!data.gender || roomGenderError(member.room, member.room.members, [{ id: member.id, gender: data.gender }]))
+    ) {
+      // Doi gioi tinh ma phong dang o khong con hop (phong cua gioi cu, hoac phong nam
+      // hoac nu dang co nguoi gioi kia) -> tu dong dua ra khoi phong
       data.roomId = null;
       movedOutOfRoom = true;
     }
@@ -291,7 +304,7 @@ router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
   try {
     const members = await prisma.member.findMany({
       where: { id: { in: memberIds } },
-      include: { room: { select: { gender: true } } },
+      include: { room: { select: { id: true, name: true, gender: true, members: { select: { id: true, gender: true } } } } },
     });
     if (!members.length) {
       return res.status(404).json({ error: 'Không tìm thấy thành viên nào trong danh sách đã chọn' });
@@ -314,10 +327,19 @@ router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Giới tính không hợp lệ' });
       }
 
-      // Ai dang o phong khac gioi thi phai ra khoi phong do
-      const leaveRoomIds = members
-        .filter((m) => m.room && m.room.gender !== parsedGender)
-        .map((m) => m.id);
+      // Ai sau khi doi gioi ma phong dang o khong con hop thi phai ra khoi phong do.
+      // Xet theo tung phong: nhung nguoi duoc chon trong cung 1 phong doi gioi cung nhau.
+      const leaveRoomIds = [];
+      const byRoom = new Map();
+      members.filter((m) => m.room).forEach((m) => {
+        if (!byRoom.has(m.room.id)) byRoom.set(m.room.id, { room: m.room, picked: [] });
+        byRoom.get(m.room.id).picked.push(m);
+      });
+      byRoom.forEach(({ room, picked }) => {
+        const misfit =
+          !parsedGender || roomGenderError(room, room.members, picked.map((m) => ({ id: m.id, gender: parsedGender })));
+        if (misfit) picked.forEach((m) => leaveRoomIds.push(m.id));
+      });
 
       await prisma.$transaction([
         prisma.member.updateMany({ where: { id: { in: memberIds } }, data: { gender: parsedGender } }),
@@ -390,19 +412,23 @@ router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
 
       const room = await prisma.room.findUnique({
         where: { id: targetRoomId },
-        include: { _count: { select: { members: true } } },
+        include: { members: { select: { id: true, gender: true } } },
       });
       if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
 
-      const wrongGender = members.filter((m) => m.gender !== room.gender);
-      if (wrongGender.length) {
+      const noGender = members.filter((m) => !m.gender);
+      if (noGender.length) {
         return res.status(400).json({
-          error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)} — ${wrongGender.length} người đã chọn không hợp giới tính`,
+          error: `${noGender.length} người đã chọn chưa đặt giới tính — đặt giới tính trước khi xếp phòng`,
         });
+      }
+      const genderError = roomGenderError(room, room.members, members.map((m) => ({ id: m.id, gender: m.gender })));
+      if (genderError) {
+        return res.status(400).json({ error: genderError });
       }
 
       const alreadyInside = members.filter((m) => m.roomId === room.id).length;
-      const free = room.capacity - (room._count.members - alreadyInside);
+      const free = room.capacity - (room.members.length - alreadyInside);
       if (members.length > free) {
         return res.status(400).json({
           error: `Phòng "${room.name}" chỉ còn ${Math.max(0, free)} chỗ, không đủ cho ${members.length} người`,
@@ -1510,7 +1536,8 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
           const created = await tx.room.create({
             data: {
               name: String(r.name),
-              gender: r.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+              // null = phong nam hoac nu
+              gender: r.gender === 'FEMALE' || r.gender === 'MALE' ? r.gender : null,
               capacity: Number.isInteger(r.capacity) && r.capacity > 0 ? r.capacity : 2,
               note: r.note || null,
               locked: !!r.locked,

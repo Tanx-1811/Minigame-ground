@@ -541,6 +541,24 @@ window.AdminCommon = (function () {
     return '';
   }
 
+  // Phong "nam hoac nu" (gender = null): gioi dang ap dung lay theo nguoi dang o,
+  // phong trong -> null (nhan ca hai). Giong activeGender() o server/rooms.js.
+  function roomGender(room) {
+    if (room.gender) return room.gender;
+    const first = (room.members || []).find((m) => m.gender);
+    return first ? first.gender : null;
+  }
+
+  function roomAccepts(room, gender) {
+    const current = roomGender(room);
+    return !current || current === gender;
+  }
+
+  // Nhan kieu phong: "Nam" / "Nữ" / "Nam hoặc nữ"
+  function roomTypeLabel(gender) {
+    return gender ? genderLabel(gender) : 'Nam hoặc nữ';
+  }
+
   // "2 phút trước", "hôm qua 19:04"... cho nhat ky
   function timeAgo(iso) {
     const then = new Date(iso).getTime();
@@ -959,6 +977,9 @@ window.AdminCommon = (function () {
     genderLabel,
     genderIcon,
     genderClass,
+    roomGender,
+    roomAccepts,
+    roomTypeLabel,
     timeAgo,
     timeHtml,
     statTile,
