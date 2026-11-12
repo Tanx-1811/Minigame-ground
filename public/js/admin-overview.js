@@ -64,7 +64,7 @@
   }
 
   function roomStep(flow, rooms) {
-    const totalRooms = rooms.byGender.MALE.rooms + rooms.byGender.FEMALE.rooms;
+    const totalRooms = rooms.byGender.MALE.rooms + rooms.byGender.FEMALE.rooms + (rooms.openRooms || 0);
     // Ai chua dat gioi tinh thi chua the co phong -> chua the "hoan tat"
     const doneAll = rooms.noGender === 0 && rooms.eligible > 0 && rooms.assigned >= rooms.eligible;
     const parts = [`${rooms.assigned}/${rooms.eligible} người đã có phòng · ${totalRooms} phòng`];
@@ -127,35 +127,27 @@
     btn.setAttribute('aria-pressed', locked ? 'true' : 'false');
   }
 
-  // Phong chia theo gioi nen tong suc chua du van co the thieu cho 1 ben, va
-  // nguoi chua dat gioi tinh cung can 1 cho (chua biet ben nao).
-  function capacityTile(r) {
-    const gaps = ['FEMALE', 'MALE']
-      .map((gender) => ({
-        label: gender === 'FEMALE' ? 'nữ' : 'nam',
-        missing: r.byGender[gender].members - r.byGender[gender].capacity,
-      }))
-      .filter((x) => x.missing > 0);
-
+  // Phong dung chung cho ca 2 gioi (ai vao truoc quyet dinh) nen khong so suc chua
+  // tung gioi duoc: may chu tinh san so nguoi se het cho khi chia phong trong toi uu.
+  function capacityTile(st) {
+    const sf = st.shortfall || { total: 0, FEMALE: 0, MALE: 0 };
     let sub;
     let variant;
-    if (!r.eligible) {
+    if (!st.eligible) {
       sub = 'Không ai cần phòng';
       variant = '';
-    } else if (gaps.length) {
-      sub = `Thiếu ${gaps.map((g) => `${g.missing} chỗ ${g.label}`).join(', ')}`;
+    } else if (sf.total) {
+      const parts = [sf.FEMALE ? `${sf.FEMALE} chỗ nữ` : '', sf.MALE ? `${sf.MALE} chỗ nam` : ''].filter(Boolean);
+      sub = `Thiếu ${parts.join(', ')} — thêm phòng, tăng sức chứa hoặc mở khóa phòng`;
       variant = 'danger';
-    } else if (r.totalCapacity < r.eligible) {
-      sub = `Còn thiếu ${r.eligible - r.totalCapacity} chỗ${r.noGender ? ` (${r.noGender} người chưa đặt giới tính)` : ''}`;
-      variant = r.totalCapacity === 0 ? 'danger' : 'warn';
-    } else if (r.noGender) {
-      sub = `Đủ chỗ cho người đã đặt giới tính · ${r.noGender} người chưa đặt`;
+    } else if (st.noGender) {
+      sub = `Đủ chỗ cho người đã đặt giới tính · ${st.noGender} người chưa đặt`;
       variant = 'warn';
     } else {
       sub = 'Đủ chỗ cho mọi người';
       variant = 'ok';
     }
-    return A.statTile({ icon: 'door-open', label: 'Tổng sức chứa', value: `${r.totalCapacity} chỗ`, sub, variant });
+    return A.statTile({ icon: 'door-open', label: 'Tổng sức chứa', value: `${st.totalCapacity} chỗ`, sub, variant });
   }
 
   function renderStats() {
@@ -261,14 +253,14 @@
         icon: 'venus',
         label: 'Phòng nữ',
         value: `${r.byGender.FEMALE.rooms}`,
-        sub: `${r.byGender.FEMALE.assigned}/${r.byGender.FEMALE.members} người · ${r.byGender.FEMALE.capacity} chỗ`,
+        sub: `${r.byGender.FEMALE.assigned}/${r.byGender.FEMALE.members} bạn nữ đã có phòng`,
         variant: 'female',
       }),
       A.statTile({
         icon: 'mars',
         label: 'Phòng nam',
         value: `${r.byGender.MALE.rooms}`,
-        sub: `${r.byGender.MALE.assigned}/${r.byGender.MALE.members} người · ${r.byGender.MALE.capacity} chỗ`,
+        sub: `${r.byGender.MALE.assigned}/${r.byGender.MALE.members} bạn nam đã có phòng`,
         variant: 'male',
       }),
       capacityTile(r),
@@ -276,7 +268,7 @@
 
     A.setBadge('members', data.members.total);
     A.setBadge('groups', data.groups.totalGroups);
-    A.setBadge('rooms', data.rooms.byGender.MALE.rooms + data.rooms.byGender.FEMALE.rooms);
+    A.setBadge('rooms', data.rooms.byGender.MALE.rooms + data.rooms.byGender.FEMALE.rooms + (data.rooms.openRooms || 0));
     A.setBadge('questions', data.quiz.questions);
   }
 

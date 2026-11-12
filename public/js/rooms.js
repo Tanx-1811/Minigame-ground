@@ -67,6 +67,9 @@ const GENDER_SECTIONS = [
   { gender: 'MALE', icon: '👨', lucide: 'mars', label: 'Nam', tone: 'male' },
 ];
 const UNKNOWN_GENDER = { gender: null, icon: '❔', lucide: 'circle-help', label: 'Chưa đặt', tone: 'none' };
+// Phong chua co ai (va admin khong co dinh gioi): nam hay nu deu vao duoc
+const OPEN_ROOM = { gender: null, icon: '🚪', lucide: 'venus-and-mars', label: 'Nam hoặc nữ', tone: 'open' };
+const TURN_LABEL = { FEMALE: 'Nữ', MALE: 'Nam' };
 
 const PICK_COPY = {
   random: {
@@ -89,6 +92,8 @@ let serverStats = null;
 let locked = false;
 let pageOpen = true;
 let pickMode = 'random';
+// Luot nhan phong: 'ALL' = ca hai gioi, 'FEMALE' / 'MALE' = chi gioi do luc nay
+let turn = 'ALL';
 let eventMode = 'full';
 // Dang quay / dang gui yeu cau chon phong: khoa nut va hoan ve lai cho toi khi xong
 let isBusy = false;
@@ -231,9 +236,66 @@ function roomedIds() {
   return ids;
 }
 
-// Giong pickRoom() phia server: dung gioi tinh, khong khoa, con cho
-function isAvailable(room) {
-  return !room.locked && room.occupancy < room.capacity;
+// Phong nhan duoc gioi nay: chua co ai (chua dinh gioi) hoac dang la phong cung gioi
+function roomFitsGender(room, gender) {
+  return !room.gender || room.gender === gender;
+}
+
+// Giong roomAccepts() phia server: hop gioi, khong khoa, con cho
+function roomAccepts(room, gender) {
+  return !room.locked && room.occupancy < room.capacity && roomFitsGender(room, gender);
+}
+
+// So nguoi dang cho phong theo gioi (suy tu members + rooms dang hien)
+function pendingByGender() {
+  const roomed = roomedIds();
+  const pending = { MALE: 0, FEMALE: 0 };
+  members.forEach((m) => {
+    if (m.gender && !roomed.has(m.id)) pending[m.gender] += 1;
+  });
+  return pending;
+}
+
+// Giong computeShortfall() phia server: so nguoi het cho neu chia phong trong toi uu
+function computeShortfall(list, pending) {
+  const free = { MALE: 0, FEMALE: 0 };
+  const open = [];
+  list.forEach((r) => {
+    if (r.locked) return;
+    const left = Math.max(0, r.capacity - r.occupancy);
+    if (!left) return;
+    if (r.gender) free[r.gender] += left;
+    else open.push(left);
+  });
+  const total = open.reduce((sum, c) => sum + c, 0);
+  const reach = new Uint8Array(total + 1);
+  reach[0] = 1;
+  open.forEach((c) => {
+    for (let x = total; x >= c; x--) if (reach[x - c]) reach[x] = 1;
+  });
+  let best = Infinity;
+  for (let x = 0; x <= total; x++) {
+    if (!reach[x]) continue;
+    const short = Math.max(0, pending.FEMALE - free.FEMALE - x) + Math.max(0, pending.MALE - free.MALE - (total - x));
+    if (short < best) best = short;
+  }
+  return best === Infinity ? 0 : best;
+}
+
+// Vao phong nay co lam gioi kia het cho khong (server kiem lai lan nua khi nhan phong)
+function placementOk(room, gender, pending) {
+  if (!roomAccepts(room, gender)) return false;
+  const before = computeShortfall(rooms, pending);
+  const next = rooms.map((r) => (r.id === room.id ? { ...r, occupancy: r.occupancy + 1, gender: r.gender || gender } : r));
+  return computeShortfall(next, { ...pending, [gender]: Math.max(0, pending[gender] - 1) }) <= before;
+}
+
+function roomMeta(room) {
+  return room.gender ? genderMeta(room.gender) : OPEN_ROOM;
+}
+
+function myTurn(gender) {
+  return turn === 'ALL' || turn === gender;
 }
 
 function normalizeRoom(room) {
@@ -259,21 +321,28 @@ function emptyGenderStats() {
 // Chua tai duoc members thi dung so lieu server gui kem.
 function computeStats() {
   const byGender = { MALE: emptyGenderStats(), FEMALE: emptyGenderStats() };
+  const open = { rooms: 0, free: 0 };
+  let lockedRooms = 0;
 
   rooms.forEach((room) => {
+    if (room.locked) lockedRooms += 1;
+    const left = room.locked ? 0 : Math.max(0, room.capacity - room.occupancy);
     const g = byGender[room.gender];
-    if (!g) return;
+    if (!g) {
+      open.rooms += 1;
+      open.free += left;
+      return;
+    }
     g.rooms += 1;
     g.capacity += room.capacity;
-    if (room.locked) g.lockedRooms += 1;
-    else g.free += Math.max(0, room.capacity - room.occupancy);
+    g.free += left;
   });
 
   if (!membersLoaded && serverStats) {
     Object.keys(byGender).forEach((key) => {
-      const s = (serverStats.byGender || {})[key] || {};
-      byGender[key].members = s.members || 0;
-      byGender[key].assigned = s.assigned || 0;
+      const st = (serverStats.byGender || {})[key] || {};
+      byGender[key].members = st.members || 0;
+      byGender[key].assigned = st.assigned || 0;
     });
     return {
       eligible: serverStats.eligible !== undefined ? serverStats.eligible : serverStats.totalMembers || 0,
@@ -281,6 +350,8 @@ function computeStats() {
       pending: serverStats.pending || 0,
       noGender: serverStats.noGender || 0,
       byGender,
+      open,
+      lockedRooms,
     };
   }
 
@@ -301,7 +372,7 @@ function computeStats() {
     }
   });
 
-  return { eligible: members.length, assigned, pending, noGender, byGender };
+  return { eligible: members.length, assigned, pending, noGender, byGender, open, lockedRooms };
 }
 
 /* ---------- ve lai theo khoa (muot, khong nhay) ---------- */
@@ -390,8 +461,8 @@ function renderStats() {
   const female = s.byGender.FEMALE;
   const male = s.byGender.MALE;
   const allDone = s.eligible > 0 && s.assigned >= s.eligible;
-  const freeTotal = female.free + male.free;
-  const lockedRooms = female.lockedRooms + male.lockedRooms;
+  const freeTotal = female.free + male.free + s.open.free;
+  const lockedRooms = s.lockedRooms;
   const verb = pickMode === 'choose' ? 'chọn' : 'quay';
 
   let assignedSub;
@@ -400,7 +471,7 @@ function renderStats() {
   else if (s.pending) assignedSub = `Còn ${s.pending} người chưa ${verb}`;
   else assignedSub = 'Chờ admin đặt giới tính';
 
-  const genderSub = (g) => (g.rooms ? `${g.rooms} phòng · còn ${g.free} chỗ` : 'Chưa có phòng');
+  const genderSub = (g) => (g.rooms ? `Đang ở ${g.rooms} phòng · còn ${g.free} chỗ` : 'Chưa ai nhận phòng');
 
   const html = [
     statTile({
@@ -416,7 +487,11 @@ function renderStats() {
       icon: 'door-open',
       label: 'Chỗ trống',
       value: `${freeTotal}`,
-      sub: lockedRooms ? `${lockedRooms} phòng đang khóa` : `${rooms.length} phòng`,
+      sub: lockedRooms
+        ? `${lockedRooms} phòng đang khóa`
+        : s.open.rooms
+          ? `${s.open.rooms} phòng chưa có ai`
+          : `${rooms.length} phòng`,
       variant: lockedRooms ? 'warn' : '',
     }),
   ].join('');
@@ -451,29 +526,39 @@ function pickContext() {
   const me = myName();
   const member = findMember(me);
   const myRoom = roomOf(me);
+  const gender = member ? member.gender : null;
   return {
     me,
-    gender: member ? member.gender : null,
+    gender,
     myRoomId: myRoom ? myRoom.id : null,
-    canChoose: pickMode === 'choose' && pageOpen && !!me && !!member && !!member.gender && !myRoom,
+    pending: pendingByGender(),
+    canChoose: pickMode === 'choose' && pageOpen && !!me && !!gender && !myRoom && myTurn(gender),
   };
 }
 
 function pickButtonHtml(room, ctx) {
-  if (!ctx.canChoose || room.gender !== ctx.gender) return '';
+  if (!ctx.canChoose || !roomFitsGender(room, ctx.gender)) return '';
   if (room.occupancy >= room.capacity) return '';
-  if (room.locked) {
-    return `<button type="button" class="room-pick-btn" disabled>${ic('lock')} <span>Phòng đang khóa</span></button>`;
-  }
-  if (locked) {
-    return `<button type="button" class="room-pick-btn" disabled>${ic('lock')} <span>Vòng đang tạm khóa</span></button>`;
+  const disabled = (icon, text) =>
+    `<button type="button" class="room-pick-btn" disabled>${ic(icon)} <span>${text}</span></button>`;
+  if (room.locked) return disabled('lock', 'Phòng đang khóa');
+  if (locked) return disabled('lock', 'Vòng đang tạm khóa');
+  // Vao day thi gioi kia het cho -> de danh (server cung chan)
+  if (!placementOk(room, ctx.gender, ctx.pending)) {
+    return disabled('shield', `Để dành cho các bạn ${ctx.gender === 'MALE' ? 'Nữ' : 'Nam'}`);
   }
   const free = room.capacity - room.occupancy;
   return `<button type="button" class="room-pick-btn is-ready" data-pick="${room.id}" ${isBusy ? 'disabled' : ''}
     aria-label="Chọn phòng ${escapeHtml(room.name)} (còn ${free} chỗ)">${ic('hand')} <span>Chọn phòng này</span></button>`;
 }
 
-function roomCardHtml(room, meta, ctx) {
+function roomGenderChip(room) {
+  if (room.gender) return genderChip(room.gender);
+  return `<span class="chip is-accent">${ic('venus-and-mars')} Còn trống · nam hoặc nữ</span>`;
+}
+
+function roomCardHtml(room, ctx) {
+  const meta = roomMeta(room);
   const isMine = ctx.myRoomId === room.id;
   const isFull = room.occupancy >= room.capacity;
   const fillPct = room.capacity ? Math.min(100, Math.round((room.occupancy / room.capacity) * 100)) : 0;
@@ -496,8 +581,8 @@ function roomCardHtml(room, meta, ctx) {
     () => `<li class="room-bed is-empty">${room.locked ? ic('lock') : ic('bed-double')} <span>${room.locked ? 'Đang khóa' : 'Còn trống'}</span></li>`
   ).join('');
 
-  // Khong in chip gioi tinh trong the: tieu de khu "Phong nu / Phong nam" va mau
-  // vien the da noi ro, them chip chi lam roi hang nhan trang thai.
+  // Mot luoi chung cho moi phong (giu dung thu tu vi tri), nen moi the tu ghi ro
+  // dang la phong nu / nam hay con trong - mau vien the cung doi theo.
   const classes = ['room-card', `is-${meta.tone}`];
   if (isMine) classes.push('is-mine');
   if (isFull) classes.push('is-full');
@@ -514,6 +599,7 @@ function roomCardHtml(room, meta, ctx) {
         <span class="room-card-count num" title="Số người / sức chứa">${room.occupancy}/${room.capacity}</span>
       </div>
       <div class="room-card-tags">
+        ${roomGenderChip(room)}
         ${room.locked ? `<span class="chip is-warn">${ic('lock')} Đã khóa</span>` : ''}
         ${isFull ? `<span class="chip is-ok">${ic('check')} Đủ người</span>` : ''}
         ${isMine ? `<span class="chip room-mine-chip">${ic('star')} Phòng của bạn</span>` : ''}
@@ -527,16 +613,14 @@ function roomCardHtml(room, meta, ctx) {
     </article>`;
 }
 
-function ensureSectionShells() {
+function ensureListShell() {
   if (roomsList.dataset.ready === '1') return;
   roomsList.dataset.ready = '1';
-  roomsList.innerHTML = `${GENDER_SECTIONS.map(
-    (meta) => `
-      <section class="rooms-section is-${meta.tone}" data-gender="${meta.gender}" aria-label="Phòng ${meta.label.toLowerCase()}" hidden>
-        <div class="rooms-section-head" data-head></div>
-        <div class="rooms-grid" data-grid></div>
-      </section>`
-  ).join('')}
+  roomsList.innerHTML = `
+    <section class="rooms-section is-open" aria-labelledby="roomsListTitle">
+      <div class="rooms-section-head" data-head></div>
+      <div class="rooms-grid" data-grid></div>
+    </section>
     <div class="rooms-empty" data-empty hidden>
       <span class="rooms-empty-icon" aria-hidden="true">${ic('bed-double')}</span>
       <strong>Chưa có phòng nào được tạo</strong>
@@ -544,26 +628,25 @@ function ensureSectionShells() {
     </div>`;
 }
 
-function sectionHeadHtml(meta, sectionRooms, ctx) {
-  const people = sectionRooms.reduce((sum, r) => sum + r.occupancy, 0);
-  const capacity = sectionRooms.reduce((sum, r) => sum + r.capacity, 0);
-  const lockedCount = sectionRooms.filter((r) => r.locked).length;
-  const freeSlots = sectionRooms.filter((r) => !r.locked).reduce((sum, r) => sum + Math.max(0, r.capacity - r.occupancy), 0);
-  const allFull = people >= capacity;
-  const forMe = ctx.gender === meta.gender && !ctx.myRoomId && !!ctx.me;
+function listHeadHtml() {
+  const people = rooms.reduce((sum, r) => sum + r.occupancy, 0);
+  const capacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
+  const count = (fn) => rooms.filter(fn).length;
+  const female = count((r) => r.gender === 'FEMALE');
+  const male = count((r) => r.gender === 'MALE');
+  const open = count((r) => !r.gender);
+  const lockedCount = count((r) => r.locked);
 
   return `
-    <span class="rooms-section-icon" aria-hidden="true">${ic(meta.lucide)}</span>
+    <span class="rooms-section-icon" aria-hidden="true">${ic('bed-double')}</span>
     <div class="rooms-section-titles">
-      <h2>Phòng ${meta.label.toLowerCase()}${forMe ? ' <span class="rooms-section-forme">dành cho bạn</span>' : ''}</h2>
-      <p><span class="num">${sectionRooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người</p>
+      <h2 id="roomsListTitle">Danh sách phòng</h2>
+      <p><span class="num">${rooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người · ai vào phòng trống trước thì phòng thành phòng của giới đó</p>
     </div>
     <div class="rooms-section-meta">
-      ${
-        allFull
-          ? `<span class="chip is-ok">${ic('check-check')} Đã kín chỗ</span>`
-          : `<span class="chip">${ic('door-open')} Còn ${freeSlots} chỗ trống</span>`
-      }
+      ${female ? `<span class="chip is-female">${ic('venus')} ${female} phòng nữ</span>` : ''}
+      ${male ? `<span class="chip is-male">${ic('mars')} ${male} phòng nam</span>` : ''}
+      ${open ? `<span class="chip is-accent">${ic('door-open')} ${open} phòng trống</span>` : ''}
       ${lockedCount ? `<span class="chip is-warn">${ic('lock')} ${lockedCount} phòng khóa</span>` : ''}
     </div>`;
 }
@@ -571,41 +654,34 @@ function sectionHeadHtml(meta, sectionRooms, ctx) {
 function renderRooms() {
   if (!roomsLoaded) return; // giu nguyen khung "dang tai" / du lieu cu
 
-  ensureSectionShells();
+  ensureListShell();
   const ctx = pickContext();
-  const emptyBox = roomsList.querySelector('[data-empty]');
-  emptyBox.hidden = rooms.length > 0;
+  roomsList.querySelector('[data-empty]').hidden = rooms.length > 0;
+  const section = roomsList.querySelector('.rooms-section');
+  section.hidden = !rooms.length;
+  if (!rooms.length) return;
 
-  if (firstRoomsPaint && rooms.length && !prefersReducedMotion()) {
+  if (firstRoomsPaint && !prefersReducedMotion()) {
     roomsList.classList.add('is-entering');
     setTimeout(() => roomsList.classList.remove('is-entering'), 1400);
   }
   firstRoomsPaint = false;
 
-  GENDER_SECTIONS.forEach((meta) => {
-    const section = roomsList.querySelector(`[data-gender="${meta.gender}"]`);
-    const sectionRooms = rooms.filter((r) => r.gender === meta.gender);
-    section.hidden = !sectionRooms.length;
-    // Khu cua dung gioi tinh nguoi dang chon dua len dau, khong phai cuon tim
-    section.style.order = ctx.gender === meta.gender ? '-1' : '0';
-    if (!sectionRooms.length) return;
+  const head = section.querySelector('[data-head]');
+  const headHtml = listHeadHtml();
+  if (head.dataset.sig !== headHtml) {
+    head.dataset.sig = headHtml;
+    head.innerHTML = headHtml;
+  }
 
-    const head = section.querySelector('[data-head]');
-    const headHtml = sectionHeadHtml(meta, sectionRooms, ctx);
-    if (head.dataset.sig !== headHtml) {
-      head.dataset.sig = headHtml;
-      head.innerHTML = headHtml;
-    }
-
-    patchKeyed(
-      section.querySelector('[data-grid]'),
-      sectionRooms.map((room, i) => ({
-        key: room.id,
-        html: roomCardHtml(room, meta, ctx).replace('<article ', `<article style="--i:${i}" `),
-        onCreate: animateRoomCard,
-      }))
-    );
-  });
+  patchKeyed(
+    section.querySelector('[data-grid]'),
+    rooms.map((room, i) => ({
+      key: room.id,
+      html: roomCardHtml(room, ctx).replace('<article ', `<article style="--i:${i}" `),
+      onCreate: animateRoomCard,
+    }))
+  );
 }
 
 function resultShareText(name, room) {
@@ -703,12 +779,15 @@ function setMeLine(html) {
 }
 
 function renderRoundChip() {
-  const key = locked ? 'locked' : 'open';
+  const key = locked ? 'locked' : turn;
   if (roundChip.dataset.key === key) return;
   roundChip.dataset.key = key;
   if (locked) {
     roundChip.className = 'chip is-warn rooms-round-chip';
     roundChip.innerHTML = `${ic('lock')} Tạm khóa`;
+  } else if (turn !== 'ALL') {
+    roundChip.className = `chip is-${turn === 'FEMALE' ? 'female' : 'male'} rooms-round-chip`;
+    roundChip.innerHTML = `${ic(turn === 'FEMALE' ? 'venus' : 'mars')} Lượt: ${TURN_LABEL[turn]}`;
   } else {
     roundChip.className = 'chip is-ok rooms-round-chip';
     roundChip.innerHTML = '<span class="dot"></span> Đang mở';
@@ -796,14 +875,21 @@ function updateDrawState() {
     return;
   }
 
-  const myRooms = rooms.filter((r) => r.gender === member.gender);
-  const freeRooms = myRooms.filter(isAvailable);
+  const myRooms = rooms.filter((r) => roomFitsGender(r, member.gender));
+  const freeRooms = myRooms.filter((r) => roomAccepts(r, member.gender));
   const freeSlots = freeRooms.reduce((sum, r) => sum + (r.capacity - r.occupancy), 0);
   const label = meta.label.toLowerCase();
 
   setMeLine(
-    `${genderChip(member.gender)} <span>Còn <strong class="num">${freeRooms.length}</strong> phòng ${label} · <strong class="num">${freeSlots}</strong> chỗ trống cho bạn</span>`
+    `${genderChip(member.gender)} <span>Còn <strong class="num">${freeRooms.length}</strong> phòng nhận ${label} · <strong class="num">${freeSlots}</strong> chỗ trống</span>`
   );
+
+  if (!myTurn(member.gender)) {
+    drawBtn.disabled = true;
+    setNotice(`Đang tới lượt các bạn ${TURN_LABEL[turn]} nhận phòng — chờ admin mở lượt ${meta.label} nhé.`);
+    setJump(false);
+    return;
+  }
 
   if (locked) {
     drawBtn.disabled = true;
@@ -814,7 +900,7 @@ function updateDrawState() {
 
   if (!myRooms.length) {
     drawBtn.disabled = true;
-    setNotice(`Chưa có phòng nào dành cho ${label} — nhờ admin tạo thêm phòng.`);
+    setNotice(`Không còn phòng nào nhận ${label} — nhờ admin tạo thêm phòng.`);
     setJump(false);
     return;
   }
@@ -825,8 +911,17 @@ function updateDrawState() {
     setNotice(
       lockedWithSpace
         ? `Các phòng ${label} còn chỗ đều đang bị khóa — chờ admin mở khóa nhé.`
-        : `Các phòng ${label} đã kín chỗ — nhờ admin mở thêm phòng.`
+        : `Các phòng nhận ${label} đã kín chỗ — nhờ admin mở thêm phòng.`
     );
+    setJump(false);
+    return;
+  }
+
+  // Con phong trong nhung vao phong nao cung lam gioi kia het cho
+  const pending = pendingByGender();
+  if (!freeRooms.some((r) => placementOk(r, member.gender, pending))) {
+    drawBtn.disabled = true;
+    setNotice(`Chỗ còn lại phải để dành cho các bạn ${member.gender === 'MALE' ? 'Nữ' : 'Nam'} — nhờ admin sắp xếp thêm chỗ cho bạn.`);
     setJump(false);
     return;
   }
@@ -1033,6 +1128,7 @@ async function loadRooms() {
   if (seq > lockedSeq) {
     lockedSeq = seq;
     locked = !!payload.locked;
+    if (payload.turn) turn = payload.turn;
   }
   // Chua doc duoc /api/config thi lay tam cach nhan phong tu day
   if (payload.pickMode && !(window.UiConfig && window.UiConfig.current)) {
@@ -1071,9 +1167,10 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function spinTo(room) {
-  const meta = genderMeta(room.gender);
-  const pool = rooms.filter((r) => r.gender === room.gender && !r.locked);
+function spinTo(room, gender) {
+  const meta = genderMeta(gender || room.gender);
+  // Cac phong nguoi nay co the vao (cung gioi hoac con trong) - phong dich da doi gioi sau khi vao
+  const pool = rooms.filter((r) => !r.locked && (r.id === room.id || roomFitsGender(r, gender)));
   if (!pool.length) pool.push(room);
 
   const item = (r) =>
@@ -1261,7 +1358,7 @@ async function draw() {
       storeName(name);
       applyRoomPatch(data.room, data.member);
       if (!data.alreadyAssigned) {
-        await spinTo(data.room);
+        await spinTo(data.room, data.member && data.member.gender);
         await wait(prefersReducedMotion() ? 0 : 350);
       }
       outcome = data;
@@ -1312,8 +1409,14 @@ function guardPickDialog() {
   if (mine) return closePickDialog(`Admin vừa xếp bạn vào ${mine.name}.`);
   if (!room) return closePickDialog('Phòng này vừa bị admin xóa — chọn phòng khác nhé.');
   if (locked) return closePickDialog('Vòng ghép phòng vừa bị khóa — chờ admin mở nhé.');
+  const member = findMember(myName());
+  if (member && !myTurn(member.gender)) return closePickDialog(`Admin vừa chuyển sang lượt các bạn ${TURN_LABEL[turn]}.`);
   if (room.locked) return closePickDialog(`${room.name} vừa bị khóa — chọn phòng khác nhé.`);
   if (room.occupancy >= room.capacity) return closePickDialog(`${room.name} vừa kín chỗ — chọn phòng khác nhé.`);
+  if (member && !roomFitsGender(room, member.gender)) return closePickDialog(`${room.name} vừa thành phòng ${genderMeta(room.gender).label} — chọn phòng khác nhé.`);
+  if (member && !placementOk(room, member.gender, pendingByGender())) {
+    return closePickDialog(`${room.name} giờ phải để dành cho giới còn lại — chọn phòng khác nhé.`);
+  }
   return fillConfirm(room);
 }
 
@@ -1446,8 +1549,7 @@ resultBox.addEventListener('click', async (event) => {
 });
 
 jumpBtn.addEventListener('click', () => {
-  const member = findMember(myName());
-  const section = member && roomsList.querySelector(`[data-gender="${member.gender}"]`);
+  const section = roomsList.querySelector('.rooms-section');
   if (!section) return;
   section.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   const first = section.querySelector('[data-pick]:not(:disabled)');
@@ -1599,10 +1701,21 @@ socket.on('rooms:reset', () => {
 socket.on('rooms:config', (payload) => {
   const next = !!(payload && payload.locked);
   const changed = next !== locked;
+  const nextTurn = payload && payload.turn ? payload.turn : turn;
+  const turnChanged = nextTurn !== turn;
   locked = next;
+  turn = nextTurn;
   lockedSeq = ++dataSeq;
-  clearError(); // loi "dang khoa" cu khong con dung nua
+  clearError(); // loi "dang khoa" / "chua toi luot" cu khong con dung nua
   requestRender();
+  if (turnChanged) {
+    showToast(
+      turn === 'ALL' ? '🔔 Đã mở nhận phòng cho cả nam và nữ!' : `🔔 Tới lượt các bạn ${TURN_LABEL[turn]} nhận phòng!`,
+      'info',
+      5000,
+      { key: 'rooms-turn', priority: 2 }
+    );
+  }
   if (!changed) return;
   // Admin bat/tat lien tuc -> chi 1 toast duy nhat doi noi dung tai cho
   showToast(locked ? '🔒 Vòng ghép phòng đã bị khóa' : '🔓 Vòng ghép phòng đã mở!', 'info', 4000, {

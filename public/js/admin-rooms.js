@@ -48,6 +48,7 @@
   const lockNote = document.getElementById('roomLockNote');
   const exportBtn = document.getElementById('roomExportBtn');
   const pickSeg = document.getElementById('roomPickSeg');
+  const turnSeg = document.getElementById('roomTurnSeg');
   const modeHint = document.getElementById('roomModeHint');
 
   const FILTERS = [
@@ -60,42 +61,38 @@
     { key: 'locked', label: 'Đang khóa', icon: 'lock', test: (r) => r.locked },
   ];
 
+  // gender = gioi HIEU LUC (co dinh hoac theo nguoi dang o); null = phong chua co ai
   const SECTIONS = [
     { gender: 'FEMALE', label: 'Phòng nữ', icon: 'venus' },
     { gender: 'MALE', label: 'Phòng nam', icon: 'mars' },
+    { gender: null, label: 'Phòng chưa có ai (nam hoặc nữ)', icon: 'door-open' },
   ];
+  const TURN_LABEL = { ALL: 'Cả nam và nữ', FEMALE: 'Chỉ Nữ', MALE: 'Chỉ Nam' };
 
   let activeFilter = 'all';
   let rooms = [];
   let stats = null;
   let members = [];
   let roundLocked = false;
+  let turn = 'ALL';
   let loaded = false;
   const expanded = new Set();
 
   /* ---------- hien thi ---------- */
 
-  // Phong chia theo gioi nen tong suc chua du van co the thieu cho cho 1 ben,
-  // va nguoi chua dat gioi tinh van can 1 cho (chua biet ben nao).
+  // Phong dung chung cho ca 2 gioi (ai vao truoc quyet dinh) nen khong so suc chua
+  // tung gioi duoc: may chu tinh san so nguoi se het cho khi chia phong trong toi uu.
   function capacityTile(st) {
-    const gaps = ['FEMALE', 'MALE']
-      .map((gender) => ({
-        label: gender === 'FEMALE' ? 'nữ' : 'nam',
-        missing: st.byGender[gender].members - st.byGender[gender].capacity,
-      }))
-      .filter((x) => x.missing > 0);
-
+    const sf = st.shortfall || { total: 0, FEMALE: 0, MALE: 0 };
     let sub;
     let variant;
     if (!st.eligible) {
       sub = 'Không ai cần phòng';
       variant = '';
-    } else if (gaps.length) {
-      sub = `Thiếu ${gaps.map((g) => `${g.missing} chỗ ${g.label}`).join(', ')}`;
+    } else if (sf.total) {
+      const parts = [sf.FEMALE ? `${sf.FEMALE} chỗ nữ` : '', sf.MALE ? `${sf.MALE} chỗ nam` : ''].filter(Boolean);
+      sub = `Thiếu ${parts.join(', ')} — thêm phòng, tăng sức chứa hoặc mở khóa phòng`;
       variant = 'danger';
-    } else if (st.totalCapacity < st.eligible) {
-      sub = `Còn thiếu ${st.eligible - st.totalCapacity} chỗ${st.noGender ? ` (${st.noGender} người chưa đặt giới tính)` : ''}`;
-      variant = st.totalCapacity === 0 ? 'danger' : 'warn';
     } else if (st.noGender) {
       sub = `Đủ chỗ cho người đã đặt giới tính · ${st.noGender} người chưa đặt`;
       variant = 'warn';
@@ -121,6 +118,7 @@
         icon: 'bed-double',
         label: 'Đã có phòng',
         value: `${stats.assigned}/${stats.eligible}`,
+        sub: stats.excluded ? `${stats.excluded} người không tham gia` : '',
         variant: notPlaced ? 'warn' : 'ok',
         meter: { value: stats.assigned, total: stats.eligible, variant: notPlaced ? 'warn' : 'ok' },
       }),
@@ -135,23 +133,23 @@
         icon: 'venus',
         label: 'Phòng nữ',
         value: f.rooms,
-        sub: `${f.assigned}/${f.members} người · ${f.capacity} chỗ`,
+        sub: `${f.assigned}/${f.members} bạn nữ đã có phòng`,
         variant: 'female',
       }),
       A.statTile({
         icon: 'mars',
         label: 'Phòng nam',
         value: m.rooms,
-        sub: `${m.assigned}/${m.members} người · ${m.capacity} chỗ`,
+        sub: `${m.assigned}/${m.members} bạn nam đã có phòng`,
         variant: 'male',
       }),
       capacityTile(stats),
       A.statTile({
-        icon: stats.lockedRooms || roundLocked ? 'lock' : 'lock-open',
-        label: 'Phòng đang khóa',
-        value: stats.lockedRooms,
-        sub: `${roundLocked ? 'Vòng ghép phòng đang khóa' : 'Vòng đang mở'} · ${stats.excluded} người không tham gia`,
-        variant: roundLocked || stats.lockedRooms ? 'warn' : '',
+        icon: 'door-open',
+        label: 'Phòng chưa có ai',
+        value: stats.openRooms || 0,
+        sub: `${stats.openCapacity || 0} chỗ · nam hoặc nữ đều vào được${stats.lockedRooms ? ` · ${stats.lockedRooms} phòng khóa` : ''}`,
+        variant: stats.lockedRooms ? 'warn' : 'accent',
       }),
     ].join('');
 
@@ -215,7 +213,7 @@
       <div class="admin-room ${classes}" data-room-id="${room.id}">
         <div class="admin-room-top">
           <div class="admin-room-name">
-            <span>${A.icon(A.genderIcon(room.gender))} ${A.escapeHtml(room.name)}</span>
+            <span>${A.icon(room.gender ? A.genderIcon(room.gender) : 'door-open')} ${A.escapeHtml(room.name)}</span>
             ${room.location ? `<span class="admin-room-loc">${A.icon('map-pin', 'ic-sm')} ${A.escapeHtml(room.location)}</span>` : ''}
             ${room.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : ''}
           </div>
@@ -257,8 +255,9 @@
             <div class="admin-field">
               <label for="${scope}-gender">Dành cho</label>
               <select id="${scope}-gender" data-edit="gender">
-                <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>Nữ</option>
-                <option value="MALE" ${room.gender === 'MALE' ? 'selected' : ''}>Nam</option>
+                <option value="" ${!room.fixedGender ? 'selected' : ''}>Nam hoặc nữ (ai vào trước)</option>
+                <option value="FEMALE" ${room.fixedGender === 'FEMALE' ? 'selected' : ''}>Chỉ nữ</option>
+                <option value="MALE" ${room.fixedGender === 'MALE' ? 'selected' : ''}>Chỉ nam</option>
               </select>
             </div>
             <div class="admin-field">
@@ -285,7 +284,7 @@
     const body = {};
     if (read('name') !== room.name) body.name = read('name');
     if (read('location') !== (room.location || '')) body.location = read('location');
-    if (read('gender') !== room.gender) body.gender = read('gender');
+    if (read('gender') !== (room.fixedGender || '')) body.gender = read('gender');
     if (read('capacity') !== String(room.capacity)) body.capacity = read('capacity');
     if (read('note') !== (room.note || '')) body.note = read('note');
     return body;
@@ -369,12 +368,12 @@
     const options = member.gender
       ? '<option value="">Chọn phòng…</option>' +
         rooms
-          .filter((r) => r.gender === member.gender)
+          .filter((r) => !r.gender || r.gender === member.gender)
           .map((r) => {
             const full = r.occupancy >= r.capacity;
             return `<option value="${r.id}" ${full ? 'disabled' : ''}>${A.escapeHtml(r.name)}${
               r.location ? ` · ${A.escapeHtml(r.location)}` : ''
-            } (${r.occupancy}/${r.capacity})${
+            } (${r.occupancy}/${r.capacity})${r.gender ? '' : ' · nam/nữ'}${
               full ? ' - kín' : ''
             }${r.locked ? ' 🔒' : ''}</option>`;
           })
@@ -472,6 +471,7 @@
     renderSwapSelects();
     syncLockBtn();
     renderPickMode();
+    renderTurn();
 
     A.applyEditLock(panel, lockNote);
   }
@@ -487,6 +487,7 @@
       rooms = roomRes.rooms || [];
       stats = roomRes.stats || null;
       roundLocked = !!roomRes.locked;
+      turn = roomRes.turn || 'ALL';
       members = memberRes;
       loaded = true;
 
@@ -860,7 +861,7 @@
       rows.push([
         r.name,
         r.location || '',
-        A.genderLabel(r.gender),
+        r.gender ? A.genderLabel(r.gender) : 'Chưa có ai (nam hoặc nữ)',
         r.capacity,
         r.occupancy,
         r.locked ? 'Đang khóa' : r.isFull ? 'Đã kín' : 'Còn chỗ',
@@ -870,6 +871,29 @@
     });
     A.downloadCsv('danh-sach-phong-ngu.csv', rows);
     A.done(roomListMsg, `Đã xuất ${rows.length - 1} phòng ra file CSV.`);
+  });
+
+  /* ---------- luot nhan phong (ca hai / chi nu / chi nam) ---------- */
+
+  function renderTurn() {
+    turnSeg.querySelectorAll('[data-turn]').forEach((btn) => {
+      btn.setAttribute('aria-checked', String(btn.dataset.turn === turn));
+    });
+  }
+
+  turnSeg.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-turn]');
+    if (!btn || btn.disabled || btn.dataset.turn === turn) return;
+    const data = await A.run(btn, actionMsg, 'Đang đổi lượt...', () =>
+      A.request('POST', '/api/admin/rooms/turn', { turn: btn.dataset.turn })
+    );
+    if (!data) return;
+    turn = data.turn;
+    renderTurn();
+    A.done(
+      actionMsg,
+      turn === 'ALL' ? 'Đã mở nhận phòng cho cả nam và nữ.' : `Đã mở lượt: ${TURN_LABEL[turn]} nhận phòng trước.`
+    );
   });
 
   /* ---------- cach nhan phong (quay ngau nhien / tu chon) ---------- */

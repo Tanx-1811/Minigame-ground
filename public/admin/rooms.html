@@ -32,7 +32,7 @@
               <div class="admin-page-head">
                 <div>
                   <h2><i data-lucide="bed-double"></i> Phòng ngủ</h2>
-                  <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính, chưa khóa và còn chỗ. Mỗi phòng có tên hiển thị vui và vị trí thật (VD: Villa 1 đôi 1).</p>
+                  <p>Nam ở với nam, nữ ở với nữ. Phòng chưa có ai thì ai vào trước, phòng thành phòng của giới đó; hệ thống chỉ xếp vào phòng chưa khóa, còn chỗ và luôn giữ đủ chỗ cho giới còn lại.</p>
                 </div>
                 <div class="admin-page-head-actions">
                   <a class="admin-btn admin-btn-secondary" href="/rooms.html" target="_blank" rel="noopener">
@@ -61,6 +61,16 @@
                       <button type="button" role="radio" aria-checked="false" data-pick-mode="choose"><i data-lucide="hand"></i> Tự chọn phòng</button>
                     </div>
                     <span id="roomModeHint" class="admin-seg-hint"></span>
+                  </div>
+
+                  <div class="admin-seg-row">
+                    <span class="admin-seg-label"><i data-lucide="route"></i> Lượt nhận phòng</span>
+                    <div id="roomTurnSeg" class="admin-seg" role="radiogroup" aria-label="Lượt nhận phòng">
+                      <button type="button" role="radio" aria-checked="false" data-turn="ALL"><i data-lucide="venus-and-mars"></i> Cả nam và nữ</button>
+                      <button type="button" role="radio" aria-checked="false" data-turn="FEMALE"><i data-lucide="venus"></i> Chỉ Nữ</button>
+                      <button type="button" role="radio" aria-checked="false" data-turn="MALE"><i data-lucide="mars"></i> Chỉ Nam</button>
+                    </div>
+                    <span class="admin-seg-hint">Mở cho một giới nhận phòng trước, xong thì chuyển sang giới còn lại. Phòng chưa có ai thì ai vào trước, phòng thành của giới đó — hệ thống luôn giữ đủ chỗ cho giới đi sau.</span>
                   </div>
 
                   <div class="admin-form-grid is-tight">
@@ -95,7 +105,7 @@
               <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
-                    <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau. Vị trí là nơi phòng nằm thật — hiện ngay dưới tên.</p>
+                    <p>Để "Nam hoặc nữ" thì người đầu tiên vào phòng quyết định phòng đó của giới nào (không bao giờ nam nữ chung phòng). Tên phòng không được trùng. Vị trí là nơi phòng nằm thật — hiện ngay dưới tên.</p>
                   </div>
                 </summary>
                 <div class="admin-card-body">
@@ -111,8 +121,9 @@
                     <div class="admin-field">
                       <label for="newRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
                       <select id="newRoomGender">
-                        <option value="FEMALE">Nữ</option>
-                        <option value="MALE">Nam</option>
+                        <option value="">Nam hoặc nữ (ai vào trước)</option>
+                        <option value="FEMALE">Chỉ nữ</option>
+                        <option value="MALE">Chỉ nam</option>
                       </select>
                     </div>
                     <div class="admin-field">

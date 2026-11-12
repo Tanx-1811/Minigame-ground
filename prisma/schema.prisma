@@ -65,7 +65,9 @@ model Room {
   name      String   @unique
   // Vi tri / ma phong thuc te (vd "Villa 1 doi 1", "Phong 102") - hien canh ten
   location  String?  @db.VarChar(120)
-  gender    Gender
+  // Null = phong chua dinh gioi: nam hay nu deu vao duoc, nguoi DAU TIEN vao
+  // quyet dinh phong do thuoc gioi nao (khong bao gio nam nu o chung).
+  gender    Gender?
   capacity  Int      @default(2)
   note      String?
   // Khoa phong: khong nhan them nguoi khi random, nguoi dang o van giu nguyen.

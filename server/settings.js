@@ -148,6 +148,14 @@ async function isRoomsLocked() {
   return parseBool(await getSetting('roomsLocked'), false);
 }
 
+// Luot nhan phong: 'ALL' = ca nam lan nu, 'FEMALE' / 'MALE' = chi gioi do duoc
+// nhan phong luc nay (vd cho nu chon truoc roi moi mo cho nam). Nam cung cho voi
+// roomsLocked: thay doi phat qua rooms:config, khong nam trong form "Giao dien".
+async function getRoomTurn() {
+  const raw = String((await getSetting('roomTurn')) || '').toUpperCase();
+  return ['FEMALE', 'MALE'].includes(raw) ? raw : 'ALL';
+}
+
 async function isRandomLocked() {
   return parseBool(await getSetting('randomLocked'), false);
 }
@@ -198,6 +206,7 @@ module.exports = {
   getGroupCapacity,
   parseBool,
   isRoomsLocked,
+  getRoomTurn,
   isRandomLocked,
   getPublicUi,
 };

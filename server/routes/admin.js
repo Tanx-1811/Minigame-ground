@@ -22,6 +22,22 @@ const {
   invalidateSettingCache,
 } = require('../settings');
 const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
+
+// Gioi hieu luc cua phong khi BO QUA nhung nguoi trong `ignoreIds` (ho dang duoc xep lai):
+// co dinh boi admin, khong thi theo nguoi dang o, phong trong = null (ai vao cung duoc).
+async function roomGenderFor(roomId, ignoreIds = []) {
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: { members: { select: { id: true, gender: true } } },
+  });
+  if (!room) return null;
+  const others = room.members.filter((m) => !ignoreIds.includes(m.id));
+  return {
+    room,
+    others,
+    gender: room.gender || (others.find((m) => m.gender) || {}).gender || null,
+  };
+}
 const { loadGroupsPayload, assignAllPendingGroups } = require('../groups');
 const { withLock } = require('../lock');
 
@@ -204,31 +220,34 @@ async function updateMember(req, res) {
         const parsedRoomId = parseId(roomId);
         if (!parsedRoomId) return res.status(400).json({ error: 'Phòng không hợp lệ' });
 
-        const room = await prisma.room.findUnique({
-          where: { id: parsedRoomId },
-          include: { _count: { select: { members: true } } },
-        });
-        if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
+        const info = await roomGenderFor(parsedRoomId, [member.id]);
+        if (!info) return res.status(404).json({ error: 'Không tìm thấy phòng' });
+        const { room } = info;
 
         if (!finalGender) {
           return res.status(400).json({ error: 'Cần đặt giới tính cho thành viên trước khi xếp phòng' });
         }
-        if (room.gender !== finalGender) {
+        if (info.gender && info.gender !== finalGender) {
           return res.status(400).json({
-            error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)}, không xếp được người ${genderLabel(finalGender)}`,
+            error: `Phòng "${room.name}" đang là phòng ${genderLabel(info.gender)}, không xếp được người ${genderLabel(finalGender)}`,
           });
         }
-        const occupancy = room._count.members - (member.roomId === room.id ? 1 : 0);
+        const occupancy = info.others.length;
         if (occupancy >= room.capacity) {
           return res.status(400).json({ error: `Phòng "${room.name}" đã kín ${room.capacity} người` });
         }
 
         data.roomId = parsedRoomId;
       }
-    } else if (data.gender !== undefined && member.room && member.room.gender !== data.gender) {
-      // Doi gioi tinh ma dang o phong cua gioi cu -> tu dong dua ra khoi phong
-      data.roomId = null;
-      movedOutOfRoom = true;
+    } else if (data.gender !== undefined && data.gender !== member.gender && member.roomId) {
+      // Doi gioi tinh ma dang o phong -> phai ra khoi phong neu phong co dinh gioi cu
+      // hoac con nguoi khac o (khong de nam nu chung phong). O 1 minh phong chua dinh
+      // gioi thi giu nguyen, phong tu doi theo.
+      const info = await roomGenderFor(member.roomId, [member.id]);
+      if (!info || (info.gender && info.gender !== data.gender) || !data.gender) {
+        data.roomId = null;
+        movedOutOfRoom = true;
+      }
     }
 
     if (!Object.keys(data).length) {
@@ -328,9 +347,10 @@ async function bulkMembers(req, res) {
         return res.status(400).json({ error: 'Giới tính không hợp lệ' });
       }
 
-      // Ai dang o phong khac gioi thi phai ra khoi phong do
+      // Ai doi gioi tinh ma dang o phong thi ra khoi phong (tranh nam nu chung phong
+      // khi phong con nguoi khac / phong co dinh gioi cu). Don gian va luon an toan.
       const leaveRoomIds = members
-        .filter((m) => m.room && m.room.gender !== parsedGender)
+        .filter((m) => m.roomId && m.gender !== parsedGender)
         .map((m) => m.id);
 
       await prisma.$transaction([
@@ -402,21 +422,25 @@ async function bulkMembers(req, res) {
       const targetRoomId = parseId(roomId);
       if (!targetRoomId) return res.status(400).json({ error: 'Phòng không hợp lệ' });
 
-      const room = await prisma.room.findUnique({
-        where: { id: targetRoomId },
-        include: { _count: { select: { members: true } } },
-      });
-      if (!room) return res.status(404).json({ error: 'Không tìm thấy phòng' });
+      const info = await roomGenderFor(targetRoomId, memberIds);
+      if (!info) return res.status(404).json({ error: 'Không tìm thấy phòng' });
+      const { room } = info;
 
-      const wrongGender = members.filter((m) => m.gender !== room.gender);
+      if (members.some((m) => !m.gender)) {
+        return res.status(400).json({ error: 'Có người chưa đặt giới tính — đặt giới tính trước khi xếp phòng' });
+      }
+      // Phong chua dinh gioi: nguoi duoc xep phai cung 1 gioi
+      const roomGender = info.gender || members[0].gender;
+      const wrongGender = members.filter((m) => m.gender !== roomGender);
       if (wrongGender.length) {
         return res.status(400).json({
-          error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)} — ${wrongGender.length} người đã chọn không hợp giới tính`,
+          error: info.gender
+            ? `Phòng "${room.name}" đang là phòng ${genderLabel(info.gender)} — ${wrongGender.length} người đã chọn không hợp giới tính`
+            : 'Không xếp nam và nữ vào chung một phòng — chọn những người cùng giới tính',
         });
       }
 
-      const alreadyInside = members.filter((m) => m.roomId === room.id).length;
-      const free = room.capacity - (room._count.members - alreadyInside);
+      const free = room.capacity - info.others.length;
       if (members.length > free) {
         return res.status(400).json({
           error: `Phòng "${room.name}" chỉ còn ${Math.max(0, free)} chỗ, không đủ cho ${members.length} người`,
@@ -1556,7 +1580,7 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
             data: {
               name: String(r.name),
               location: r.location ? String(r.location).slice(0, 120) : null,
-              gender: r.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+              gender: r.gender === 'FEMALE' || r.gender === 'MALE' ? r.gender : null,
               capacity: Number.isInteger(r.capacity) && r.capacity > 0 ? r.capacity : 2,
               note: r.note || null,
               locked: !!r.locked,

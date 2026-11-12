@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const requireAdmin = require('../adminAuth');
 const activity = require('../activity');
-const { getRoomCapacity, isRoomsLocked, setSetting, getPublicUi } = require('../settings');
+const { getRoomCapacity, isRoomsLocked, getRoomTurn, setSetting, getPublicUi } = require('../settings');
 const { withLock } = require('../lock');
 const {
   GENDERS,
@@ -10,9 +10,16 @@ const {
   genderLabel,
   parseCapacity,
   parseLocation,
+  parseTurn,
+  otherGender,
   loadRoomSlots,
+  loadPending,
+  computeShortfall,
+  roomAccepts,
+  placementOk,
   pickRoom,
   assignAllPending,
+  findRoomPayload,
   loadRoomsPayload,
   MAX_ROOM_CAPACITY,
   MAX_LOCATION_LENGTH,
@@ -27,6 +34,13 @@ const router = express.Router();
 // phong vuot suc chua; admin xoa phong dung luc luot quay vua chon phong do ->
 // luot quay ghi roomId tro vao phong da xoa va bao loi 500.
 const ROOMS_LOCK = 'rooms';
+
+// Loi nghiep vu kem gioi tinh nguoi dang nhan phong (de cau bao noi ro gioi nao)
+function pickError(code, gender) {
+  const err = new Error(code);
+  err.gender = gender;
+  return err;
+}
 
 // Doc lai nguoi nay NGAY TRONG hang doi: thong tin doc truoc khi vao hang co the
 // da cu - admin vua doi gioi tinh / tat quyen ghep phong o luot dung truoc trong
@@ -60,14 +74,12 @@ function drawRoomFor(member, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const slots = await loadRoomSlots(tx);
-      if (!slots.some((r) => r.gender === current.gender)) {
-        throw new Error('NO_ROOM_FOR_GENDER');
-      }
-
-      const room = pickRoom(slots, current.gender);
+      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
+      const { room, reason } = pickRoom(slots, current.gender, pending);
       if (!room) {
-        throw new Error('ROOMS_FULL');
+        if (reason === 'NONE') throw pickError('NO_ROOM_FOR_GENDER', current.gender);
+        if (reason === 'RESERVED') throw pickError('ROOMS_RESERVED', current.gender);
+        throw pickError('ROOMS_FULL', current.gender);
       }
 
       await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
@@ -85,14 +97,14 @@ function chooseRoomFor(member, roomId, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const room = await tx.room.findUnique({
-        where: { id: roomId },
-        include: { _count: { select: { members: true } } },
-      });
-      if (!room) throw new Error('ROOM_NOT_FOUND');
-      if (room.gender !== current.gender) throw new Error('ROOM_WRONG_GENDER');
-      if (room.locked) throw new Error('ROOM_LOCKED');
-      if (room._count.members >= room.capacity) throw new Error('ROOM_FULL');
+      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
+      const room = slots.find((r) => r.id === roomId);
+      if (!room) throw pickError('ROOM_NOT_FOUND', current.gender);
+      if (room.gender && room.gender !== current.gender) throw pickError('ROOM_WRONG_GENDER', current.gender);
+      if (room.locked) throw pickError('ROOM_LOCKED', current.gender);
+      if (room.occupancy >= room.capacity) throw pickError('ROOM_FULL', current.gender);
+      // Vao phong nay ma lam gioi kia het cho -> khong cho (giu cho cho nguoi den sau)
+      if (!placementOk(slots, pending, room, current.gender)) throw pickError('ROOM_RESERVED', current.gender);
 
       await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
       return { roomId: room.id, fresh: true, gender: current.gender };
@@ -111,16 +123,9 @@ async function emitRooms(req) {
   return payload;
 }
 
-async function findRoomWithMembers(id) {
-  return prisma.room.findUnique({
-    where: { id },
-    include: {
-      members: {
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true, gender: true, isLeader: true, pinnedRoom: true },
-      },
-    },
-  });
+// Phong kem nguoi o, da tinh gioi hieu luc (gender) + gioi co dinh (fixedGender)
+function findRoomWithMembers(id) {
+  return findRoomPayload(prisma, id);
 }
 
 function parseId(value) {
@@ -129,11 +134,14 @@ function parseId(value) {
 }
 
 // Loi nghiep vu nem ra tu trong hang doi -> ma HTTP + cau bao tieng Viet
+// Gia tri la [ma HTTP, cau bao] hoac [ma HTTP, (gioi nguoi nhan, gioi con lai) => cau bao]
 const PUBLIC_ERRORS = {
-  NO_ROOM_FOR_GENDER: [409, 'Chưa có phòng nào dành cho giới tính của bạn — nhờ admin tạo thêm phòng'],
-  ROOMS_FULL: [409, 'Các phòng cùng giới tính đã kín chỗ hoặc đang khóa — nhờ admin mở thêm phòng'],
+  NO_ROOM_FOR_GENDER: [409, 'Chưa có phòng nào nhận giới tính của bạn — nhờ admin tạo thêm phòng'],
+  ROOMS_FULL: [409, 'Các phòng còn nhận giới tính của bạn đã kín chỗ hoặc đang khóa — nhờ admin mở thêm phòng'],
+  ROOMS_RESERVED: [409, (g, other) => `Chỗ còn lại phải để dành cho các bạn ${other} — nhờ admin sắp xếp thêm chỗ cho bạn`],
+  ROOM_RESERVED: [409, (g, other) => `Nếu bạn vào phòng này thì các bạn ${other} sẽ thiếu chỗ — chọn phòng khác nhé`],
   ROOM_NOT_FOUND: [404, 'Phòng này không còn tồn tại — chọn phòng khác nhé'],
-  ROOM_WRONG_GENDER: [400, 'Phòng này dành cho giới tính khác — chọn phòng đúng giới tính của bạn'],
+  ROOM_WRONG_GENDER: [400, (g, other) => `Phòng này đã có các bạn ${other} ở — chọn phòng khác nhé`],
   ROOM_LOCKED: [409, 'Phòng này vừa bị admin khóa — chọn phòng khác nhé'],
   ROOM_FULL: [409, 'Phòng này vừa kín chỗ — chọn phòng khác nhé'],
   NOT_ELIGIBLE: [403, 'Bạn không nằm trong danh sách tham gia ghép phòng lần này'],
@@ -146,13 +154,14 @@ const PUBLIC_ERRORS = {
 // GET /api/rooms - danh sach phong ngu kem nguoi o trong tung phong
 router.get('/rooms', async (req, res) => {
   try {
-    const [payload, locked, defaultCapacity, ui] = await Promise.all([
+    const [payload, locked, defaultCapacity, ui, turn] = await Promise.all([
       loadRoomsPayload(prisma),
       isRoomsLocked(),
       getRoomCapacity(),
       getPublicUi(),
+      getRoomTurn(),
     ]);
-    res.json({ ...payload, locked, defaultCapacity, pickMode: ui.roomPickMode });
+    res.json({ ...payload, locked, turn, defaultCapacity, pickMode: ui.roomPickMode });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Không thể tải danh sách phòng' });
@@ -167,7 +176,7 @@ async function preparePublicPick(name) {
     return { status: 400, error: 'Thiếu tên thành viên' };
   }
 
-  const [locked, ui] = await Promise.all([isRoomsLocked(), getPublicUi()]);
+  const [locked, ui, turn] = await Promise.all([isRoomsLocked(), getPublicUi(), getRoomTurn()]);
   if (!ui.showRoomsPage) {
     return { status: 403, error: 'Trang ghép phòng đang tạm đóng — chờ admin mở lại' };
   }
@@ -190,6 +199,13 @@ async function preparePublicPick(name) {
   }
   if (!member.gender) {
     return { status: 400, error: 'Bạn chưa được đặt giới tính (Nam/Nữ) — nhờ admin cập nhật trước khi nhận phòng' };
+  }
+  if (turn !== 'ALL' && member.gender !== turn) {
+    return {
+      status: 403,
+      error: `Đang tới lượt các bạn ${genderLabel(turn)} nhận phòng — chờ admin mở lượt ${genderLabel(member.gender)} nhé`,
+      code: 'NOT_YOUR_TURN',
+    };
   }
   return { member, ui };
 }
@@ -223,7 +239,11 @@ async function finishPick(req, res, member, result, verb) {
 
 function sendPickError(res, err, fallback) {
   const known = PUBLIC_ERRORS[err.message];
-  if (known) return res.status(known[0]).json({ error: known[1], code: err.message });
+  if (known) {
+    const message =
+      typeof known[1] === 'function' ? known[1](genderLabel(err.gender), genderLabel(otherGender(err.gender))) : known[1];
+    return res.status(known[0]).json({ error: message, code: err.message });
+  }
   console.error(err);
   return res.status(500).json({ error: fallback });
 }
@@ -233,7 +253,7 @@ function sendPickError(res, err, fallback) {
 router.post('/room/random', async (req, res) => {
   try {
     const prep = await preparePublicPick((req.body || {}).name);
-    if (prep.error) return res.status(prep.status).json({ error: prep.error, locked: !!prep.locked });
+    if (prep.error) return res.status(prep.status).json({ error: prep.error, locked: !!prep.locked, code: prep.code });
 
     // Da co phong truoc do -> tra ve phong cu, khong random lai
     if (prep.existing) {
@@ -258,7 +278,7 @@ router.post('/room/choose', async (req, res) => {
 
   try {
     const prep = await preparePublicPick((req.body || {}).name);
-    if (prep.error) return res.status(prep.status).json({ error: prep.error, locked: !!prep.locked });
+    if (prep.error) return res.status(prep.status).json({ error: prep.error, locked: !!prep.locked, code: prep.code });
 
     if (prep.existing) {
       return res.json({ member: memberView(prep.member), room: prep.existing, alreadyAssigned: true });
@@ -285,9 +305,10 @@ router.post('/admin/rooms', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Thiếu tên phòng' });
   }
 
+  // Bo trong = phong chua dinh gioi: nguoi dau tien vao quyet dinh phong nam hay nu
   const parsedGender = parseGender(gender);
-  if (!parsedGender) {
-    return res.status(400).json({ error: 'Phòng phải chọn giới tính Nam hoặc Nữ' });
+  if (parsedGender === undefined) {
+    return res.status(400).json({ error: 'Giới tính phòng không hợp lệ' });
   }
 
   const parsedCapacity = parseCapacity(capacity === undefined || capacity === '' ? await getRoomCapacity() : capacity);
@@ -319,7 +340,7 @@ router.post('/admin/rooms', requireAdmin, async (req, res) => {
       {
         type: 'admin',
         icon: 'door-open',
-        message: `Tạo phòng ${room.name}${room.location ? ` — ${room.location}` : ''} (${genderLabel(room.gender)}, ${room.capacity} chỗ)`,
+        message: `Tạo phòng ${room.name}${room.location ? ` — ${room.location}` : ''} (${room.gender ? genderLabel(room.gender) : 'nam hoặc nữ'}, ${room.capacity} chỗ)`,
       },
       req.io
     );
@@ -359,8 +380,8 @@ router.put('/admin/rooms/:id', requireAdmin, async (req, res) => {
 
   if (gender !== undefined) {
     const parsedGender = parseGender(gender);
-    if (!parsedGender) return res.status(400).json({ error: 'Giới tính phòng không hợp lệ' });
-    data.gender = parsedGender;
+    if (parsedGender === undefined) return res.status(400).json({ error: 'Giới tính phòng không hợp lệ' });
+    data.gender = parsedGender; // null = chua dinh, ai vao truoc quyet dinh
   }
 
   if (capacity !== undefined) {
@@ -397,7 +418,7 @@ router.put('/admin/rooms/:id', requireAdmin, async (req, res) => {
         };
       }
 
-      if (data.gender !== undefined && room.members.some((m) => m.gender !== data.gender)) {
+      if (data.gender && room.members.some((m) => m.gender !== data.gender)) {
         return {
           status: 400,
           error: `Phòng đang có người ${genderLabel(room.gender)} ở trong — chuyển họ ra trước khi đổi giới tính phòng`,
@@ -542,18 +563,18 @@ router.post('/admin/rooms/auto-create', requireAdmin, async (req, res) => {
     const created = [];
 
     await prisma.$transaction(async (tx) => {
-      const existingRooms = await tx.room.findMany({ select: { name: true, gender: true, capacity: true } });
+      const existingRooms = await tx.room.findMany({ select: { name: true } });
       const usedNames = new Set(existingRooms.map((r) => r.name));
       const last = await tx.room.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
       let order = last ? last.sortOrder : 0;
 
+      // So nguoi het cho cua tung gioi, SAU KHI da chia cac phong chua dinh gioi theo
+      // cach tot nhat. Chi dem nguoi THAM GIA ghep phong ma chua co phong.
+      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
+      const shortfall = computeShortfall(slots, pending);
+
       for (const gender of GENDERS) {
-        // Chi dem nhung nguoi THAM GIA vong ghep phong - ai bi loai thi khong can chua cho
-        const memberCount = await tx.member.count({ where: { gender, joinRoom: true } });
-        const currentCapacity = existingRooms
-          .filter((r) => r.gender === gender)
-          .reduce((sum, r) => sum + r.capacity, 0);
-        const missing = Math.max(0, Math.ceil((memberCount - currentCapacity) / parsedCapacity));
+        const missing = Math.ceil(shortfall[gender] / parsedCapacity);
 
         let index = 1;
         for (let i = 0; i < missing; i++) {
@@ -591,8 +612,10 @@ router.post('/admin/rooms/random-all', requireAdmin, async (req, res) => {
   const { reshuffle } = req.body || {};
 
   try {
+    // Dang mo luot cho 1 gioi thi chi ghep gioi do (gioi kia van duoc giu du cho)
+    const turn = await getRoomTurn();
     const result = await withLock(ROOMS_LOCK, () =>
-      prisma.$transaction((tx) => assignAllPending(tx, { includeAssigned: !!reshuffle }), { timeout: 20000 })
+      prisma.$transaction((tx) => assignAllPending(tx, { includeAssigned: !!reshuffle, turn }), { timeout: 20000 })
     );
     const payload = await emitRooms(req);
     req.io.emit('rooms:bulk-randomized', { assigned: result.assigned.length });
@@ -637,21 +660,21 @@ router.post('/admin/rooms/move', requireAdmin, async (req, res) => {
 
       let room = null;
       if (roomId) {
-        room = await prisma.room.findUnique({
-          where: { id: roomId },
-          include: { _count: { select: { members: true } } },
-        });
+        room = await findRoomWithMembers(roomId);
         if (!room) return { status: 404, error: 'Không tìm thấy phòng' };
         if (!member.gender) {
           return { status: 400, error: `${member.name} chưa có giới tính — đặt giới tính trước khi xếp phòng` };
         }
-        if (room.gender !== member.gender) {
+        // Gioi cua phong khi bo chinh nguoi nay ra (chuyen trong cung phong thi khong tinh)
+        const others = room.members.filter((m) => m.id !== member.id);
+        const roomGender = room.fixedGender || (others.find((m) => m.gender) || {}).gender || null;
+        if (roomGender && roomGender !== member.gender) {
           return {
             status: 400,
-            error: `Phòng "${room.name}" dành cho ${genderLabel(room.gender)}, không xếp được người ${genderLabel(member.gender)}`,
+            error: `Phòng "${room.name}" đang là phòng ${genderLabel(roomGender)}, không xếp được người ${genderLabel(member.gender)}`,
           };
         }
-        const occupancy = room._count.members - (member.roomId === room.id ? 1 : 0);
+        const occupancy = others.length;
         if (occupancy >= room.capacity) {
           return { status: 400, error: `Phòng "${room.name}" đã kín ${room.capacity} người` };
         }
@@ -775,7 +798,7 @@ router.post('/admin/rooms/lock', requireAdmin, async (req, res) => {
 
   try {
     await setSetting('roomsLocked', value);
-    req.io.emit('rooms:config', { locked: value === '1' });
+    req.io.emit('rooms:config', { locked: value === '1', turn: await getRoomTurn() });
     await activity.log(
       {
         type: 'admin',
@@ -788,6 +811,36 @@ router.post('/admin/rooms/lock', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi đổi trạng thái vòng ghép phòng' });
+  }
+});
+
+// POST /api/admin/rooms/turn - { turn: 'ALL' | 'FEMALE' | 'MALE' } mo luot nhan phong
+// cho ca hai gioi hoac chi 1 gioi (vd nu nhan phong truoc, xong moi mo cho nam).
+router.post('/admin/rooms/turn', requireAdmin, async (req, res) => {
+  const raw = String((req.body || {}).turn || '').toUpperCase();
+  if (!['ALL', 'FEMALE', 'MALE'].includes(raw)) {
+    return res.status(400).json({ error: 'Lượt không hợp lệ (ALL, FEMALE hoặc MALE)' });
+  }
+  const turn = parseTurn(raw);
+
+  try {
+    const before = await getRoomTurn();
+    await setSetting('roomTurn', turn);
+    req.io.emit('rooms:config', { locked: await isRoomsLocked(), turn });
+    if (before !== turn) {
+      await activity.log(
+        {
+          type: 'admin',
+          icon: 'route',
+          message: turn === 'ALL' ? 'Mở lượt nhận phòng cho cả nam và nữ' : `Mở lượt nhận phòng: chỉ ${genderLabel(turn)}`,
+        },
+        req.io
+      );
+    }
+    res.json({ ok: true, turn });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đổi lượt nhận phòng' });
   }
 });
 
