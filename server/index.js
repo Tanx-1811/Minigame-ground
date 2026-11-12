@@ -13,6 +13,7 @@ const apiRouter = require('./routes/api');
 const quizRouter = require('./routes/quiz');
 const roomsRouter = require('./routes/rooms');
 const adminRouter = require('./routes/admin');
+const { isRoomsOnly } = require('./settings');
 
 // "Van tay" cua toan bo file tinh trong public/. Doi moi khi code frontend thay doi.
 // Dung de nhac nguoi dung tai lai trang: giua su kien ma sua bug, nguoi dang mo tab
@@ -115,12 +116,31 @@ function renderHtml(filePath) {
   return html;
 }
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
 
-  let rel = decodeURIComponent(req.path);
+  let rel;
+  try {
+    rel = decodeURIComponent(req.path);
+  } catch (err) {
+    // %E0%A4%A ... -> URIError: tra 400 thay vi de Express bao loi 500
+    return res.status(400).send('Bad request');
+  }
   if (rel.endsWith('/')) rel += 'index.html';
   if (!rel.endsWith('.html')) return next();
+
+  // Che do "Chi ghep phong": trang chu (quiz + boc tham) khong con dung -> ai mo
+  // link cu / quet QR trang chu deu vao thang trang ghep phong.
+  if (rel === '/index.html') {
+    try {
+      if (await isRoomsOnly()) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.redirect(302, '/rooms.html');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   const filePath = path.join(PUBLIC_DIR, rel);
   // Chan di ra ngoai thu muc public qua duong dan kieu ../

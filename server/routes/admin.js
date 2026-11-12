@@ -17,6 +17,9 @@ const {
   DEFAULTS,
   TEXT_SETTINGS,
   BOOL_SETTINGS,
+  EVENT_MODES,
+  ROOM_PICK_MODES,
+  invalidateSettingCache,
 } = require('../settings');
 const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
 const { loadGroupsPayload, assignAllPendingGroups } = require('../groups');
@@ -447,7 +450,7 @@ async function bulkMembers(req, res) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi xử lý hàng loạt' });
   }
-});
+}
 
 // POST /api/admin/members/import - them nhieu thanh vien 1 luot (dan danh sach ten)
 router.post('/admin/members/import', requireAdmin, async (req, res) => {
@@ -1298,6 +1301,49 @@ router.post('/admin/settings', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/event-mode - { eventMode?: 'full'|'rooms', roomPickMode?: 'random'|'choose' }
+// Tach rieng khoi form "Giao dien" (giong khoa vong): doi che do la viec lon, mot
+// tab admin cu bam luu giao dien khong duoc am tham doi lai che do.
+router.post('/admin/event-mode', requireAdmin, async (req, res) => {
+  const { eventMode, roomPickMode } = req.body || {};
+  const changes = [];
+
+  if (eventMode === undefined && roomPickMode === undefined) {
+    return res.status(400).json({ error: 'Không có thay đổi nào' });
+  }
+  if (eventMode !== undefined && !Object.prototype.hasOwnProperty.call(EVENT_MODES, eventMode)) {
+    return res.status(400).json({ error: 'Chế độ sự kiện không hợp lệ' });
+  }
+  if (roomPickMode !== undefined && !Object.prototype.hasOwnProperty.call(ROOM_PICK_MODES, roomPickMode)) {
+    return res.status(400).json({ error: 'Cách nhận phòng không hợp lệ' });
+  }
+
+  try {
+    const current = await getPublicUi();
+    if (eventMode !== undefined && eventMode !== current.eventMode) {
+      await setSetting('eventMode', eventMode);
+      changes.push(`chế độ sự kiện: ${EVENT_MODES[eventMode]}`);
+    }
+    if (roomPickMode !== undefined && roomPickMode !== current.roomPickMode) {
+      await setSetting('roomPickMode', roomPickMode);
+      changes.push(`cách nhận phòng: ${ROOM_PICK_MODES[roomPickMode]}`);
+    }
+
+    const ui = await getPublicUi();
+    if (changes.length) {
+      // settings:updated mang ui moi -> trang chu tu chuyen sang trang ghep phong,
+      // trang ghep phong doi giua vong quay va danh sach chon phong ngay lap tuc.
+      req.io.emit('settings:updated', { leaderCount: await getLeaderCount(), roomCapacity: await getRoomCapacity(), ui });
+      await activity.log({ type: 'admin', icon: 'route', message: `Đổi ${changes.join(', ')}` }, req.io);
+    }
+
+    res.json({ ok: true, changed: changes.length > 0, eventMode: ui.eventMode, roomPickMode: ui.roomPickMode });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đổi chế độ sự kiện' });
+  }
+});
+
 // POST /api/admin/settings/lock - khoa/mo nhanh vong random chia nhom
 router.post('/admin/settings/lock', requireAdmin, async (req, res) => {
   const { locked } = req.body || {};
@@ -1328,7 +1374,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
   try {
     const globalCapacity = await getGroupCapacity();
 
-    const [members, groupsPayload, roomsPayload, questionCount, answersByMember, phase, quizStatus, leaderCount, locks] =
+    const [members, groupsPayload, roomsPayload, questionCount, answersByMember, phase, quizStatus, leaderCount, locks, ui] =
       await Promise.all([
         prisma.member.findMany({
           select: {
@@ -1351,6 +1397,7 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         quizLobby.getQuizStatus(),
         getLeaderCount(),
         Promise.all([isRoomsLocked(), isRandomLocked()]),
+        getPublicUi(),
       ]);
 
     const count = (fn) => members.filter(fn).length;
@@ -1388,6 +1435,9 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         storedPhase: phase || 'quiz',
         roomsLocked: locks[0],
         randomLocked: locks[1],
+        eventMode: ui.eventMode,
+        roomPickMode: ui.roomPickMode,
+        showRoomsPage: ui.showRoomsPage,
       },
     });
   } catch (err) {
@@ -1499,6 +1549,7 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
           const created = await tx.room.create({
             data: {
               name: String(r.name),
+              location: r.location ? String(r.location).slice(0, 120) : null,
               gender: r.gender === 'FEMALE' ? 'FEMALE' : 'MALE',
               capacity: Number.isInteger(r.capacity) && r.capacity > 0 ? r.capacity : 2,
               note: r.note || null,
@@ -1590,6 +1641,7 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
     );
 
     quizLobby.clearLobby();
+    invalidateSettingCache();
     if (Array.isArray(data.answers)) await quizLobby.recomputeScores();
 
     // Phat lai moi thu trang cong khai dang giu: noi dung giao dien, khoa vong, gio mo

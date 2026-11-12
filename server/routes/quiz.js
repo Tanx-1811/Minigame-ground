@@ -2,10 +2,23 @@ const express = require('express');
 const prisma = require('../prisma');
 const quizLobby = require('../quizLobby');
 const activity = require('../activity');
-const { getLeaderCount, getSetting } = require('../settings');
+const { getLeaderCount, getSetting, isRoomsOnly } = require('../settings');
 const { withLock } = require('../lock');
 
 const router = express.Router();
+
+// Che do "Chi ghep phong": khong co vong Quiz -> chan vao phong cho / tra loi
+// (ai giu tab cu hoac goi thang API cung khong lam bai duoc).
+async function blockInRoomsMode(req, res, next) {
+  try {
+    if (await isRoomsOnly()) {
+      return res.status(403).json({ error: 'Sự kiện lần này chỉ có ghép phòng — không có vòng Quiz', roomsOnly: true });
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  return next();
+}
 
 // Tre mang + thoi gian ve giao dien: cho phep lech them chut it so voi gioi han
 // thoi gian truoc khi coi la het gio, de nguoi bam o giay cuoi khong bi oan.
@@ -114,7 +127,7 @@ router.get('/quiz/lobby', async (req, res) => {
 // POST /api/quiz/join - 1 thanh vien vao phong cho, cho admin bam bat dau
 // (idempotent - vao lai nhieu lan khong sao; neu quiz da active thi tra ve luon de
 // client tu chuyen sang lam bai ngay, khong can cho)
-router.post('/quiz/join', async (req, res) => {
+router.post('/quiz/join', blockInRoomsMode, async (req, res) => {
   const { name } = req.body || {};
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'Thiếu tên thành viên' });
@@ -170,7 +183,7 @@ router.get('/quiz/leaderboard', async (req, res) => {
 // POST /api/quiz/seen - client bao "dang hien cau nay". May chu ghi moc lan dau va
 // tra ve so ms da troi qua, de F5 giua chung thi dong ho dem nguoc van tiep tuc
 // dung cho cu thay vi chay lai tu dau.
-router.post('/quiz/seen', async (req, res) => {
+router.post('/quiz/seen', blockInRoomsMode, async (req, res) => {
   const { name, questionId } = req.body || {};
   if (!name || typeof name !== 'string' || !Number.isInteger(questionId)) {
     return res.status(400).json({ error: 'Thiếu thông tin câu hỏi' });
@@ -188,7 +201,7 @@ router.post('/quiz/seen', async (req, res) => {
 
 // POST /api/quiz/answer - ghi nhan 1 cau tra loi (idempotent theo memberId+questionId).
 // selectedIndex = -1 nghia la het gio ma chua chon (tinh la sai, 0 diem).
-router.post('/quiz/answer', async (req, res) => {
+router.post('/quiz/answer', blockInRoomsMode, async (req, res) => {
   const { name, questionId, selectedIndex, timeMs } = req.body || {};
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -334,6 +347,11 @@ router.post('/admin/quiz/start', async (req, res) => {
     ]);
     if ((phase || 'quiz') !== 'quiz') {
       return res.status(400).json({ error: 'Đã chốt Nhóm Trưởng — bấm "Làm lại vòng Quiz" nếu muốn chơi lại' });
+    }
+    if (await isRoomsOnly()) {
+      return res
+        .status(400)
+        .json({ error: 'Đang ở chế độ "Chỉ ghép phòng" — đổi về chế độ đầy đủ ở trang Sự kiện nếu muốn chạy Quiz' });
     }
     if (total === 0) {
       return res.status(400).json({ error: 'Chưa có câu hỏi nào — thêm câu hỏi ở trang Câu hỏi trước' });

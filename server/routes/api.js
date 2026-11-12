@@ -10,6 +10,7 @@ const {
   isRoomsLocked,
   isRandomLocked,
   getPublicUi,
+  isRoomsOnly,
 } = require('../settings');
 const { loadGroupSlots, pickGroup, loadGroupsPayload } = require('../groups');
 const { withLock } = require('../lock');
@@ -178,6 +179,11 @@ router.post('/random', async (req, res) => {
   }
 
   try {
+    if (await isRoomsOnly()) {
+      return res
+        .status(403)
+        .json({ error: 'Sự kiện lần này chỉ có ghép phòng — không có vòng bốc thăm chia nhóm', roomsOnly: true });
+    }
     const phase = await resolvePhase();
     if (phase !== 'random') {
       return res.status(403).json({ error: 'Vòng random chưa mở — cần chốt xong Nhóm Trưởng trước' });

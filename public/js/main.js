@@ -1712,6 +1712,12 @@ document.addEventListener('visibilitychange', async () => {
 
 if (window.UiConfig) {
   window.UiConfig.onChange((ui) => {
+    // Admin chuyen sang che do "Chi ghep phong" -> trang nay (quiz + boc tham) khong
+    // con dung nua, dua moi nguoi dang mo sang trang ghep phong ngay
+    if (ui && ui.eventMode === 'rooms') {
+      window.location.replace('/rooms.html');
+      return;
+    }
     // Am thanh: nguoi dung chua tu chon thi theo mac dinh admin dat
     if (storedSoundChoice() === null && typeof ui.soundEnabled === 'boolean') {
       soundMuted = !ui.soundEnabled;
