@@ -14,6 +14,47 @@
    Moi mau lay tu bien trong theme.css. Khong dung box-shadow.
    =================================================================== */
 
+/* ---------- bang mau rieng cua trang (do tuong phan) ----------
+   Do bang trinh duyet that (WCAG AA): chu thuong >= 4.5:1, chu lon >= 3:1.
+   Ban mac dinh cua theme qua nhat cho trang nay: the trang gan nhu lan vao nen
+   (1.1:1), vien the 1.1-1.4:1, chu "Con trong" 2.5:1, chu hong 4.2:1.
+   - Nen trang dam hon mot chut de the trang noi len (~1.25:1).
+   - Vien the ro hon: the thuong ~1.6:1, the phong nam/nu >= 2.5:1.
+   - Chu mau dung sac 700 (hong / xanh / luc / cam / do) - deu >= 4.5:1 tren
+     ca nen trang lan nen nhat cung mau. */
+.rooms-body {
+  --bg: #e6eaf0;
+  --surface-2: #f3f5f8;
+  --surface-3: #dfe4eb;
+  --line: #cfd6e0;
+  --line-strong: #b4bfcd;
+  --ink-2: #2b3648;
+  --muted: #4b586e;
+  --muted-2: #4b586e;
+
+  --female: #be185d;
+  --female-soft: #fdf0f6;
+  --female-line: #f472b6;
+  --male: #1d4ed8;
+  --male-soft: #eef4ff;
+  --male-line: #60a5fa;
+  --ok: #166534;
+  --ok-soft: #ecfdf3;
+  --ok-line: #4ade80;
+  --warn: #92400e;
+  --warn-soft: #fff7e6;
+  --warn-line: #f59e0b;
+  --danger: #b91c1c;
+  --danger-soft: #fdeeee;
+  --danger-line: #f87171;
+}
+
+/* Chu mang mau nhan (admin tu chon mau) dung ban DAM cua mau do: admin chon
+   mau sang (vang, xanh nhat...) thi chu van doc duoc */
+.rooms-body .chip.is-accent {
+  color: var(--accent-ink);
+}
+
 /* Sac do theo gioi tinh: dat --tone* tren khoi cha, con ben trong chi doc bien */
 .rooms-body .is-female {
   --tone: var(--female);
@@ -27,9 +68,10 @@
   --tone-line: var(--male-line);
 }
 
-/* Phong chua co ai: nam hay nu deu vao duoc */
+/* Phong chua co ai: nam hay nu deu vao duoc. Dung ban dam cua mau nhan vi
+   --tone con lam mau chu (avatar, nhan) va nen nut co chu trang */
 .rooms-body .is-open {
-  --tone: var(--accent);
+  --tone: var(--accent-strong);
   --tone-soft: var(--accent-soft);
   --tone-line: var(--accent-line);
 }
@@ -126,10 +168,12 @@
 
 /* ---------- the noi dung ---------- */
 
+/* Vien the lon dung --line-strong: ~1.5:1 so voi nen trang, ~1.9:1 so voi
+   nen trang trong the (truoc day 1.1:1 - gan nhu khong thay) */
 .rooms-body .rooms-card {
   position: relative;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
   overflow: hidden;
 }
@@ -175,7 +219,7 @@
 
 /* Khu nhan phong la hanh dong chinh -> vien du 4 canh mang mau nhan */
 .rooms-body .rooms-spin-card {
-  border-color: var(--accent-line);
+  border-color: var(--accent);
 }
 
 /* Chip tren trang nay: khong vien, chi nen nhat (bot net ke) */
@@ -620,9 +664,11 @@
   font-size: 0.84rem;
 }
 
+/* Giuong trong: nen nhat hon giuong co nguoi nhung chu van du tuong phan
+   (truoc day mo di bang opacity -> chu chi con 2.5:1) */
 .room-bed.is-empty {
   background: var(--surface-2);
-  opacity: 0.75;
+  font-weight: 500;
 }
 
 /* ---------- o thong ke ---------- */
@@ -642,7 +688,7 @@
 }
 
 .rooms-stat.is-accent {
-  --tone: var(--accent);
+  --tone: var(--accent-ink);
 }
 
 .rooms-stat.is-ok {
@@ -998,25 +1044,22 @@
 
 /* ---------- khung cho khi tai lan dau ---------- */
 
+/* Nen phang nhap nhay nhe (khong gradient lap lanh) */
 .room-card.is-skeleton,
 .rooms-stat.is-skeleton {
   min-height: 92px;
   border-color: var(--line);
-  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%);
-  background-size: 300% 100%;
-  animation: rm-shimmer 1.4s linear infinite;
+  background: var(--surface-2);
+  animation: rm-skeleton 1.4s ease-in-out infinite;
 }
 
 .room-card.is-skeleton {
   min-height: 210px;
 }
 
-@keyframes rm-shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
+@keyframes rm-skeleton {
+  50% {
+    opacity: 0.55;
   }
 }
 
