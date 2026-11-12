@@ -17,6 +17,16 @@ function genderLabel(gender) {
   return GENDER_LABEL[gender] || 'Chưa đặt';
 }
 
+const MAX_LOCATION_LENGTH = 120;
+
+// '' / null -> null (xoa), chuoi qua dai -> undefined (khong hop le)
+function parseLocation(value) {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  return text.length > MAX_LOCATION_LENGTH ? undefined : text;
+}
+
 function parseCapacity(value) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_ROOM_CAPACITY) return undefined;
@@ -121,6 +131,7 @@ function serializeRoom(room) {
   return {
     id: room.id,
     name: room.name,
+    location: room.location || null,
     gender: room.gender,
     capacity: room.capacity,
     note: room.note,
@@ -179,9 +190,11 @@ module.exports = {
   GENDERS,
   GENDER_LABEL,
   MAX_ROOM_CAPACITY,
+  MAX_LOCATION_LENGTH,
   parseGender,
   genderLabel,
   parseCapacity,
+  parseLocation,
   shuffle,
   loadRoomSlots,
   pickRoom,

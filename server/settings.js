@@ -21,6 +21,7 @@ const TEXT_SETTINGS = {
     fallback: 'Chọn tên của bạn, nhấn nút và khám phá bạn thuộc đội nào!',
   },
   startButtonText: { label: 'Chữ trên nút bắt đầu', fallback: 'Bắt đầu bốc thăm' },
+  roomsBadge: { label: 'Dòng chữ nhỏ trên trang ghép phòng', fallback: 'Nam ở với nam · Nữ ở với nữ' },
   roomsTitle: { label: 'Tiêu đề trang ghép phòng', fallback: 'Ghép Phòng Ngủ' },
   roomsSubtitle: {
     label: 'Mô tả trang ghép phòng',
@@ -49,6 +50,45 @@ const BOOL_SETTINGS = {
   soundEnabled: { label: 'Bật âm thanh mặc định', fallback: true },
 };
 
+// Che do su kien: 'full' = Quiz -> Boc tham -> Ghep phong (nhu cu),
+// 'rooms' = CHI ghep phong: trang chu tu chuyen sang trang ghep phong, cac API
+// quiz / boc tham nhom bi chan. Khong nam trong form "Giao dien" (giong khoa vong)
+// de 1 tab admin cu bam luu khong am tham doi che do.
+const EVENT_MODES = {
+  full: 'Đầy đủ: Quiz → Bốc thăm → Ghép phòng',
+  rooms: 'Chỉ ghép phòng',
+};
+
+// Cach moi nguoi nhan phong: 'random' = bam quay, he thong xep ngau nhien;
+// 'choose' = tu chon 1 phong con cho (van chi phong dung gioi tinh).
+const ROOM_PICK_MODES = {
+  random: 'Quay ngẫu nhiên',
+  choose: 'Tự chọn phòng',
+};
+
+function parseEventMode(raw) {
+  return Object.prototype.hasOwnProperty.call(EVENT_MODES, raw) ? raw : 'full';
+}
+
+function parseRoomPickMode(raw) {
+  return Object.prototype.hasOwnProperty.call(ROOM_PICK_MODES, raw) ? raw : 'random';
+}
+
+// Doc che do cho moi lan tai trang chu (chuyen huong) va moi luot goi API quiz /
+// boc tham -> nho tam 2 giay. setSetting xoa bo nho ngay nen admin doi la co hieu luc.
+let modeCache = { value: null, at: 0 };
+
+async function getEventMode() {
+  if (modeCache.value && Date.now() - modeCache.at < 2000) return modeCache.value;
+  const row = await prisma.setting.findUnique({ where: { key: 'eventMode' } });
+  modeCache = { value: parseEventMode(row ? row.value : null), at: Date.now() };
+  return modeCache.value;
+}
+
+async function isRoomsOnly() {
+  return (await getEventMode()) === 'rooms';
+}
+
 async function getSetting(key) {
   const row = await prisma.setting.findUnique({ where: { key } });
   return row ? row.value : null;
@@ -60,6 +100,12 @@ async function setSetting(key, value) {
     update: { value },
     create: { key, value },
   });
+  if (key === 'eventMode') modeCache = { value: null, at: 0 };
+}
+
+// Phuc hoi tu file sao luu ghi thang vao bang Setting -> goi ham nay de bo nho tam khong giu gia tri cu
+function invalidateSettingCache() {
+  modeCache = { value: null, at: 0 };
 }
 
 // Doc nhieu key 1 lan (1 query thay vi N query) - dung cho /api/config va tab cau hinh.
@@ -108,7 +154,7 @@ async function isRandomLocked() {
 
 // Toan bo noi dung + cong tac hien thi cho 2 trang cong khai, da ap fallback.
 async function getPublicUi() {
-  const keys = [...Object.keys(TEXT_SETTINGS), ...Object.keys(BOOL_SETTINGS)];
+  const keys = [...Object.keys(TEXT_SETTINGS), ...Object.keys(BOOL_SETTINGS), 'eventMode', 'roomPickMode'];
   const map = await getSettingMap(keys);
 
   const text = {};
@@ -122,13 +168,27 @@ async function getPublicUi() {
     flags[key] = parseBool(map[key], def.fallback);
   });
 
-  return { ...text, ...flags };
+  // Che do di kem ui: moi trang cong khai nhan qua /api/config va settings:updated,
+  // nen admin doi che do la trang chu tu chuyen sang trang ghep phong ngay.
+  return {
+    ...text,
+    ...flags,
+    eventMode: parseEventMode(map.eventMode),
+    roomPickMode: parseRoomPickMode(map.roomPickMode),
+  };
 }
 
 module.exports = {
   DEFAULTS,
   TEXT_SETTINGS,
   BOOL_SETTINGS,
+  EVENT_MODES,
+  ROOM_PICK_MODES,
+  parseEventMode,
+  parseRoomPickMode,
+  getEventMode,
+  isRoomsOnly,
+  invalidateSettingCache,
   getSetting,
   setSetting,
   getSettingMap,

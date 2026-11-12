@@ -61,7 +61,10 @@ model Member {
 // so nguoi toi da moi phong do admin tu dat (2 = ghep cap doi).
 model Room {
   id        Int      @id @default(autoincrement())
+  // Ten hien thi vui (vd "Song long hoi tu")
   name      String   @unique
+  // Vi tri / ma phong thuc te (vd "Villa 1 doi 1", "Phong 102") - hien canh ten
+  location  String?  @db.VarChar(120)
   gender    Gender
   capacity  Int      @default(2)
   note      String?

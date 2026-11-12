@@ -127,8 +127,13 @@ router.post('/admin/members', requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/members/:id - sua ten / gioi tinh / nhom / phong / nhom truong
-router.put('/admin/members/:id', requireAdmin, async (req, res) => {
+// PUT /api/admin/members/:id - sua ten / gioi tinh / nhom / phong / nhom truong.
+// Chay trong hang doi 'rooms' (server/lock.js): handler nay co the xep phong
+// (doc so cho -> ghi), neu chay song song voi luot quay cong khai thi 2 ben cung
+// thay "con 1 cho" va phong vuot suc chua.
+router.put('/admin/members/:id', requireAdmin, (req, res) => withLock('rooms', () => updateMember(req, res)));
+
+async function updateMember(req, res) {
   const id = parseId(req.params.id);
   if (!id) {
     return res.status(400).json({ error: 'Thành viên không hợp lệ' });
@@ -248,7 +253,7 @@ router.put('/admin/members/:id', requireAdmin, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi cập nhật thành viên' });
   }
-});
+}
 
 // DELETE /api/admin/members/:id - xoa thanh vien (xoa luon cau tra loi quiz cua ho)
 router.delete('/admin/members/:id', requireAdmin, async (req, res) => {
@@ -278,8 +283,11 @@ router.delete('/admin/members/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/members/bulk - sua/xoa nhieu thanh vien cung luc
-router.post('/admin/members/bulk', requireAdmin, async (req, res) => {
+// POST /api/admin/members/bulk - sua/xoa nhieu thanh vien cung luc.
+// Cung hang doi 'rooms' nhu PUT o tren (action "room" xep nhieu nguoi vao 1 phong).
+router.post('/admin/members/bulk', requireAdmin, (req, res) => withLock('rooms', () => bulkMembers(req, res)));
+
+async function bulkMembers(req, res) {
   const { ids, action, gender, groupId, isLeader, flag, value, roomId } = req.body || {};
 
   const memberIds = (Array.isArray(ids) ? ids : []).map(parseId).filter(Boolean);
