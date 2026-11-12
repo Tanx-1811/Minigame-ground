@@ -14,26 +14,22 @@
 <link rel="stylesheet" href="/css/rooms.css" />
 </head>
 <body class="rooms-body" data-ui-title="roomsTitle">
+  <!-- Giao dien toi gian: nen phang, gan nhu khong icon, the co vien du 4 canh
+       hoac khong vien (khong dung vien 1 canh). Xem rooms.css. -->
   <header class="site-nav">
     <a class="site-nav-brand" href="/" id="roomsBrandLink">
-      <span class="site-nav-logo"><i data-lucide="dices"></i></span>
       <span class="site-nav-brand-text">DIMACO Minigame</span>
     </a>
     <nav class="site-nav-links" aria-label="Chọn trang">
       <!-- An o che do "Chi ghep phong" (khong co vong chia nhom) -->
-      <a href="/" data-mode-hide="rooms"><i data-lucide="users"></i> Chia nhóm</a>
-      <a href="/rooms.html" aria-current="page"><i data-lucide="bed-double"></i> Ghép phòng</a>
+      <a href="/" data-mode-hide="rooms">Chia nhóm</a>
+      <a href="/rooms.html" aria-current="page">Ghép phòng</a>
     </nav>
     <div class="site-nav-tools">
       <span id="onlineBadge" class="site-nav-online" title="Số người đang xem trang"><span class="dot is-live"></span> <span id="onlineCount">--</span><span class="site-nav-online-label">đang xem</span></span>
     </div>
   </header>
 
-  <div class="bg-decor" aria-hidden="true">
-    <span class="blob blob-1"></span>
-    <span class="blob blob-2"></span>
-    <span class="blob blob-3"></span>
-  </div>
   <canvas id="roomsConfetti" class="rooms-confetti" aria-hidden="true" hidden></canvas>
   <div id="toastContainer" class="toast-container"></div>
 
@@ -43,22 +39,21 @@
     </div>
 
     <header class="rooms-hero">
-      <span class="header-badge rooms-hero-badge"><i data-lucide="venus-and-mars"></i> <span data-ui-text="roomsBadge">Nam ở với nam · Nữ ở với nữ</span></span>
+      <span class="rooms-hero-badge" data-ui-text="roomsBadge">Nam ở với nam · Nữ ở với nữ</span>
       <h1 data-ui-text="roomsTitle">Ghép Phòng Ngủ</h1>
       <p class="subtitle" data-ui-text="roomsSubtitle">Chọn tên của bạn và quay một lần duy nhất — hệ thống tự xếp bạn vào phòng đúng giới tính và còn chỗ trống.</p>
     </header>
 
     <!-- Admin tat trang ghep phong (showRoomsPage = false) -->
     <section id="roomsClosed" class="rooms-closed" hidden>
-      <span class="rooms-closed-icon" aria-hidden="true"><i data-lucide="door-closed"></i></span>
       <h2>Ghép phòng đang tạm đóng</h2>
       <p>Admin đã tạm đóng phần ghép phòng ngủ. Khi được mở lại, trang này sẽ tự cập nhật — bạn không cần tải lại trang.</p>
-      <a class="rooms-closed-link" href="/" data-mode-hide="rooms"><i data-lucide="users"></i> Sang trang chia nhóm</a>
+      <a class="rooms-closed-link" href="/" data-mode-hide="rooms">Sang trang chia nhóm</a>
     </section>
 
     <div id="roomsLoadError" class="rooms-load-error" role="alert" hidden>
-      <span class="rooms-load-error-text"><i data-lucide="circle-alert"></i> <span id="roomsLoadErrorText">Không thể tải dữ liệu phòng.</span></span>
-      <button type="button" id="roomsRetryBtn" class="rooms-retry-btn"><i data-lucide="refresh-cw"></i> Thử lại</button>
+      <span class="rooms-load-error-text" id="roomsLoadErrorText">Không thể tải dữ liệu phòng.</span>
+      <button type="button" id="roomsRetryBtn" class="rooms-retry-btn">Thử lại</button>
     </div>
 
     <div id="roomsMain" class="rooms-stack">
@@ -66,12 +61,11 @@
            nhan phong admin chon: "Quay ngau nhien" hoac "Tu chon phong" -->
       <section class="rooms-card rooms-spin-card" aria-labelledby="roomsSpinTitle">
         <div class="rooms-card-head">
-          <span class="rooms-card-icon" aria-hidden="true" id="roomsSpinIcon"><i data-lucide="dices"></i></span>
           <div class="rooms-card-titles">
             <h2 id="roomsSpinTitle">Quay phòng của bạn</h2>
             <p id="roomsSpinDesc">Mỗi người chỉ quay một lần — tải lại trang vẫn giữ đúng phòng đã quay.</p>
           </div>
-          <span id="roomsRoundChip" class="chip is-ok rooms-round-chip"><span class="dot"></span> Đang mở</span>
+          <span id="roomsRoundChip" class="chip is-ok rooms-round-chip">Đang mở</span>
         </div>
         <div class="rooms-card-body">
           <div class="rooms-form">
@@ -85,16 +79,14 @@
               </div>
             </div>
             <button id="roomsDrawBtn" class="rooms-draw-btn" type="button" disabled>
-              <i data-lucide="dices"></i><span>Quay ghép phòng</span>
+              <span>Quay ghép phòng</span>
             </button>
           </div>
 
           <p id="roomsMyGender" class="rooms-me"></p>
           <p id="roomsNotice" class="rooms-notice" aria-live="polite"></p>
           <p id="roomsError" class="rooms-error" role="alert"></p>
-          <button type="button" id="roomsJumpBtn" class="rooms-jump-btn" hidden>
-            <i data-lucide="arrow-down"></i> <span>Xem các phòng còn chỗ</span>
-          </button>
+          <button type="button" id="roomsJumpBtn" class="rooms-jump-btn" hidden>Xem các phòng còn chỗ</button>
 
           <div id="roomsReel" class="rooms-reel" aria-hidden="true" hidden>
             <div class="rooms-reel-strip" id="roomsReelStrip"></div>
@@ -107,7 +99,6 @@
       <!-- (2) Tong quan so lieu -->
       <section class="rooms-card" aria-labelledby="roomsOverviewTitle">
         <div class="rooms-card-head">
-          <span class="rooms-card-icon" aria-hidden="true"><i data-lucide="chart-no-axes-column"></i></span>
           <div class="rooms-card-titles">
             <h2 id="roomsOverviewTitle">Tổng quan</h2>
             <p>Tình hình nhận phòng của cả đoàn, cập nhật ngay khi có người nhận phòng.</p>
@@ -134,7 +125,7 @@
         </div>
       </section>
 
-      <!-- (3) Danh sach phong theo gioi tinh -->
+      <!-- (3) Danh sach phong -->
       <div id="roomsList" class="rooms-sections">
         <div class="rooms-grid">
           <div class="room-card is-skeleton" aria-hidden="true"></div>
@@ -146,7 +137,6 @@
       <!-- (4) Nguoi chua ghep phong -->
       <section class="rooms-card" id="roomsPendingCard" aria-labelledby="roomsPendingTitle" hidden>
         <div class="rooms-card-head">
-          <span class="rooms-card-icon" aria-hidden="true"><i data-lucide="hourglass"></i></span>
           <div class="rooms-card-titles">
             <h2 id="roomsPendingTitle">Chưa có phòng</h2>
             <p>Những bạn chưa nhận phòng — vào nhận phòng để biết mình ở cùng ai nhé!</p>
@@ -167,14 +157,11 @@
   <!-- Xac nhan chon phong (che do "Tu chon phong"): chon 1 lan, muon doi phai nho admin -->
   <dialog id="roomsConfirm" class="rooms-dialog" aria-labelledby="roomsConfirmTitle" aria-describedby="roomsConfirmBody">
     <form method="dialog" class="rooms-dialog-inner">
-      <div class="rooms-dialog-head">
-        <span class="rooms-dialog-icon" aria-hidden="true"><i data-lucide="door-open"></i></span>
-        <h2 id="roomsConfirmTitle">Chọn phòng này?</h2>
-      </div>
+      <h2 id="roomsConfirmTitle" class="rooms-dialog-title">Chọn phòng này?</h2>
       <div id="roomsConfirmBody" class="rooms-dialog-body"></div>
       <div class="rooms-dialog-foot">
         <button type="submit" value="cancel" class="rooms-dialog-btn" id="roomsConfirmCancel">Để mình xem lại</button>
-        <button type="submit" value="ok" class="rooms-dialog-btn is-primary" id="roomsConfirmOk"><i data-lucide="check"></i> Chốt phòng này</button>
+        <button type="submit" value="ok" class="rooms-dialog-btn is-primary" id="roomsConfirmOk">Chốt phòng này</button>
       </div>
     </form>
   </dialog>

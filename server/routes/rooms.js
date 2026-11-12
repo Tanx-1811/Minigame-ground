@@ -15,7 +15,6 @@ const {
   loadRoomSlots,
   loadPending,
   computeShortfall,
-  roomAccepts,
   placementOk,
   pickRoom,
   assignAllPending,

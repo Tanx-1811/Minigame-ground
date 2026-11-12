@@ -82,10 +82,10 @@ minigamegroup/
 - **pinnedGroup / pinnedRoom**: ghim kết quả. Người đã ghim không bị xáo lại hay bị xóa kết quả
   khi admin bấm "Xáo lại toàn bộ" / "Reset" (nếu chọn giữ người đã ghim).
 
-**Room**: id, name (unique — tên hiển thị vui, VD "Song long hội tụ"), **location** (vị trí / mã phòng thật, VD "Villa 1 đôi 1", "Phòng 105"), gender (`MALE`/`FEMALE`), capacity (mặc định 2), note, **locked**, sortOrder, createdAt — phòng ngủ, mỗi phòng chỉ dành cho một giới tính
+**Room**: id, name (unique — tên hiển thị vui, VD "Song long hội tụ"), **location** (vị trí / mã phòng thật, VD "Villa 1 đôi 1", "Phòng 105"), gender (`MALE`/`FEMALE`/**null**), capacity (mặc định 2), note, **locked**, sortOrder, createdAt — phòng ngủ. `gender = null` là phòng **chưa định giới**: người đầu tiên vào quyết định phòng thuộc nam hay nữ. Không bao giờ có nam nữ chung phòng.
 
 **Setting**: key, value — cấu hình chỉnh qua trang admin:
-- Luật chơi: `eventStartAt`, `phase`, `quizStatus`, `leaderCount`, `roomCapacity`, `groupCapacity`, `roomsLocked`, `randomLocked`
+- Luật chơi: `eventStartAt`, `phase`, `quizStatus`, `leaderCount`, `roomCapacity`, `groupCapacity`, `roomsLocked`, **`roomTurn`** (`ALL` / `FEMALE` / `MALE` — giới nào đang được nhận phòng), `randomLocked`
 - Chế độ: **`eventMode`** (`full` = Quiz → Bốc thăm → Ghép phòng, `rooms` = chỉ ghép phòng), **`roomPickMode`** (`random` = quay ngẫu nhiên, `choose` = tự chọn phòng)
 - Nội dung hiển thị: `brandTitle`, `brandBadge`, `brandSubtitle`, `startButtonText`, `roomsBadge`, `roomsTitle`,
   `roomsSubtitle`, `quizTitle`, `quizSubtitle`, `footerText`, `accentColor`
@@ -158,7 +158,10 @@ Có những lần đi chơi chỉ cần chia phòng, không chơi Quiz hay bốc
 
 Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms.html` (có link từ trang chủ).
 
-- **Mỗi phòng chỉ thuộc một giới tính**: nam ở với nam, nữ ở với nữ. Hệ thống không bao giờ xếp người vào phòng khác giới — kể cả khi admin xếp tay (API sẽ từ chối).
+- **Nam ở với nam, nữ ở với nữ**: hệ thống không bao giờ xếp nam nữ chung phòng — kể cả khi admin xếp tay hay xếp hàng loạt (API sẽ từ chối).
+- **Phòng chưa định giới** (mặc định khi tạo phòng): nam hay nữ đều vào được, **người đầu tiên vào quyết định** phòng đó thành phòng nam hay phòng nữ; phòng trống lại thì lại mở cho cả hai. Admin vẫn có thể cố định "Chỉ nữ" / "Chỉ nam" cho từng phòng.
+- **Lượt nhận phòng**: admin mở cho **Nữ trước** (hoặc Nam trước), xong thì chuyển sang giới còn lại hay mở cả hai. Người chưa tới lượt thấy rõ "Đang tới lượt các bạn Nữ" và bị máy chủ chặn nếu cố gọi API; đổi lượt là mọi người đang mở trang thấy ngay.
+- **Luôn giữ đủ chỗ cho giới đi sau**: vì phòng dùng chung, giới nhận trước có thể chiếm phòng lung tung làm giới sau hết chỗ (VD 14 nữ + 6 nam cho đúng 20 chỗ — nữ mà vào lẻ tẻ mỗi phòng vài người thì nam không còn phòng). Trước mỗi lượt xếp, máy chủ tính **cách chia các phòng còn trống tốt nhất** cho hai giới (bài toán subset-sum trên sức chứa, chạy tức thì) và chỉ chấp nhận lượt xếp nếu số người hết chỗ **không tăng lên**. Ở chế độ tự chọn, phòng nào chọn vào sẽ làm giới kia thiếu chỗ thì nút hiện "Để dành cho các bạn Nam". Đã mô phỏng 12.000 lượt (cả hai thứ tự lượt, quay lẫn tự chọn kiểu ngẫu nhiên nhất): số người không có chỗ luôn đúng bằng mức tối thiểu lý thuyết.
 - **Sức chứa tùy chỉnh**: admin đặt số người mỗi phòng (2 = ghép cặp đôi, tối đa 50).
 - **Thuật toán ghép** (`server/rooms.js`): chỉ chọn trong các phòng đúng giới tính, **chưa bị khóa** và còn chỗ; **ưu tiên phòng đang có người nhưng chưa đầy** để lấp kín từng phòng (không để mỗi phòng lẻ loi 1 người), và random giữa các phòng cùng mức lấp đầy — nên ai ở với ai vẫn hoàn toàn ngẫu nhiên.
 - **Chỉ ghép người được phép**: ai bị admin tắt quyền ghép phòng sẽ không nằm trong danh sách ghép, và việc tạo phòng tự động cũng chỉ đếm số người thực sự tham gia.
@@ -201,7 +204,7 @@ Công tắc thứ tư là **ghim** 📌: người đã ghim giữ nguyên nhóm 
 - **Sự kiện** — **chế độ sự kiện** (đầy đủ 3 vòng / chỉ ghép phòng), **cách nhận phòng** (quay ngẫu nhiên / tự chọn), đặt/xóa giờ mở bốc thăm kèm đồng hồ đếm ngược.
 - **Vòng Quiz** — phòng chờ realtime, bắt đầu làm bài, bảng xếp hạng, chốt Nhóm Trưởng, làm lại vòng quiz.
 - **Chia nhóm** — mỗi nhóm là một thẻ: đổi tên/slogan, **đặt màu nhận diện** (màu này hiện luôn trên thẻ nhóm ở trang chủ), **giới hạn số người riêng cho từng nhóm**, **khóa nhóm** (giữ người đang có, không nhận thêm ai). Thao tác hàng loạt: chia nhóm cho người chưa có, **xáo lại toàn bộ**, khóa cả vòng chia nhóm, xóa kết quả. Gỡ từng người khỏi nhóm bằng nút ✕, tìm theo tên nhóm hoặc tên người, xuất CSV.
-- **Phòng ngủ** — tạo phòng tự động theo số người **được tham gia** của mỗi giới; thêm/sửa/xóa từng phòng; **khóa từng phòng** hoặc khóa hết phòng đã đầy; ghép phòng cho tất cả; **xáo lại toàn bộ**; **đổi chỗ hai người** cùng giới giữa hai phòng; danh sách người chưa có phòng kèm ô xếp tay; lọc theo giới/còn chỗ/đã kín/đang trống/đang khóa; dọn phòng; xóa hết phòng trống; xuất CSV. Cảnh báo thiếu chỗ tính **riêng cho nam và nữ**, không nhìn con số tổng.
+- **Phòng ngủ** — **cách nhận phòng** (quay / tự chọn) và **lượt nhận phòng** (cả hai / chỉ Nữ / chỉ Nam) ngay đầu trang; khu "Phòng chưa có ai"; cảnh báo thiếu chỗ tính theo cách chia phòng trống tốt nhất; tạo phòng tự động bù đúng số chỗ còn thiếu; thêm/sửa/xóa từng phòng; **khóa từng phòng** hoặc khóa hết phòng đã đầy; ghép phòng cho tất cả; **xáo lại toàn bộ**; **đổi chỗ hai người** cùng giới giữa hai phòng; danh sách người chưa có phòng kèm ô xếp tay; lọc theo giới/còn chỗ/đã kín/đang trống/đang khóa; dọn phòng; xóa hết phòng trống; xuất CSV. Cảnh báo thiếu chỗ tính **riêng cho nam và nữ**, không nhìn con số tổng.
 - **Thành viên** — bảng đầy đủ với thống kê; thêm từng người hoặc dán danh sách (`Tên`, `Tên, Nam`, `Tên, Nữ, Tên nhóm`); sửa tên, giới tính, nhóm, phòng, cờ Nhóm Trưởng và 4 công tắc tham gia/ghim; tìm kiếm, 9 bộ lọc nhanh, sắp xếp theo cột; **chọn nhiều người để sửa hàng loạt** (đặt giới tính, xếp nhóm, xếp phòng, cho/cấm tham gia từng vòng hoặc cả 3 vòng, bỏ nhóm, bỏ phòng, xóa); xuất CSV kèm cột quyền tham gia.
 - **Câu hỏi** — thêm/sửa/xóa câu hỏi (2–6 phương án); **điểm riêng cho từng câu** và **giới hạn thời gian từng câu**; đổi thứ tự bằng mũi tên hoặc nhập số; nhân bản; tìm kiếm; xóa nhiều câu; xuất CSV (đáp án đúng chỉ hiện khi đã nhập mã).
 - **Nhật ký** — lịch sử mọi lượt bốc thăm, ghép phòng và thao tác admin, lưu trong DB nên **còn nguyên sau khi khởi động lại máy chủ**. Lọc theo loại, xuất CSV, xóa nhật ký.
@@ -244,8 +247,8 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 
 | Method | Endpoint                         | Mô tả                                                                 |
 |--------|----------------------------------|------------------------------------------------------------------------|
-| GET    | `/api/rooms`                     | Danh sách phòng kèm người ở, thống kê theo giới, trạng thái khóa (công khai). |
-| POST   | `/api/admin/rooms`               | Tạo phòng `{ name, location, gender, capacity, note }`.                |
+| GET    | `/api/rooms`                     | Danh sách phòng kèm người ở (`gender` = giới hiệu lực, `fixedGender` = giới admin cố định), thống kê theo giới, `shortfall` (số người sẽ hết chỗ), `locked`, `turn`, `pickMode` (công khai). |
+| POST   | `/api/admin/rooms`               | Tạo phòng `{ name, location, gender, capacity, note }` — `gender` để trống = phòng chưa định giới. |
 | PUT    | `/api/admin/rooms/:id`           | Sửa `{ name, location, gender, capacity, note, locked }`. Chặn hạ sức chứa dưới số người đang ở, chặn đổi giới tính khi còn người khác giới. |
 | DELETE | `/api/admin/rooms/:id`           | Xóa phòng, người đang ở trở về chưa có phòng.                          |
 | POST   | `/api/admin/rooms/auto-create`   | `{ capacity, prefix }` — tạo đủ số phòng còn thiếu cho cả 2 giới, chỉ tính người **được tham gia** ghép phòng. |
@@ -255,6 +258,7 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | POST   | `/api/admin/rooms/reorder`       | `{ ids: [...] }` — lưu thứ tự hiển thị các phòng.                      |
 | POST   | `/api/admin/rooms/reset`         | `{ keepPinned }` — bỏ kết quả ghép phòng, vẫn giữ danh sách phòng.     |
 | POST   | `/api/admin/rooms/lock`          | `{ locked }` — khóa/mở vòng tự ghép phòng cho mọi người.               |
+| POST   | `/api/admin/rooms/turn`          | `{ turn: 'ALL' \| 'FEMALE' \| 'MALE' }` — mở lượt nhận phòng cho cả hai hoặc một giới. Emit `rooms:config { locked, turn }`. "Ghép phòng cho tất cả" cũng chỉ xếp giới đang tới lượt. |
 | POST   | `/api/admin/rooms/bulk`          | `{ ids: [...], action: "delete" \| "clear" \| "lock" \| "unlock" }`.   |
 
 ### API chia nhóm (admin)

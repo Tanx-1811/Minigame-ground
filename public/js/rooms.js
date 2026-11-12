@@ -34,7 +34,6 @@ const reel = document.getElementById('roomsReel');
 const reelStrip = document.getElementById('roomsReelStrip');
 const resultBox = document.getElementById('roomsResult');
 const roundChip = document.getElementById('roomsRoundChip');
-const spinIcon = document.getElementById('roomsSpinIcon');
 const spinTitle = document.getElementById('roomsSpinTitle');
 const spinDesc = document.getElementById('roomsSpinDesc');
 const roomsList = document.getElementById('roomsList');
@@ -62,13 +61,12 @@ const confirmCancel = document.getElementById('roomsConfirmCancel');
 
 const GENDER_SECTIONS = [
   // icon: emoji dung trong noi dung vui (vong quay, toast)
-  // lucide: ky hieu net dung trong phan giao dien
-  { gender: 'FEMALE', icon: '👩', lucide: 'venus', label: 'Nữ', tone: 'female' },
-  { gender: 'MALE', icon: '👨', lucide: 'mars', label: 'Nam', tone: 'male' },
+  { gender: 'FEMALE', icon: '👩', label: 'Nữ', tone: 'female' },
+  { gender: 'MALE', icon: '👨', label: 'Nam', tone: 'male' },
 ];
-const UNKNOWN_GENDER = { gender: null, icon: '❔', lucide: 'circle-help', label: 'Chưa đặt', tone: 'none' };
+const UNKNOWN_GENDER = { gender: null, icon: '❔', label: 'Chưa đặt', tone: 'none' };
 // Phong chua co ai (va admin khong co dinh gioi): nam hay nu deu vao duoc
-const OPEN_ROOM = { gender: null, icon: '🚪', lucide: 'venus-and-mars', label: 'Nam hoặc nữ', tone: 'open' };
+const OPEN_ROOM = { gender: null, icon: '🚪', label: 'Nam hoặc nữ', tone: 'open' };
 const TURN_LABEL = { FEMALE: 'Nữ', MALE: 'Nam' };
 
 const PICK_COPY = {
@@ -123,10 +121,6 @@ const collator = typeof Intl !== 'undefined' && Intl.Collator ? new Intl.Collato
 
 /* ---------- helper ---------- */
 
-function ic(name, className) {
-  return `<i data-lucide="${name}"${className ? ` class="${className}"` : ''}></i>`;
-}
-
 const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 function escapeHtml(str) {
@@ -159,7 +153,7 @@ function genderMeta(gender) {
 function genderChip(gender) {
   const meta = genderMeta(gender);
   const cls = meta.tone === 'none' ? 'is-muted' : `is-${meta.tone}`;
-  return `<span class="chip ${cls}">${ic(meta.lucide)} ${meta.label}</span>`;
+  return `<span class="chip ${cls}">${meta.label}</span>`;
 }
 
 function avatarHtml(name) {
@@ -168,7 +162,7 @@ function avatarHtml(name) {
 
 function locationHtml(room, className) {
   return room.location
-    ? `<span class="${className || 'room-card-loc'}">${ic('map-pin')} ${escapeHtml(room.location)}</span>`
+    ? `<span class="${className || 'room-card-loc'}">${escapeHtml(room.location)}</span>`
     : '';
 }
 
@@ -443,10 +437,10 @@ function animateRoomCard(el, old) {
 
 /* ---------- render ---------- */
 
-function statTile({ icon, label, value, sub, variant }) {
+function statTile({ label, value, sub, variant }) {
   return `
     <div class="rooms-stat ${variant ? `is-${variant}` : ''}">
-      <span class="rooms-stat-label">${icon ? ic(icon) : ''} ${label}</span>
+      <span class="rooms-stat-label">${label}</span>
       <span class="rooms-stat-value num">${value}</span>
       ${sub ? `<span class="rooms-stat-sub">${sub}</span>` : ''}
     </div>`;
@@ -467,7 +461,7 @@ function renderStats() {
 
   let assignedSub;
   if (!s.eligible) assignedSub = 'Chưa có ai trong danh sách';
-  else if (allDone) assignedSub = 'Cả đoàn đã có phòng 🎉';
+  else if (allDone) assignedSub = 'Cả đoàn đã có phòng';
   else if (s.pending) assignedSub = `Còn ${s.pending} người chưa ${verb}`;
   else assignedSub = 'Chờ admin đặt giới tính';
 
@@ -513,7 +507,7 @@ function renderStats() {
     const text = `${s.noGender} người chưa được admin đặt giới tính nên chưa thể nhận phòng.`;
     if (noGenderLine.dataset.key !== text) {
       noGenderLine.dataset.key = text;
-      noGenderLine.innerHTML = `${ic('circle-alert')} <span>${escapeHtml(text)}</span>`;
+      noGenderLine.innerHTML = `<span>${escapeHtml(text)}</span>`;
     }
     noGenderLine.hidden = false;
   } else {
@@ -539,22 +533,22 @@ function pickContext() {
 function pickButtonHtml(room, ctx) {
   if (!ctx.canChoose || !roomFitsGender(room, ctx.gender)) return '';
   if (room.occupancy >= room.capacity) return '';
-  const disabled = (icon, text) =>
-    `<button type="button" class="room-pick-btn" disabled>${ic(icon)} <span>${text}</span></button>`;
-  if (room.locked) return disabled('lock', 'Phòng đang khóa');
-  if (locked) return disabled('lock', 'Vòng đang tạm khóa');
+  const disabled = (text) =>
+    `<button type="button" class="room-pick-btn" disabled><span>${text}</span></button>`;
+  if (room.locked) return disabled('Phòng đang khóa');
+  if (locked) return disabled('Vòng đang tạm khóa');
   // Vao day thi gioi kia het cho -> de danh (server cung chan)
   if (!placementOk(room, ctx.gender, ctx.pending)) {
-    return disabled('shield', `Để dành cho các bạn ${ctx.gender === 'MALE' ? 'Nữ' : 'Nam'}`);
+    return disabled(`Để dành cho các bạn ${ctx.gender === 'MALE' ? 'Nữ' : 'Nam'}`);
   }
   const free = room.capacity - room.occupancy;
   return `<button type="button" class="room-pick-btn is-ready" data-pick="${room.id}" ${isBusy ? 'disabled' : ''}
-    aria-label="Chọn phòng ${escapeHtml(room.name)} (còn ${free} chỗ)">${ic('hand')} <span>Chọn phòng này</span></button>`;
+    aria-label="Chọn phòng ${escapeHtml(room.name)} (còn ${free} chỗ)"><span>Chọn phòng này</span></button>`;
 }
 
 function roomGenderChip(room) {
   if (room.gender) return genderChip(room.gender);
-  return `<span class="chip is-accent">${ic('venus-and-mars')} Còn trống · nam hoặc nữ</span>`;
+  return `<span class="chip is-accent">Còn trống · nam hoặc nữ</span>`;
 }
 
 function roomCardHtml(room, ctx) {
@@ -578,7 +572,7 @@ function roomCardHtml(room, ctx) {
 
   const emptyBeds = Array.from(
     { length: Math.max(0, room.capacity - room.occupancy) },
-    () => `<li class="room-bed is-empty">${room.locked ? ic('lock') : ic('bed-double')} <span>${room.locked ? 'Đang khóa' : 'Còn trống'}</span></li>`
+    () => `<li class="room-bed is-empty">${room.locked ? 'Đang khóa' : 'Còn trống'}</li>`
   ).join('');
 
   // Mot luoi chung cho moi phong (giu dung thu tu vi tri), nen moi the tu ghi ro
@@ -600,9 +594,9 @@ function roomCardHtml(room, ctx) {
       </div>
       <div class="room-card-tags">
         ${roomGenderChip(room)}
-        ${room.locked ? `<span class="chip is-warn">${ic('lock')} Đã khóa</span>` : ''}
-        ${isFull ? `<span class="chip is-ok">${ic('check')} Đủ người</span>` : ''}
-        ${isMine ? `<span class="chip room-mine-chip">${ic('star')} Phòng của bạn</span>` : ''}
+        ${room.locked ? `<span class="chip is-warn">Đã khóa</span>` : ''}
+        ${isFull ? `<span class="chip is-ok">Đủ người</span>` : ''}
+        ${isMine ? `<span class="chip room-mine-chip">Phòng của bạn</span>` : ''}
       </div>
       <div class="meter ${isFull ? 'is-ok' : ''}" role="img" aria-label="Đã có ${room.occupancy} trên ${room.capacity} chỗ">
         <span style="width:${fillPct}%"></span>
@@ -622,7 +616,7 @@ function ensureListShell() {
       <div class="rooms-grid" data-grid></div>
     </section>
     <div class="rooms-empty" data-empty hidden>
-      <span class="rooms-empty-icon" aria-hidden="true">${ic('bed-double')}</span>
+      <span class="rooms-empty-icon" aria-hidden="true"></span>
       <strong>Chưa có phòng nào được tạo</strong>
       <span>Chờ admin thiết lập danh sách phòng nhé!</span>
     </div>`;
@@ -638,16 +632,16 @@ function listHeadHtml() {
   const lockedCount = count((r) => r.locked);
 
   return `
-    <span class="rooms-section-icon" aria-hidden="true">${ic('bed-double')}</span>
+    <span class="rooms-section-icon" aria-hidden="true"></span>
     <div class="rooms-section-titles">
       <h2 id="roomsListTitle">Danh sách phòng</h2>
       <p><span class="num">${rooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người · ai vào phòng trống trước thì phòng thành phòng của giới đó</p>
     </div>
     <div class="rooms-section-meta">
-      ${female ? `<span class="chip is-female">${ic('venus')} ${female} phòng nữ</span>` : ''}
-      ${male ? `<span class="chip is-male">${ic('mars')} ${male} phòng nam</span>` : ''}
-      ${open ? `<span class="chip is-accent">${ic('door-open')} ${open} phòng trống</span>` : ''}
-      ${lockedCount ? `<span class="chip is-warn">${ic('lock')} ${lockedCount} phòng khóa</span>` : ''}
+      ${female ? `<span class="chip is-female">${female} phòng nữ</span>` : ''}
+      ${male ? `<span class="chip is-male">${male} phòng nam</span>` : ''}
+      ${open ? `<span class="chip is-accent">${open} phòng trống</span>` : ''}
+      ${lockedCount ? `<span class="chip is-warn">${lockedCount} phòng khóa</span>` : ''}
     </div>`;
 }
 
@@ -686,7 +680,7 @@ function renderRooms() {
 
 function resultShareText(name, room) {
   const mates = room.members.filter((m) => m.name !== name).map((m) => m.name);
-  return `🛏️ ${name} ở phòng "${room.name}"${room.location ? ` (${room.location})` : ''}${
+  return `${name} ở phòng "${room.name}"${room.location ? ` (${room.location})` : ''}${
     mates.length ? ` cùng ${mates.join(', ')}` : ''
   }`;
 }
@@ -723,18 +717,18 @@ function renderResult(name) {
   let summary;
   if (mates.length) summary = `Cùng phòng với <strong>${escapeHtml(mates.map((m) => m.name).join(', '))}</strong>`;
   else if (room.capacity > 1) summary = 'Hiện chỉ có bạn trong phòng — chờ thêm người nhận phòng nhé!';
-  else summary = 'Phòng riêng chỉ có bạn 🎉';
+  else summary = 'Phòng riêng chỉ có bạn';
 
   const people = [
     `<li class="rooms-result-person is-me">${avatarHtml(name)}<span class="room-bed-name">${escapeHtml(name)}</span><span class="rm-me-tag">Bạn</span></li>`,
     ...mates.map((m) => `<li class="rooms-result-person">${avatarHtml(m.name)}<span class="room-bed-name">${escapeHtml(m.name)}</span></li>`),
-    ...Array.from({ length: free }, () => `<li class="rooms-result-person is-empty">${ic('bed-double')} <span>Chờ người vào</span></li>`),
+    ...Array.from({ length: free }, () => `<li class="rooms-result-person is-empty"><span>Chờ người vào</span></li>`),
   ].join('');
 
   resultBox.innerHTML = `
     <div class="rooms-result is-${meta.tone}">
       <div class="rooms-result-top">
-        <span class="rooms-result-kicker">${ic('party-popper')} Phòng của bạn</span>
+        <span class="rooms-result-kicker">Phòng của bạn</span>
         ${genderChip(room.gender)}
       </div>
       <p class="rooms-result-room">${escapeHtml(room.name)}</p>
@@ -743,8 +737,8 @@ function renderResult(name) {
       <ul class="rooms-result-people">${people}</ul>
       ${room.note ? `<p class="room-card-note">${escapeHtml(room.note)}</p>` : ''}
       <div class="rooms-result-actions">
-        <button type="button" class="rooms-result-btn" data-result-action="copy">${ic('copy')} <span>Sao chép kết quả</span></button>
-        <button type="button" class="rooms-result-btn" data-result-action="locate">${ic('search')} <span>Xem trong danh sách</span></button>
+        <button type="button" class="rooms-result-btn" data-result-action="copy"><span>Sao chép kết quả</span></button>
+        <button type="button" class="rooms-result-btn" data-result-action="locate"><span>Xem trong danh sách</span></button>
       </div>
     </div>`;
   return true;
@@ -764,7 +758,7 @@ function setDrawLabel(icon, text, spinning) {
   if (key === drawLabelKey) return;
   drawLabelKey = key;
   drawBtn.classList.toggle('is-spinning', !!spinning);
-  drawBtn.innerHTML = `${ic(icon)}<span>${escapeHtml(text)}</span>`;
+  drawBtn.innerHTML = `<span>${escapeHtml(text)}</span>`;
 }
 
 function setNotice(message) {
@@ -784,13 +778,13 @@ function renderRoundChip() {
   roundChip.dataset.key = key;
   if (locked) {
     roundChip.className = 'chip is-warn rooms-round-chip';
-    roundChip.innerHTML = `${ic('lock')} Tạm khóa`;
+    roundChip.innerHTML = `Tạm khóa`;
   } else if (turn !== 'ALL') {
     roundChip.className = `chip is-${turn === 'FEMALE' ? 'female' : 'male'} rooms-round-chip`;
-    roundChip.innerHTML = `${ic(turn === 'FEMALE' ? 'venus' : 'mars')} Lượt: ${TURN_LABEL[turn]}`;
+    roundChip.innerHTML = `Lượt: ${TURN_LABEL[turn]}`;
   } else {
     roundChip.className = 'chip is-ok rooms-round-chip';
-    roundChip.innerHTML = '<span class="dot"></span> Đang mở';
+    roundChip.textContent = 'Đang mở';
   }
 }
 
@@ -801,7 +795,6 @@ function renderPickCopy() {
   spinTitle.dataset.mode = pickMode;
   spinTitle.textContent = copy.title;
   spinDesc.textContent = copy.desc;
-  spinIcon.innerHTML = ic(copy.icon);
   drawBtn.classList.toggle('is-secondary', pickMode === 'choose');
 }
 
@@ -836,7 +829,7 @@ function updateDrawState() {
   if (!name) {
     drawBtn.disabled = true;
     setDrawLabel(idleLabel[0], idleLabel[1]);
-    setMeLine(`👋 <span>Chọn tên của bạn trong danh sách để bắt đầu.</span>`);
+    setMeLine(`<span>Chọn tên của bạn trong danh sách để bắt đầu.</span>`);
     setNotice('');
     setJump(false);
     renderResult('');
@@ -967,12 +960,12 @@ function renderPending() {
           ${avatarHtml(m.name)}
           <span class="room-bed-name">${escapeHtml(m.name)}</span>
           ${isMe ? '<span class="rm-me-tag">Bạn</span>' : ''}
-          <span class="rooms-pending-tag">${ic(meta.lucide)} ${meta.label}</span>
+          <span class="rooms-pending-tag">${meta.label}</span>
         </li>`;
     })
     .join('')}</ul>${
     extra > 0
-      ? `<button type="button" class="rooms-pending-more" aria-expanded="${pendingExpanded}">${ic(pendingExpanded ? 'chevron-up' : 'chevron-down')} <span>${pendingExpanded ? 'Thu gọn' : `Xem thêm ${extra} người`}</span></button>`
+      ? `<button type="button" class="rooms-pending-more" aria-expanded="${pendingExpanded}"><span>${pendingExpanded ? 'Thu gọn' : `Xem thêm ${extra} người`}</span></button>`
       : ''
   }`;
 
@@ -1017,8 +1010,8 @@ function noticeMyRoomChange(name, before) {
     if (now && now.id === before.id) return;
 
     let message;
-    if (now) message = `🔀 Admin đã chuyển bạn sang ${now.name}`;
-    else if (!rooms.some((r) => r.id === before.id)) message = `🗑️ ${before.name} vừa bị admin xóa — bạn có thể nhận phòng mới.`;
+    if (now) message = `Admin đã chuyển bạn sang ${now.name}`;
+    else if (!rooms.some((r) => r.id === before.id)) message = `${before.name} vừa bị admin xóa — bạn có thể nhận phòng mới.`;
     else message = `Admin đã đưa bạn ra khỏi ${before.name} — bạn có thể nhận phòng lại.`;
     showToast(message, 'info', 6000, { key: 'rooms-mine', priority: 2 });
   }, 300);
@@ -1174,7 +1167,7 @@ function spinTo(room, gender) {
   if (!pool.length) pool.push(room);
 
   const item = (r) =>
-    `<div class="rooms-reel-item"><span class="rooms-reel-name">${meta.icon} ${escapeHtml(r.name)}</span>${
+    `<div class="rooms-reel-item"><span class="rooms-reel-name">${escapeHtml(r.name)}</span>${
       r.location ? `<span class="rooms-reel-loc">${escapeHtml(r.location)}</span>` : ''
     }</div>`;
 
@@ -1297,7 +1290,7 @@ function celebrate(name, fresh) {
   if (fresh) fireConfetti();
   const mates = room.members.filter((m) => m.name !== name).map((m) => m.name);
   showToast(
-    mates.length ? `🛏️ Bạn ở ${room.name} cùng ${mates.join(', ')}!` : `🛏️ Bạn ở ${room.name}!`,
+    mates.length ? `Bạn ở ${room.name} cùng ${mates.join(', ')}!` : `Bạn ở ${room.name}!`,
     'success',
     4200
   );
@@ -1382,10 +1375,10 @@ function fillConfirm(room) {
   const mates = room.members.map((m) => escapeHtml(m.name));
   const free = room.capacity - room.occupancy;
   const html = `
-    ${room.location ? `<p class="rooms-dialog-loc">${ic('map-pin')} ${escapeHtml(room.location)}</p>` : ''}
+    ${room.location ? `<p class="rooms-dialog-loc">${escapeHtml(room.location)}</p>` : ''}
     <p>${mates.length ? `Bạn sẽ ở cùng <strong>${mates.join(', ')}</strong>.` : 'Phòng đang trống — bạn sẽ là người đầu tiên.'}
       Phòng còn <strong>${free}</strong>/${room.capacity} chỗ.</p>
-    <p class="rooms-dialog-warn">${ic('info')} Chọn xong là chốt — muốn đổi phòng phải nhờ admin.</p>`;
+    <p class="rooms-dialog-warn">Chọn xong là chốt — muốn đổi phòng phải nhờ admin.</p>`;
   if (confirmBody.dataset.sig === html) return;
   confirmBody.dataset.sig = html;
   confirmTitle.textContent = `Chọn phòng “${room.name}”?`;
@@ -1534,7 +1527,7 @@ resultBox.addEventListener('click', async (event) => {
 
   if (btn.dataset.resultAction === 'copy') {
     const ok = await copyText(resultShareText(name, room));
-    showToast(ok ? '📋 Đã sao chép — dán vào nhóm chat thôi!' : 'Trình duyệt không cho sao chép tự động', ok ? 'success' : 'error', 3000);
+    showToast(ok ? 'Đã sao chép — dán vào nhóm chat thôi!' : 'Trình duyệt không cho sao chép tự động', ok ? 'success' : 'error', 3000);
     return;
   }
 
@@ -1588,7 +1581,7 @@ function applyPageOpen(open) {
   updateDrawState();
 
   if (changed && booted) {
-    showToast(open ? '🔓 Trang ghép phòng đã mở lại!' : '🚪 Admin vừa tạm đóng trang ghép phòng', 'info', 4500, {
+    showToast(open ? 'Trang ghép phòng đã mở lại!' : 'Admin vừa tạm đóng trang ghép phòng', 'info', 4500, {
       key: 'rooms-page',
       priority: 2,
     });
@@ -1618,8 +1611,8 @@ function applyModes(ui) {
     if (booted) {
       showToast(
         pickMode === 'choose'
-          ? '🚪 Admin vừa đổi sang tự chọn phòng — chọn phòng bạn thích nhé!'
-          : '🎲 Admin vừa đổi sang quay ngẫu nhiên',
+          ? 'Admin vừa đổi sang tự chọn phòng — chọn phòng bạn thích nhé!'
+          : 'Admin vừa đổi sang quay ngẫu nhiên',
         'info',
         5000,
         { key: 'rooms-pick-mode', priority: 2 }
@@ -1674,11 +1667,11 @@ socket.on('member:room-randomized', (payload) => {
       { name: payload.member.name, room: payload.room.name },
       (items) => {
         if (items.length === 1) {
-          return `🛏️ ${items[0].name} vừa vào ${items[0].room}`;
+          return `${items[0].name} vừa vào ${items[0].room}`;
         }
         const recent = items.slice(-3).map((i) => i.name).reverse();
         const rest = items.length - recent.length;
-        return `🛏️ ${items.length} người vừa nhận phòng: ${recent.join(', ')}${rest > 0 ? ` và ${rest} người nữa` : ''}`;
+        return `${items.length} người vừa nhận phòng: ${recent.join(', ')}${rest > 0 ? ` và ${rest} người nữa` : ''}`;
       },
       { duration: 2800 }
     );
@@ -1691,7 +1684,7 @@ socket.on('rooms:reset', () => {
   if (!isBusy) reel.hidden = true;
   // priority 2: thong bao quan trong, khong bi toast info day ra va khong bi bo
   // qua khi nguoi dung dang o tab khac
-  showToast('♻️ Admin đã reset kết quả ghép phòng, mọi người nhận phòng lại nhé!', 'info', 5000, {
+  showToast('Admin đã reset kết quả ghép phòng, mọi người nhận phòng lại nhé!', 'info', 5000, {
     key: 'rooms-reset',
     priority: 2,
   });
@@ -1710,7 +1703,7 @@ socket.on('rooms:config', (payload) => {
   requestRender();
   if (turnChanged) {
     showToast(
-      turn === 'ALL' ? '🔔 Đã mở nhận phòng cho cả nam và nữ!' : `🔔 Tới lượt các bạn ${TURN_LABEL[turn]} nhận phòng!`,
+      turn === 'ALL' ? 'Đã mở nhận phòng cho cả nam và nữ!' : `Tới lượt các bạn ${TURN_LABEL[turn]} nhận phòng!`,
       'info',
       5000,
       { key: 'rooms-turn', priority: 2 }
@@ -1718,7 +1711,7 @@ socket.on('rooms:config', (payload) => {
   }
   if (!changed) return;
   // Admin bat/tat lien tuc -> chi 1 toast duy nhat doi noi dung tai cho
-  showToast(locked ? '🔒 Vòng ghép phòng đã bị khóa' : '🔓 Vòng ghép phòng đã mở!', 'info', 4000, {
+  showToast(locked ? 'Vòng ghép phòng đã bị khóa' : 'Vòng ghép phòng đã mở!', 'info', 4000, {
     key: 'rooms-lock',
   });
 });
