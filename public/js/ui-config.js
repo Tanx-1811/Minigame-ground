@@ -66,15 +66,28 @@ window.UiConfig = (function () {
     });
   }
 
+  // Thu tu du lieu: moi lan tai / moi su kien socket nhan 1 so. Lan tai cham (vd goi
+  // lai luc ket noi lai) ma ve SAU mot settings:updated moi hon thi khong duoc ap ui
+  // cu de len - neu khong trang ghep phong co the bi day nguoc ve che do cu.
+  let seq = 0;
+  let appliedSeq = 0;
+
   // 1 request /api/config duy nhat cho ca trang
   function load() {
-    return fetch('/api/config')
+    const mySeq = ++seq;
+    return fetch('/api/config', { cache: 'no-store' })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then((config) => {
-        apply(config.ui);
+        if (mySeq > appliedSeq) {
+          appliedSeq = mySeq;
+          apply(config.ui);
+        } else if (cache) {
+          // Da co ban moi hon tu socket: tra ve cau hinh kem ui dang ap dung
+          config.ui = cache;
+        }
         return config;
       })
       .catch((err) => {
@@ -95,7 +108,9 @@ window.UiConfig = (function () {
   function bind(socket) {
     if (!socket) return;
     socket.on('settings:updated', (payload) => {
-      if (payload && payload.ui) apply(payload.ui);
+      if (!payload || !payload.ui) return;
+      appliedSeq = ++seq; // moi lan tai dang cho deu cu hon ban nay
+      apply(payload.ui);
     });
   }
 

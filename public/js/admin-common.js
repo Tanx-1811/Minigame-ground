@@ -20,13 +20,13 @@ window.AdminCommon = (function () {
       items: [
         { page: 'overview', href: '/admin/', icon: 'layout-dashboard', label: 'Tổng quan' },
         { page: 'event', href: '/admin/event.html', icon: 'calendar-clock', label: 'Sự kiện' },
-        { page: 'quiz', href: '/admin/quiz.html', icon: 'brain', label: 'Vòng Quiz' },
+        { page: 'quiz', href: '/admin/quiz.html', icon: 'brain', label: 'Vòng Quiz', game: true },
       ],
     },
     {
       title: 'Chia người',
       items: [
-        { page: 'groups', href: '/admin/groups.html', icon: 'users-round', label: 'Chia nhóm', badge: 'groups' },
+        { page: 'groups', href: '/admin/groups.html', icon: 'users-round', label: 'Chia nhóm', badge: 'groups', game: true },
         { page: 'rooms', href: '/admin/rooms.html', icon: 'bed-double', label: 'Phòng ngủ', badge: 'rooms' },
       ],
     },
@@ -34,7 +34,7 @@ window.AdminCommon = (function () {
       title: 'Dữ liệu',
       items: [
         { page: 'members', href: '/admin/members.html', icon: 'contact-round', label: 'Thành viên', badge: 'members' },
-        { page: 'questions', href: '/admin/questions.html', icon: 'circle-help', label: 'Câu hỏi', badge: 'questions' },
+        { page: 'questions', href: '/admin/questions.html', icon: 'circle-help', label: 'Câu hỏi', badge: 'questions', game: true },
         { page: 'activity', href: '/admin/activity.html', icon: 'scroll-text', label: 'Nhật ký' },
       ],
     },
@@ -76,7 +76,7 @@ window.AdminCommon = (function () {
             </a>
             <div>
               <h1>Bảng điều khiển sự kiện</h1>
-              <p>DIMACO · Chia nhóm &amp; ghép phòng ngủ</p>
+              <p id="adminTopbarSub">DIMACO · Chia nhóm &amp; ghép phòng ngủ</p>
             </div>
           </div>
 
@@ -110,8 +110,9 @@ window.AdminCommon = (function () {
               .map(
                 (item) => `
               <a class="admin-tab ${item.page === PAGE ? 'is-active' : ''}" href="${item.href}" data-tab="${item.page}"
-                ${item.page === PAGE ? 'aria-current="page"' : ''}>
+                ${item.page === PAGE ? 'aria-current="page"' : ''} ${item.game ? 'data-game="1"' : ''}>
                 <span class="admin-tab-icon"><i data-lucide="${item.icon}"></i></span> ${item.label}
+                ${item.game ? '<span class="admin-tab-off">Không dùng</span>' : ''}
                 ${item.badge ? `<span class="admin-tab-badge" data-badge="${item.badge}">${badges[item.badge] || ''}</span>` : ''}
               </a>`
               )
@@ -126,7 +127,7 @@ window.AdminCommon = (function () {
     sidebar.innerHTML = `
       <nav class="admin-sidebar-nav" aria-label="Khu vực quản lý">${nav}</nav>
       <div class="admin-nav-foot">
-        <a href="/" target="_blank" rel="noopener"><i data-lucide="dices"></i> Trang chia nhóm</a>
+        <a href="/" target="_blank" rel="noopener" data-game="1"><i data-lucide="dices"></i> Trang chia nhóm</a>
         <a href="/rooms.html" target="_blank" rel="noopener"><i data-lucide="bed-double"></i> Trang ghép phòng</a>
       </div>`;
 
@@ -927,6 +928,82 @@ window.AdminCommon = (function () {
   // Nhac tai lai khi may chu co ban moi (xem js/version-guard.js)
   if (window.VersionGuard) window.VersionGuard.bind(socket);
 
+  /* ================= che do su kien ================= */
+
+  // 'full' = Quiz -> Boc tham -> Ghep phong ; 'rooms' = chi ghep phong.
+  // Doc tu /api/config (cong khai, khong can ma) va nghe settings:updated, de
+  // sidebar danh dau cac trang khong dung toi va moi trang tu dieu chinh.
+  const GAME_PAGES = ['quiz', 'groups', 'questions'];
+  let modes = { eventMode: 'full', roomPickMode: 'random' };
+  const modeWatchers = new Set();
+  const topbarSub = document.getElementById('adminTopbarSub');
+
+  function renderModeBanner() {
+    const content = document.querySelector('.admin-content');
+    if (!content || !GAME_PAGES.includes(PAGE)) return;
+    let banner = document.getElementById('adminModeBanner');
+    if (modes.eventMode !== 'rooms') {
+      if (banner) banner.remove();
+      return;
+    }
+    if (banner) return;
+    banner = document.createElement('div');
+    banner.id = 'adminModeBanner';
+    banner.className = 'admin-mode-banner';
+    banner.setAttribute('role', 'note');
+    banner.innerHTML = `<i data-lucide="bed-double"></i>
+      <span><strong>Sự kiện đang ở chế độ "Chỉ ghép phòng"</strong> — trang này không dùng tới, người chơi không thấy vòng này.
+      Đổi lại ở trang <a href="/admin/event.html">Sự kiện</a>.</span>`;
+    content.insertBefore(banner, content.firstChild);
+  }
+
+  function applyModes(ui) {
+    if (!ui) return;
+    const next = {
+      eventMode: ui.eventMode === 'rooms' ? 'rooms' : 'full',
+      roomPickMode: ui.roomPickMode === 'choose' ? 'choose' : 'random',
+    };
+    const changed = next.eventMode !== modes.eventMode || next.roomPickMode !== modes.roomPickMode;
+    modes = next;
+
+    const roomsOnly = modes.eventMode === 'rooms';
+    document.body.dataset.eventMode = modes.eventMode;
+    document.querySelectorAll('.admin-sidebar [data-game="1"]').forEach((el) => {
+      el.classList.toggle('is-off', roomsOnly);
+      if (el.classList.contains('admin-tab')) el.title = roomsOnly ? 'Không dùng ở chế độ "Chỉ ghép phòng"' : '';
+      else el.hidden = roomsOnly;
+    });
+    if (topbarSub) topbarSub.textContent = roomsOnly ? 'DIMACO · Chỉ ghép phòng ngủ' : 'DIMACO · Chia nhóm & ghép phòng ngủ';
+    renderModeBanner();
+
+    if (!changed) return;
+    modeWatchers.forEach((handler) => {
+      try {
+        handler(modes);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }
+
+  function onModes(handler) {
+    if (typeof handler === 'function') modeWatchers.add(handler);
+  }
+
+  const modesReady = fetch('/api/config', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((config) => {
+      if (config && config.ui) applyModes(config.ui);
+      return modes;
+    })
+    .catch(() => modes);
+
+  if (socket) {
+    socket.on('settings:updated', (payload) => {
+      if (payload && payload.ui) applyModes(payload.ui);
+    });
+  }
+
   // Mat ket noi luc dang kiem tra ma -> noi lai thi kiem tra lai
   if (socket) {
     socket.on('connect', () => {
@@ -979,5 +1056,9 @@ window.AdminCommon = (function () {
     debounce,
     serial,
     onLive,
+    modes: () => modes,
+    modesReady,
+    onModes,
+    applyModes,
   };
 })();

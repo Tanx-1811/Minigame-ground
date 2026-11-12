@@ -271,10 +271,14 @@ router.delete('/admin/members/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy thành viên' });
     }
 
-    await prisma.$transaction([
-      prisma.answer.deleteMany({ where: { memberId: id } }),
-      prisma.member.delete({ where: { id } }),
-    ]);
+    // Trong hang doi 'rooms': luot quay dang chay cho dung nguoi nay se cap nhat
+    // 1 dong vua bi xoa (P2025) va bao loi 500 neu xoa chen vao giua
+    await withLock('rooms', () =>
+      prisma.$transaction([
+        prisma.answer.deleteMany({ where: { memberId: id } }),
+        prisma.member.delete({ where: { id } }),
+      ])
+    );
 
     emitMembers(req);
     emitGroups(req);
@@ -1520,7 +1524,9 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
   }
 
   try {
-    const report = await prisma.$transaction(
+    // Xoa sach roi tao lai moi phong / thanh vien -> chay trong hang doi 'rooms' de
+    // khong luot quay nao ghi vao dong dang bi xoa giua chung
+    const report = await withLock('rooms', () => prisma.$transaction(
       async (tx) => {
         // Xoa theo dung thu tu khoa ngoai: answer -> member -> room/group/question
         await tx.answer.deleteMany({});
@@ -1638,7 +1644,7 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
         };
       },
       { timeout: 60000 }
-    );
+    ));
 
     quizLobby.clearLobby();
     invalidateSettingCache();

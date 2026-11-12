@@ -45,8 +45,9 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="route"></i> Tiến trình sự kiện</h3>
-                    <p>Ba bước của buổi chơi, mỗi bước ở một trong bốn trạng thái: <strong>Chưa mở</strong>, <strong>Đang mở</strong> (mọi người thao tác được ngay), <strong>Đang khóa</strong> hoặc <strong>Hoàn tất</strong>. Bấm vào một bước để tới trang quản lý của bước đó.</p>
+                    <p>Các bước của buổi chơi, mỗi bước ở một trong bốn trạng thái: <strong>Chưa mở</strong>, <strong>Đang mở</strong> (mọi người thao tác được ngay), <strong>Đang khóa</strong> hoặc <strong>Hoàn tất</strong>. Bấm vào một bước để tới trang quản lý của bước đó. Đổi chế độ ở trang <a href="/admin/event.html">Sự kiện</a>.</p>
                   </div>
+                  <span id="overviewModeChip" class="admin-chip"></span>
                 </div>
                 <div class="admin-card-body">
                   <div id="overviewFlow" class="admin-flow" aria-live="polite"><div class="admin-flow-step is-skeleton" aria-hidden="true"></div><div class="admin-flow-step is-skeleton" aria-hidden="true"></div><div class="admin-flow-step is-skeleton" aria-hidden="true"></div></div>
@@ -75,7 +76,7 @@
               </div>
 
               <div class="admin-split">
-                <div class="admin-card">
+                <div class="admin-card" id="overviewGroupCard">
                   <div class="admin-card-head">
                     <div>
                       <h3><i data-lucide="users-round"></i> Chia nhóm</h3>

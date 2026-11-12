@@ -28,52 +28,77 @@ const router = express.Router();
 // luot quay ghi roomId tro vao phong da xoa va bao loi 500.
 const ROOMS_LOCK = 'rooms';
 
+// Doc lai nguoi nay NGAY TRONG hang doi: thong tin doc truoc khi vao hang co the
+// da cu - admin vua doi gioi tinh / tat quyen ghep phong o luot dung truoc trong
+// hang thi phai xep theo du lieu moi (khong thi vao nham phong khac gioi).
+async function lockedMember(tx, id) {
+  const current = await tx.member.findUnique({ where: { id }, select: { roomId: true, gender: true, joinRoom: true } });
+  if (!current) throw new Error('MEMBER_GONE');
+  if (current.roomId) return current;
+  if (!current.joinRoom) throw new Error('NOT_ELIGIBLE');
+  if (!current.gender) throw new Error('NO_GENDER');
+  return current;
+}
+
+// Sau khi commit, VAN trong hang doi: doc lai phong va phat realtime. Lam ngoai
+// hang doi thi 2 nguoi vao cung 1 phong co the phat lech thu tu (ban [A] den sau
+// ban [A, B]) -> moi nguoi dang xem thay phong thieu nguoi cho toi khi tai lai.
+async function publishPick(io, member, result, via) {
+  const room = await findRoomWithMembers(result.roomId);
+  if (!room) throw new Error('ROOM_NOT_FOUND');
+  const payload = { member: memberView({ ...member, gender: result.gender || member.gender }), room, at: new Date().toISOString() };
+  if (result.fresh) io.emit('member:room-randomized', { ...payload, via });
+  return { ...result, payload };
+}
+
 // Chon ngau nhien 1 phong cho member. Kiem lai roomId ngay trong hang doi vi bam
 // dup 2 lan se gui 2 request cho cung mot nguoi.
-// Tra ve { roomId, fresh } - fresh = false nghia la nguoi nay vua duoc xep o luot truoc.
-function drawRoomFor(member) {
-  return withLock(ROOMS_LOCK, () =>
-    prisma.$transaction(async (tx) => {
-      const current = await tx.member.findUnique({ where: { id: member.id }, select: { roomId: true } });
-      if (current && current.roomId) return { roomId: current.roomId, fresh: false };
+// Tra ve { roomId, fresh, payload } - fresh = false: nguoi nay vua duoc xep o luot truoc.
+function drawRoomFor(member, io) {
+  return withLock(ROOMS_LOCK, async () => {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await lockedMember(tx, member.id);
+      if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
       const slots = await loadRoomSlots(tx);
-      if (!slots.some((r) => r.gender === member.gender)) {
+      if (!slots.some((r) => r.gender === current.gender)) {
         throw new Error('NO_ROOM_FOR_GENDER');
       }
 
-      const room = pickRoom(slots, member.gender);
+      const room = pickRoom(slots, current.gender);
       if (!room) {
         throw new Error('ROOMS_FULL');
       }
 
       await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
-      return { roomId: room.id, fresh: true };
-    })
-  );
+      return { roomId: room.id, fresh: true, gender: current.gender };
+    });
+    return publishPick(io, member, result, 'random');
+  });
 }
 
 // Xep member vao DUNG phong ho chon (che do "Tu chon phong"). Kiem tra lai moi
 // dieu kien trong hang doi: phong co the vua kin / vua bi khoa / vua bi xoa.
-function chooseRoomFor(member, roomId) {
-  return withLock(ROOMS_LOCK, () =>
-    prisma.$transaction(async (tx) => {
-      const current = await tx.member.findUnique({ where: { id: member.id }, select: { roomId: true } });
-      if (current && current.roomId) return { roomId: current.roomId, fresh: false };
+function chooseRoomFor(member, roomId, io) {
+  return withLock(ROOMS_LOCK, async () => {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await lockedMember(tx, member.id);
+      if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
       const room = await tx.room.findUnique({
         where: { id: roomId },
         include: { _count: { select: { members: true } } },
       });
       if (!room) throw new Error('ROOM_NOT_FOUND');
-      if (room.gender !== member.gender) throw new Error('ROOM_WRONG_GENDER');
+      if (room.gender !== current.gender) throw new Error('ROOM_WRONG_GENDER');
       if (room.locked) throw new Error('ROOM_LOCKED');
       if (room._count.members >= room.capacity) throw new Error('ROOM_FULL');
 
       await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
-      return { roomId: room.id, fresh: true };
-    })
-  );
+      return { roomId: room.id, fresh: true, gender: current.gender };
+    });
+    return publishPick(io, member, result, 'choose');
+  });
 }
 
 // Sau moi thay doi tu admin (them/sua/xoa phong, ghep hang loat, reset) thi phat
@@ -111,6 +136,9 @@ const PUBLIC_ERRORS = {
   ROOM_WRONG_GENDER: [400, 'Phòng này dành cho giới tính khác — chọn phòng đúng giới tính của bạn'],
   ROOM_LOCKED: [409, 'Phòng này vừa bị admin khóa — chọn phòng khác nhé'],
   ROOM_FULL: [409, 'Phòng này vừa kín chỗ — chọn phòng khác nhé'],
+  NOT_ELIGIBLE: [403, 'Bạn không nằm trong danh sách tham gia ghép phòng lần này'],
+  NO_GENDER: [400, 'Bạn chưa được đặt giới tính (Nam/Nữ) — nhờ admin cập nhật trước khi nhận phòng'],
+  MEMBER_GONE: [404, 'Không tìm thấy thành viên'],
 };
 
 /* ---------- cong khai ---------- */
@@ -170,10 +198,10 @@ function memberView(member) {
   return { id: member.id, name: member.name, gender: member.gender };
 }
 
-// Ghi nhat ky + phat realtime + tra ket qua (dung chung cho quay va tu chon)
+// Ghi nhat ky + tra ket qua (dung chung cho quay va tu chon). Realtime da phat
+// trong hang doi (publishPick), o day chi con viec khong can giu thu tu.
 async function finishPick(req, res, member, result, verb) {
-  const room = await findRoomWithMembers(result.roomId);
-  const payload = { member: memberView(member), room, at: new Date().toISOString() };
+  const { payload } = result;
 
   if (!result.fresh) {
     return res.json({ ...payload, alreadyAssigned: true });
@@ -184,13 +212,12 @@ async function finishPick(req, res, member, result, verb) {
       type: 'room',
       icon: verb === 'choose' ? 'hand' : 'bed-double',
       actor: member.name,
-      message: `${member.name} ${verb === 'choose' ? 'chọn' : 'vào'} ${room.name}`,
-      meta: { roomId: room.id, memberId: member.id, via: verb },
+      message: `${member.name} ${verb === 'choose' ? 'chọn' : 'vào'} ${payload.room.name}`,
+      meta: { roomId: payload.room.id, memberId: member.id, via: verb },
     },
     req.io
   );
 
-  req.io.emit('member:room-randomized', { ...payload, via: verb });
   return res.json({ ...payload, alreadyAssigned: false });
 }
 
@@ -213,7 +240,7 @@ router.post('/room/random', async (req, res) => {
       return res.json({ member: memberView(prep.member), room: prep.existing, alreadyAssigned: true });
     }
 
-    const result = await drawRoomFor(prep.member);
+    const result = await drawRoomFor(prep.member, req.io);
     return finishPick(req, res, prep.member, result, 'random');
   } catch (err) {
     return sendPickError(res, err, 'Có lỗi xảy ra khi ghép phòng');
@@ -240,7 +267,7 @@ router.post('/room/choose', async (req, res) => {
       return res.status(403).json({ error: 'Lần này phòng được xếp bằng vòng quay — tải lại trang để quay nhé', code: 'PICK_MODE' });
     }
 
-    const result = await chooseRoomFor(prep.member, roomId);
+    const result = await chooseRoomFor(prep.member, roomId, req.io);
     return finishPick(req, res, prep.member, result, 'choose');
   } catch (err) {
     return sendPickError(res, err, 'Có lỗi xảy ra khi chọn phòng');
@@ -641,7 +668,7 @@ router.post('/admin/rooms/move', requireAdmin, async (req, res) => {
     await activity.log(
       {
         type: 'admin',
-        icon: outcome.room ? 'arrow-right-left' : 'user-round-minus',
+        icon: outcome.room ? 'arrow-left-right' : 'user-round-minus',
         message: outcome.room ? `Xếp ${outcome.member.name} vào ${outcome.room.name}` : `Đưa ${outcome.member.name} ra khỏi phòng`,
       },
       req.io

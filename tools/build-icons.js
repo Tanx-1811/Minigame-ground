@@ -29,6 +29,9 @@ const PATTERNS = [
   /A\.icon\([^)]*\?\s*'([a-z0-9-]+)'\s*:\s*'([a-z0-9-]+)'/g,
   /\bicon:\s*'([a-z0-9-]+)'/g,
   /Icons\.html\(\s*'([a-z0-9-]+)'/g,
+  // helper ic() trong rooms.js: ic('lock') va ic(dk ? 'a' : 'b')
+  /\bic\(\s*'([a-z0-9-]+)'/g,
+  /\bic\([^)]*\?\s*'([a-z0-9-]+)'\s*:\s*'([a-z0-9-]+)'/g,
 ];
 
 // Ten icon duoc dung qua bien (bang tra cuu trong JS) - liet ke tay o day
@@ -50,7 +53,9 @@ function walk(dir, out = []) {
 
 function collectNames() {
   const names = new Set(EXTRA);
-  for (const file of walk(PUBLIC)) {
+  // Quet ca server/: icon cua nhat ky (activity.log({ icon: 'clock' })) duoc luu
+  // xuong DB roi trang admin ve lai - truoc day khong quet nen icon bi trong.
+  for (const file of [...walk(PUBLIC), ...walk(path.join(ROOT, 'server'))]) {
     const text = fs.readFileSync(file, 'utf8');
     for (const re of PATTERNS) {
       for (const m of text.matchAll(re)) {

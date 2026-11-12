@@ -16,6 +16,8 @@
   const refreshBtn = document.getElementById('overviewRefreshBtn');
   const randomLockBtn = document.getElementById('flowRandomLockBtn');
   const roomsLockBtn = document.getElementById('flowRoomsLockBtn');
+  const modeChip = document.getElementById('overviewModeChip');
+  const groupCard = document.getElementById('overviewGroupCard');
 
   let data = null;
 
@@ -70,7 +72,10 @@
     const count = parts.join(' · ');
 
     if (doneAll) return { state: 'done', desc: `${count}${flow.roomsLocked ? ' · vòng đang khóa' : ''}.` };
-    if (flow.roomsLocked) return { state: 'locked', desc: `${count}. Mọi người không tự quay phòng được.` };
+    if (flow.showRoomsPage === false) {
+      return { state: 'locked', desc: `${count}. Trang ghép phòng đang TẮT (Giao diện & nội dung) — mọi người không vào được.` };
+    }
+    if (flow.roomsLocked) return { state: 'locked', desc: `${count}. Mọi người không tự nhận phòng được.` };
     if (!totalRooms) return { state: 'wait', desc: `Chưa tạo phòng nào — dùng "Tạo phòng tự động" ở trang Phòng ngủ. ${count}.` };
     return { state: 'open', desc: `${count}.` };
   }
@@ -78,11 +83,21 @@
   function renderFlow() {
     const { flow, quiz, groups, rooms } = data;
 
-    const steps = [
-      { icon: 'brain', title: 'Vòng Quiz', href: '/admin/quiz.html', ...quizStep(flow, quiz) },
-      { icon: 'dices', title: 'Chia nhóm', href: '/admin/groups.html', ...groupStep(flow, groups) },
-      { icon: 'bed-double', title: 'Ghép phòng ngủ', href: '/admin/rooms.html', ...roomStep(flow, rooms) },
-    ];
+    // Che do "Chi ghep phong": chi con 1 buoc, an phan chia nhom
+    const roomsOnly = flow.eventMode === 'rooms';
+    const roomTitle = `Ghép phòng ngủ · ${flow.roomPickMode === 'choose' ? 'tự chọn phòng' : 'quay ngẫu nhiên'}`;
+    const steps = roomsOnly
+      ? [{ icon: 'bed-double', title: roomTitle, href: '/admin/rooms.html', ...roomStep(flow, rooms) }]
+      : [
+          { icon: 'brain', title: 'Vòng Quiz', href: '/admin/quiz.html', ...quizStep(flow, quiz) },
+          { icon: 'dices', title: 'Chia nhóm', href: '/admin/groups.html', ...groupStep(flow, groups) },
+          { icon: 'bed-double', title: roomTitle, href: '/admin/rooms.html', ...roomStep(flow, rooms) },
+        ];
+
+    modeChip.className = `admin-chip ${roomsOnly ? 'is-ok' : ''}`;
+    modeChip.innerHTML = roomsOnly ? `${A.icon('bed-double')} Chỉ ghép phòng` : `${A.icon('party-popper')} Đầy đủ 3 vòng`;
+    randomLockBtn.hidden = roomsOnly;
+    groupCard.hidden = roomsOnly;
 
     flowBox.innerHTML = steps
       .map((s, i) => {
@@ -148,7 +163,35 @@
     const g = data.groups;
     const r = data.rooms;
 
-    memberStats.innerHTML = [
+    // Che do chi ghep phong: o "Nhom truong" / "Bi loai khoi 3 vong" khong con y nghia
+    // -> thay bang so lieu cua rieng vong ghep phong (van du 6 o cho luoi khong le)
+    if (data.flow.eventMode === 'rooms') {
+      memberStats.innerHTML = [
+        A.statTile({ icon: 'users', label: 'Tổng thành viên', value: m.total, variant: 'accent' }),
+        A.statTile({ icon: 'venus', label: 'Nữ', value: m.female, variant: 'female' }),
+        A.statTile({ icon: 'mars', label: 'Nam', value: m.male, variant: 'male' }),
+        A.statTile({
+          icon: 'bed-double',
+          label: 'Đã có phòng',
+          value: `${data.rooms.assigned}/${data.rooms.eligible}`,
+          variant: data.rooms.assigned >= data.rooms.eligible && data.rooms.eligible ? 'ok' : 'warn',
+        }),
+        A.statTile({
+          icon: 'circle-alert',
+          label: 'Chưa đặt giới tính',
+          value: m.noGender,
+          sub: m.noGender ? 'Chưa nhận phòng được' : 'Đã đặt đủ',
+          variant: m.noGender ? 'warn' : 'ok',
+        }),
+        A.statTile({
+          icon: 'user-round-x',
+          label: 'Không ghép phòng',
+          value: m.excludedRoom,
+          sub: 'Đã tắt quyền ghép phòng',
+          variant: m.excludedRoom ? 'danger' : '',
+        }),
+      ].join('');
+    } else memberStats.innerHTML = [
       A.statTile({ icon: 'users', label: 'Tổng thành viên', value: m.total, variant: 'accent' }),
       A.statTile({ icon: 'venus', label: 'Nữ', value: m.female, variant: 'female' }),
       A.statTile({ icon: 'mars', label: 'Nam', value: m.male, variant: 'male' }),

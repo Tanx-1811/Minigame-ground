@@ -82,11 +82,12 @@ minigamegroup/
 - **pinnedGroup / pinnedRoom**: ghim kết quả. Người đã ghim không bị xáo lại hay bị xóa kết quả
   khi admin bấm "Xáo lại toàn bộ" / "Reset" (nếu chọn giữ người đã ghim).
 
-**Room**: id, name (unique), gender (`MALE`/`FEMALE`), capacity (mặc định 2), note, **locked**, sortOrder, createdAt — phòng ngủ, mỗi phòng chỉ dành cho một giới tính
+**Room**: id, name (unique — tên hiển thị vui, VD "Song long hội tụ"), **location** (vị trí / mã phòng thật, VD "Villa 1 đôi 1", "Phòng 105"), gender (`MALE`/`FEMALE`), capacity (mặc định 2), note, **locked**, sortOrder, createdAt — phòng ngủ, mỗi phòng chỉ dành cho một giới tính
 
 **Setting**: key, value — cấu hình chỉnh qua trang admin:
 - Luật chơi: `eventStartAt`, `phase`, `quizStatus`, `leaderCount`, `roomCapacity`, `groupCapacity`, `roomsLocked`, `randomLocked`
-- Nội dung hiển thị: `brandTitle`, `brandBadge`, `brandSubtitle`, `startButtonText`, `roomsTitle`,
+- Chế độ: **`eventMode`** (`full` = Quiz → Bốc thăm → Ghép phòng, `rooms` = chỉ ghép phòng), **`roomPickMode`** (`random` = quay ngẫu nhiên, `choose` = tự chọn phòng)
+- Nội dung hiển thị: `brandTitle`, `brandBadge`, `brandSubtitle`, `startButtonText`, `roomsBadge`, `roomsTitle`,
   `roomsSubtitle`, `quizTitle`, `quizSubtitle`, `footerText`, `accentColor`
 - Bật/tắt khối giao diện: `showLeaderboard`, `showActivity`, `showMemberNames`, `showRoomsPage`,
   `confettiEnabled`, `soundEnabled`
@@ -144,6 +145,15 @@ Luật công bằng phía máy chủ:
 - **Hai cách chia**: mỗi người tự bấm Random ở trang chủ, hoặc admin bấm **"Chia nhóm cho người chưa có"** / **"Xáo lại toàn bộ"**.
 - **Ghim kết quả**: người được ghim không bị xáo lại hay bị xóa nhóm khi admin chia lại.
 
+## Chế độ "Chỉ ghép phòng"
+
+Có những lần đi chơi chỉ cần chia phòng, không chơi Quiz hay bốc thăm. Admin vào **Sự kiện → Chế độ sự kiện → Chỉ ghép phòng**:
+
+- Ai mở trang chủ `/` (link cũ, mã QR cũ) đều được chuyển thẳng sang `/rooms.html` — máy chủ trả 302, người đang mở sẵn trang chủ được chuyển ngay qua Socket.IO.
+- Thanh điều hướng trang ghép phòng ẩn link "Chia nhóm".
+- API vào phòng chờ Quiz, trả lời Quiz, bốc thăm nhóm và nút "Bắt đầu Quiz" của admin bị chặn kèm thông báo rõ ràng (dữ liệu cũ vẫn giữ nguyên, đổi lại chế độ đầy đủ là dùng tiếp được).
+- Trang admin: các mục Vòng Quiz / Chia nhóm / Câu hỏi được đánh dấu "Không dùng" và có dòng nhắc ở đầu trang; Tổng quan chỉ còn bước ghép phòng.
+
 ## Ghép phòng ngủ (nam/nữ riêng biệt)
 
 Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms.html` (có link từ trang chủ).
@@ -152,8 +162,13 @@ Tính năng độc lập với vòng random chia nhóm, có trang riêng `/rooms
 - **Sức chứa tùy chỉnh**: admin đặt số người mỗi phòng (2 = ghép cặp đôi, tối đa 50).
 - **Thuật toán ghép** (`server/rooms.js`): chỉ chọn trong các phòng đúng giới tính, **chưa bị khóa** và còn chỗ; **ưu tiên phòng đang có người nhưng chưa đầy** để lấp kín từng phòng (không để mỗi phòng lẻ loi 1 người), và random giữa các phòng cùng mức lấp đầy — nên ai ở với ai vẫn hoàn toàn ngẫu nhiên.
 - **Chỉ ghép người được phép**: ai bị admin tắt quyền ghép phòng sẽ không nằm trong danh sách ghép, và việc tạo phòng tự động cũng chỉ đếm số người thực sự tham gia.
-- **Hai cách ghép**:
-  - Mỗi người tự vào `/rooms.html`, chọn tên và bấm "Quay ghép phòng" (có hiệu ứng quay, idempotent — quay lại/F5 vẫn ra đúng phòng cũ).
+- **Mỗi phòng có tên vui + vị trí thật**: thẻ phòng, vòng quay, khung kết quả và hộp xác nhận đều hiện cả hai (VD "Song long hội tụ · Phòng 105").
+- **Hai cách nhận phòng** (admin chọn ở trang Sự kiện hoặc ngay trong trang Phòng ngủ, đổi là trang công khai đổi theo ngay):
+  - **Quay ngẫu nhiên**: bấm "Quay ghép phòng", vòng quay dừng ở phòng hệ thống bốc.
+  - **Tự chọn phòng**: mỗi thẻ phòng đúng giới tính còn chỗ có nút "Chọn phòng này", bấm là hiện hộp xác nhận (ở cùng ai, còn mấy chỗ). Chọn một lần — muốn đổi phải nhờ admin. Vẫn có nút "Xếp ngẫu nhiên giúp tôi". Nhiều người tranh 1 chỗ cuối cùng lúc thì chỉ người đến trước vào được, người sau được báo "Phòng này vừa kín chỗ".
+- **Trang công khai mượt hơn**: chỉ thẻ phòng nào thay đổi mới được vẽ lại (thanh tiến độ chạy từ mức cũ sang mức mới, người vừa vào phòng được làm nổi), khu phòng đúng giới tính của bạn tự lên đầu, ô chọn tên chia nhóm Nữ / Nam và xếp theo **tên gọi** (tìm "Cường" chứ không phải lướt cả chục người họ Nguyễn), có pháo giấy, nút **sao chép kết quả** để dán vào nhóm chat, và tự đồng bộ lại khi mở khóa điện thoại quay lại trang.
+- **Các cách ghép**:
+  - Mỗi người tự vào `/rooms.html`, chọn tên và nhận phòng theo cách admin đã chọn (idempotent — quay lại/F5 vẫn ra đúng phòng cũ).
   - Admin bấm **"Ghép phòng cho tất cả"** để hệ thống tự chia một lượt cho mọi người chưa có phòng (trộn thứ tự trước khi chia), hoặc **"Xáo lại toàn bộ"** để bốc hết ra ghép lại từ đầu.
 - **Realtime**: ai vừa được ghép phòng, admin sửa/xóa phòng, reset ghép phòng... tất cả client đang mở trang đều thấy ngay qua Socket.IO.
 - **Điều kiện**: thành viên phải được admin đặt giới tính trước; nếu chưa có phòng trống cho giới tính đó, hệ thống báo rõ để admin tạo thêm phòng.
@@ -183,7 +198,7 @@ Công tắc thứ tư là **ghim** 📌: người đã ghim giữ nguyên nhóm 
 ### Các tab
 
 - **Tổng quan** — toàn cảnh một màn hình: tiến trình 3 bước (Quiz → Chia nhóm → Ghép phòng) với bước đang mở được làm nổi, số liệu thành viên / nhóm / phòng kèm thanh tiến độ, nút khóa nhanh từng vòng, và 10 hoạt động gần nhất.
-- **Sự kiện** — đặt/xóa giờ mở bốc thăm, kèm đồng hồ đếm ngược ngay trên thẻ.
+- **Sự kiện** — **chế độ sự kiện** (đầy đủ 3 vòng / chỉ ghép phòng), **cách nhận phòng** (quay ngẫu nhiên / tự chọn), đặt/xóa giờ mở bốc thăm kèm đồng hồ đếm ngược.
 - **Vòng Quiz** — phòng chờ realtime, bắt đầu làm bài, bảng xếp hạng, chốt Nhóm Trưởng, làm lại vòng quiz.
 - **Chia nhóm** — mỗi nhóm là một thẻ: đổi tên/slogan, **đặt màu nhận diện** (màu này hiện luôn trên thẻ nhóm ở trang chủ), **giới hạn số người riêng cho từng nhóm**, **khóa nhóm** (giữ người đang có, không nhận thêm ai). Thao tác hàng loạt: chia nhóm cho người chưa có, **xáo lại toàn bộ**, khóa cả vòng chia nhóm, xóa kết quả. Gỡ từng người khỏi nhóm bằng nút ✕, tìm theo tên nhóm hoặc tên người, xuất CSV.
 - **Phòng ngủ** — tạo phòng tự động theo số người **được tham gia** của mỗi giới; thêm/sửa/xóa từng phòng; **khóa từng phòng** hoặc khóa hết phòng đã đầy; ghép phòng cho tất cả; **xáo lại toàn bộ**; **đổi chỗ hai người** cùng giới giữa hai phòng; danh sách người chưa có phòng kèm ô xếp tay; lọc theo giới/còn chỗ/đã kín/đang trống/đang khóa; dọn phòng; xóa hết phòng trống; xuất CSV. Cảnh báo thiếu chỗ tính **riêng cho nam và nữ**, không nhìn con số tổng.
@@ -207,7 +222,8 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | GET    | `/api/groups/full`     | Như trên nhưng kèm `stats` và `globalCapacity`.                         |
 | GET    | `/api/members`         | Toàn bộ thành viên. **`?scope=random\|room\|quiz`** chỉ trả người được phép tham gia vòng đó — đây là cách ô chọn tên trên trang công khai không hiện tên người bị loại. |
 | POST   | `/api/random`          | Body `{ "name": "An" }`. Đã random rồi thì trả nhóm cũ. Chặn nếu vòng đang khóa, hoặc người này bị tắt `joinRandom`. Chọn nhóm còn chỗ, chưa khóa, ít người nhất. Emit `member:randomized`. |
-| POST   | `/api/room/random`     | Body `{ "name": "An" }`. Tương tự cho phòng ngủ, chặn nếu bị tắt `joinRoom`, chưa có giới tính, hoặc vòng đang khóa. Emit `member:room-randomized`. |
+| POST   | `/api/room/random`     | Body `{ "name": "An" }`. Tương tự cho phòng ngủ, chặn nếu bị tắt `joinRoom`, chưa có giới tính, hoặc vòng đang khóa (người đã có phòng vẫn được trả lại phòng cũ). Emit `member:room-randomized`. |
+| POST   | `/api/room/choose`     | Body `{ "name": "An", "roomId": 3 }` — tự chọn phòng (chỉ khi `roomPickMode = choose`). Kiểm tra lại giới tính, khóa, còn chỗ trong hàng đợi; lỗi trả `code`: `ROOM_FULL`, `ROOM_LOCKED`, `ROOM_WRONG_GENDER`, `ROOM_NOT_FOUND`. |
 
 ### API vòng Quiz
 
@@ -229,8 +245,8 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | Method | Endpoint                         | Mô tả                                                                 |
 |--------|----------------------------------|------------------------------------------------------------------------|
 | GET    | `/api/rooms`                     | Danh sách phòng kèm người ở, thống kê theo giới, trạng thái khóa (công khai). |
-| POST   | `/api/admin/rooms`               | Tạo phòng `{ name, gender, capacity, note }`.                          |
-| PUT    | `/api/admin/rooms/:id`           | Sửa `{ name, gender, capacity, note, locked }`. Chặn hạ sức chứa dưới số người đang ở, chặn đổi giới tính khi còn người khác giới. |
+| POST   | `/api/admin/rooms`               | Tạo phòng `{ name, location, gender, capacity, note }`.                |
+| PUT    | `/api/admin/rooms/:id`           | Sửa `{ name, location, gender, capacity, note, locked }`. Chặn hạ sức chứa dưới số người đang ở, chặn đổi giới tính khi còn người khác giới. |
 | DELETE | `/api/admin/rooms/:id`           | Xóa phòng, người đang ở trở về chưa có phòng.                          |
 | POST   | `/api/admin/rooms/auto-create`   | `{ capacity, prefix }` — tạo đủ số phòng còn thiếu cho cả 2 giới, chỉ tính người **được tham gia** ghép phòng. |
 | POST   | `/api/admin/rooms/random-all`    | Ghép một lượt cho người chưa có phòng. `{ reshuffle: true }` = bốc hết ra ghép lại từ đầu (trừ người đã ghim). Trả về danh sách đã ghép và ai bị bỏ qua kèm lý do. |
@@ -282,6 +298,7 @@ Mọi endpoint `/api/admin/*` đều cần `ADMIN_RESET_SECRET`: gửi trong bod
 | POST   | `/api/admin/settings`         | Lưu `{ leaderCount, roomCapacity, groupCapacity, phase, ui: {...} }`. Emit `settings:updated` để trang công khai đổi ngay. |
 | POST   | `/api/admin/settings/lock`    | `{ locked }` — khóa/mở vòng random chia nhóm.                            |
 | POST   | `/api/admin/event-time`       | `{ eventStartAt }` (ISO hoặc `null` để mở ngay). Emit `config:updated`.   |
+| POST   | `/api/admin/event-mode`       | `{ eventMode?: 'full'|'rooms', roomPickMode?: 'random'|'choose' }`. Emit `settings:updated` (trang chủ tự chuyển sang trang ghép phòng, trang ghép phòng đổi giao diện ngay). |
 | GET    | `/api/admin/activity`         | Nhật ký đầy đủ (`?limit=`, `?type=`).                                    |
 | POST   | `/api/admin/activity/clear`   | `{ type }` — xóa toàn bộ hoặc một loại nhật ký.                          |
 | GET    | `/api/admin/export`           | Tải toàn bộ dữ liệu ra JSON để sao lưu (bản 3: kèm cả câu trả lời quiz). |
@@ -405,3 +422,5 @@ trên cả ba trang (`js/version-guard.js`).
 Hai người bấm cùng lúc có thể cùng đọc ra "phòng X còn 1 chỗ" rồi cùng ghi vào. Cách cũ là ghi xong thì đếm lại trong cùng transaction — nhưng MySQL mặc định chạy REPEATABLE READ, lệnh đếm chỉ thấy snapshot của chính transaction đó nên hai bên vẫn cùng thấy "chưa vượt" và cùng commit.
 
 Giờ mọi thao tác "đọc số chỗ → chọn → ghi" chạy qua **hàng đợi tuần tự trong tiến trình** (`server/lock.js`): lượt bốc thăm nhóm, lượt quay phòng và thao tác chia/ghép hàng loạt của admin xếp hàng theo từng loại, lượt sau chỉ bắt đầu khi lượt trước đã commit. Trong hàng đợi máy chủ kiểm lại người đó đã có nhóm/phòng chưa, nên bấm đúp cũng chỉ ra một kết quả. Mỗi lượt chỉ vài chục ms nên người dùng không cảm thấy chờ. (Cách này đúng khi chạy **một** tiến trình Node — đúng với cách chạy của dự án.)
+
+Với phòng ngủ, **mọi** thao tác đổi phòng của một người đều xếp chung hàng `rooms`: lượt quay, tự chọn phòng, admin xếp tay / chuyển / đổi chỗ / sửa sức chứa / xóa phòng / sửa thành viên. Trước đây chỉ lượt quay đi qua hàng đợi, nên admin xếp tay đúng lúc có người đang quay có thể làm phòng vượt sức chứa, còn xóa phòng đúng lúc đó thì lượt quay báo lỗi 500.

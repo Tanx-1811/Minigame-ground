@@ -32,9 +32,12 @@
               <div class="admin-page-head">
                 <div>
                   <h2><i data-lucide="bed-double"></i> Phòng ngủ</h2>
-                  <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính, chưa khóa và còn chỗ. Sức chứa 2 nghĩa là ghép cặp đôi.</p>
+                  <p>Nam ở với nam, nữ ở với nữ — hệ thống chỉ xếp người vào phòng đúng giới tính, chưa khóa và còn chỗ. Mỗi phòng có tên hiển thị vui và vị trí thật (VD: Villa 1 đôi 1).</p>
                 </div>
                 <div class="admin-page-head-actions">
+                  <a class="admin-btn admin-btn-secondary" href="/rooms.html" target="_blank" rel="noopener">
+                    <i data-lucide="external-link"></i> Mở trang ghép phòng
+                  </a>
                   <button id="roomExportBtn" class="admin-btn admin-btn-secondary" type="button" data-always-enabled="1">
                     <i data-lucide="download"></i> Xuất CSV
                   </button>
@@ -51,6 +54,15 @@
                   </div>
                 </div>
                 <div class="admin-card-body">
+                  <div class="admin-seg-row">
+                    <span class="admin-seg-label"><i data-lucide="door-open"></i> Cách nhận phòng</span>
+                    <div id="roomPickSeg" class="admin-seg" role="radiogroup" aria-label="Cách nhận phòng">
+                      <button type="button" role="radio" aria-checked="false" data-pick-mode="random"><i data-lucide="dices"></i> Quay ngẫu nhiên</button>
+                      <button type="button" role="radio" aria-checked="false" data-pick-mode="choose"><i data-lucide="hand"></i> Tự chọn phòng</button>
+                    </div>
+                    <span id="roomModeHint" class="admin-seg-hint"></span>
+                  </div>
+
                   <div class="admin-form-grid is-tight">
                     <div class="admin-field">
                       <label for="roomAutoCapacity"><i data-lucide="users"></i> Sức chứa mỗi phòng</label>
@@ -83,14 +95,18 @@
               <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
-                    <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau.</p>
+                    <p>Mỗi phòng thuộc về một giới tính duy nhất, tên phòng không được trùng nhau. Vị trí là nơi phòng nằm thật — hiện ngay dưới tên.</p>
                   </div>
                 </summary>
                 <div class="admin-card-body">
                   <div class="admin-form-grid">
                     <div class="admin-field">
                       <label for="newRoomName"><i data-lucide="tag"></i> Tên phòng</label>
-                      <input id="newRoomName" type="text" placeholder="VD: Phòng Nữ 1" />
+                      <input id="newRoomName" type="text" placeholder="VD: Song long hội tụ" />
+                    </div>
+                    <div class="admin-field">
+                      <label for="newRoomLocation"><i data-lucide="map-pin"></i> Vị trí / mã phòng</label>
+                      <input id="newRoomLocation" type="text" maxlength="120" placeholder="VD: Villa 1 đôi 1, Phòng 102" />
                     </div>
                     <div class="admin-field">
                       <label for="newRoomGender"><i data-lucide="venus-and-mars"></i> Dành cho</label>
@@ -157,7 +173,7 @@
                 <div class="admin-card-head">
                   <div>
                     <h3><i data-lucide="list"></i> Danh sách phòng</h3>
-                    <p>Bấm ✕ cạnh tên để đưa người ra khỏi phòng. Mở "Sửa phòng" để đổi tên, giới tính, sức chứa hoặc xóa phòng.</p>
+                    <p>Bấm ✕ cạnh tên để đưa người ra khỏi phòng. Mở "Sửa phòng" để đổi tên, vị trí, giới tính, sức chứa hoặc xóa phòng.</p>
                   </div>
                 </div>
                 <div class="admin-card-body">
@@ -166,7 +182,7 @@
                   <div class="admin-toolbar">
                     <div class="admin-field">
                       <label for="roomFilter"><i data-lucide="search"></i> Tìm phòng / tên người</label>
-                      <input id="roomFilter" type="search" placeholder="VD: Phòng Nữ 1 hoặc tên một người..." data-always-enabled="1" />
+                      <input id="roomFilter" type="search" placeholder="Tên phòng, vị trí (Villa 1…) hoặc tên một người..." data-always-enabled="1" />
                     </div>
                     <div class="admin-filter-chips" id="roomFilterChips" role="group" aria-label="Lọc phòng"></div>
                   </div>

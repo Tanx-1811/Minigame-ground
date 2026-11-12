@@ -126,5 +126,76 @@
 
   A.onLive(['config:updated'], loadEventTime);
 
-  A.onTab('event', loadEventTime);
+  /* ---------- che do su kien + cach nhan phong ---------- */
+
+  const modeChoices = document.getElementById('eventModeChoices');
+  const pickChoices = document.getElementById('pickModeChoices');
+  const modeMsg = document.getElementById('eventModeMsg');
+  const pickMsg = document.getElementById('pickModeMsg');
+  const modeChip = document.getElementById('eventModeChip');
+  const timeModeNote = document.getElementById('eventTimeModeNote');
+
+  function renderModes() {
+    const modes = A.modes();
+    modeChoices.querySelectorAll('[data-event-mode]').forEach((btn) => {
+      btn.setAttribute('aria-checked', String(btn.dataset.eventMode === modes.eventMode));
+    });
+    pickChoices.querySelectorAll('[data-pick-mode]').forEach((btn) => {
+      btn.setAttribute('aria-checked', String(btn.dataset.pickMode === modes.roomPickMode));
+    });
+
+    const roomsOnly = modes.eventMode === 'rooms';
+    modeChip.className = `admin-chip ${roomsOnly ? 'is-ok' : ''}`;
+    modeChip.innerHTML = roomsOnly ? `${A.icon('bed-double')} Đang: Chỉ ghép phòng` : `${A.icon('party-popper')} Đang: Đầy đủ 3 vòng`;
+    A.setMsg(
+      timeModeNote,
+      roomsOnly
+        ? 'Đang ở chế độ "Chỉ ghép phòng": giờ hẹn chỉ áp dụng cho màn bốc thăm ở trang chủ, trang ghép phòng mở ngay. Muốn chặn trước giờ thì bấm "Khóa vòng ghép phòng" ở trang Phòng ngủ.'
+        : '',
+      roomsOnly ? 'warn' : ''
+    );
+  }
+
+  async function saveMode(btn, msgEl, body, text) {
+    const data = await A.run(btn, msgEl, 'Đang lưu...', () => A.request('POST', '/api/admin/event-mode', body));
+    if (!data) return;
+    A.applyModes({ eventMode: data.eventMode, roomPickMode: data.roomPickMode });
+    renderModes();
+    applyLocks();
+    A.done(msgEl, text);
+  }
+
+  modeChoices.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-event-mode]');
+    if (!btn || btn.disabled) return;
+    const next = btn.dataset.eventMode;
+    if (next === A.modes().eventMode) return;
+
+    const ok = await A.confirmAction({
+      title: next === 'rooms' ? 'Chuyển sang "Chỉ ghép phòng"' : 'Chuyển sang "Đầy đủ 3 vòng"',
+      message:
+        next === 'rooms'
+          ? 'Trang chủ sẽ tự chuyển sang trang ghép phòng, vòng Quiz và bốc thăm bị tắt (dữ liệu cũ vẫn giữ nguyên).<br />Mọi người đang mở trang được chuyển ngay.'
+          : 'Trang chủ quay lại màn Quiz / bốc thăm như cũ. Kết quả ghép phòng hiện có vẫn giữ nguyên.',
+      okText: 'Chuyển chế độ',
+      danger: false,
+    });
+    if (!ok) return;
+    saveMode(btn, modeMsg, { eventMode: next }, next === 'rooms' ? 'Đã chuyển sang chế độ "Chỉ ghép phòng".' : 'Đã chuyển sang chế độ đầy đủ 3 vòng.');
+  });
+
+  pickChoices.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pick-mode]');
+    if (!btn || btn.disabled) return;
+    const next = btn.dataset.pickMode;
+    if (next === A.modes().roomPickMode) return;
+    saveMode(btn, pickMsg, { roomPickMode: next }, next === 'choose' ? 'Đã đổi sang "Tự chọn phòng".' : 'Đã đổi sang "Quay ngẫu nhiên".');
+  });
+
+  A.onModes(renderModes);
+  A.modesReady.then(renderModes);
+  A.onTab('event', () => {
+    renderModes();
+    loadEventTime();
+  });
 })();

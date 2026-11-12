@@ -32,7 +32,56 @@
               <div class="admin-page-head">
                 <div>
                   <h2><i data-lucide="calendar-clock"></i> Sự kiện</h2>
-                  <p>Hẹn giờ mở vòng bốc thăm trên trang chủ. Mọi người đang mở trang sẽ thấy đếm ngược cập nhật ngay, không cần tải lại.</p>
+                  <p>Chọn chế độ sự kiện, cách nhận phòng và giờ mở bốc thăm. Mọi người đang mở trang sẽ thấy thay đổi ngay, không cần tải lại.</p>
+                </div>
+              </div>
+
+              <p id="eventLockNote" class="admin-msg"></p>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="route"></i> Chế độ sự kiện</h3>
+                    <p>Chọn những vòng sẽ diễn ra. Đổi xong, mọi người đang mở trang được chuyển ngay — không cần tải lại.</p>
+                  </div>
+                  <span id="eventModeChip" class="admin-chip"></span>
+                </div>
+                <div class="admin-card-body">
+                  <div id="eventModeChoices" class="admin-choice-grid" role="radiogroup" aria-label="Chế độ sự kiện">
+                    <button type="button" class="admin-choice" role="radio" aria-checked="false" data-event-mode="rooms">
+                      <span class="admin-choice-title"><i data-lucide="bed-double"></i> Chỉ ghép phòng</span>
+                      <span class="admin-choice-desc">Không chơi Quiz hay bốc thăm. Trang chủ tự chuyển sang trang ghép phòng, mọi người vào là nhận phòng luôn.</span>
+                      <span class="admin-choice-steps"><span class="admin-chip is-off">Quiz</span><span class="admin-chip is-off">Bốc thăm</span><span class="admin-chip is-ok">Ghép phòng</span></span>
+                    </button>
+                    <button type="button" class="admin-choice" role="radio" aria-checked="false" data-event-mode="full">
+                      <span class="admin-choice-title"><i data-lucide="party-popper"></i> Đầy đủ 3 vòng</span>
+                      <span class="admin-choice-desc">Quiz chọn Nhóm Trưởng → bốc thăm chia nhóm → ghép phòng ngủ, như các lần trước.</span>
+                      <span class="admin-choice-steps"><span class="admin-chip is-ok">Quiz</span><span class="admin-chip is-ok">Bốc thăm</span><span class="admin-chip is-ok">Ghép phòng</span></span>
+                    </button>
+                  </div>
+                  <p id="eventModeMsg" class="admin-msg" aria-live="polite"></p>
+                </div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="door-open"></i> Cách nhận phòng</h3>
+                    <p>Áp dụng cho trang ghép phòng. Dù cách nào, hệ thống cũng chỉ xếp vào phòng đúng giới tính, chưa khóa và còn chỗ.</p>
+                  </div>
+                </div>
+                <div class="admin-card-body">
+                  <div id="pickModeChoices" class="admin-choice-grid" role="radiogroup" aria-label="Cách nhận phòng">
+                    <button type="button" class="admin-choice" role="radio" aria-checked="false" data-pick-mode="random">
+                      <span class="admin-choice-title"><i data-lucide="dices"></i> Quay ngẫu nhiên</span>
+                      <span class="admin-choice-desc">Mỗi người bấm "Quay ghép phòng", vòng quay dừng ở phòng hệ thống bốc. Ai ở với ai hoàn toàn ngẫu nhiên.</span>
+                    </button>
+                    <button type="button" class="admin-choice" role="radio" aria-checked="false" data-pick-mode="choose">
+                      <span class="admin-choice-title"><i data-lucide="hand"></i> Tự chọn phòng</span>
+                      <span class="admin-choice-desc">Mỗi người tự bấm chọn một phòng còn chỗ (thấy trước ai đang ở). Chọn một lần, muốn đổi phải nhờ admin. Vẫn có nút "Xếp ngẫu nhiên giúp tôi".</span>
+                    </button>
+                  </div>
+                  <p id="pickModeMsg" class="admin-msg" aria-live="polite"></p>
                 </div>
               </div>
 
@@ -45,7 +94,7 @@
                   <span id="eventCountdownChip" class="admin-chip" role="timer" aria-live="off"></span>
                 </div>
                 <div class="admin-card-body">
-                  <p id="eventLockNote" class="admin-msg"></p>
+                  <p id="eventTimeModeNote" class="admin-msg"></p>
 
                   <div class="admin-form-grid">
                     <div class="admin-field">

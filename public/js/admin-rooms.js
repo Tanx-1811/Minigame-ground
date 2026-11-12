@@ -23,6 +23,7 @@
   const actionMsg = document.getElementById('roomActionMsg');
 
   const newName = document.getElementById('newRoomName');
+  const newLocation = document.getElementById('newRoomLocation');
   const newGender = document.getElementById('newRoomGender');
   const newCapacity = document.getElementById('newRoomCapacity');
   const newNote = document.getElementById('newRoomNote');
@@ -46,6 +47,8 @@
   const roomListMsg = document.getElementById('roomListMsg');
   const lockNote = document.getElementById('roomLockNote');
   const exportBtn = document.getElementById('roomExportBtn');
+  const pickSeg = document.getElementById('roomPickSeg');
+  const modeHint = document.getElementById('roomModeHint');
 
   const FILTERS = [
     { key: 'all', label: 'Tất cả', icon: 'layers', test: () => true },
@@ -177,6 +180,7 @@
         (filter.test(r) &&
           (!keyword ||
             r.name.toLowerCase().includes(keyword) ||
+            (r.location || '').toLowerCase().includes(keyword) ||
             (r.note || '').toLowerCase().includes(keyword) ||
             r.members.some((m) => m.name.toLowerCase().includes(keyword))))
     );
@@ -212,6 +216,7 @@
         <div class="admin-room-top">
           <div class="admin-room-name">
             <span>${A.icon(A.genderIcon(room.gender))} ${A.escapeHtml(room.name)}</span>
+            ${room.location ? `<span class="admin-room-loc">${A.icon('map-pin', 'ic-sm')} ${A.escapeHtml(room.location)}</span>` : ''}
             ${room.locked ? `<span class="admin-tag is-locked">${A.icon('lock', 'ic-sm')} Đang khóa</span>` : ''}
           </div>
           <span class="admin-room-count" title="Số người / sức chứa">${room.occupancy}/${room.capacity}</span>
@@ -246,6 +251,10 @@
               <input id="${scope}-name" type="text" data-edit="name" value="${A.escapeHtml(room.name)}" autocomplete="off" />
             </div>
             <div class="admin-field">
+              <label for="${scope}-location">Vị trí / mã phòng</label>
+              <input id="${scope}-location" type="text" maxlength="120" data-edit="location" value="${A.escapeHtml(room.location || '')}" autocomplete="off" placeholder="VD: Villa 1 đôi 1" />
+            </div>
+            <div class="admin-field">
               <label for="${scope}-gender">Dành cho</label>
               <select id="${scope}-gender" data-edit="gender">
                 <option value="FEMALE" ${room.gender === 'FEMALE' ? 'selected' : ''}>Nữ</option>
@@ -275,6 +284,7 @@
     const read = (field) => card.querySelector(`[data-edit="${field}"]`).value.trim();
     const body = {};
     if (read('name') !== room.name) body.name = read('name');
+    if (read('location') !== (room.location || '')) body.location = read('location');
     if (read('gender') !== room.gender) body.gender = read('gender');
     if (read('capacity') !== String(room.capacity)) body.capacity = read('capacity');
     if (read('note') !== (room.note || '')) body.note = read('note');
@@ -362,7 +372,9 @@
           .filter((r) => r.gender === member.gender)
           .map((r) => {
             const full = r.occupancy >= r.capacity;
-            return `<option value="${r.id}" ${full ? 'disabled' : ''}>${A.escapeHtml(r.name)} (${r.occupancy}/${r.capacity})${
+            return `<option value="${r.id}" ${full ? 'disabled' : ''}>${A.escapeHtml(r.name)}${
+              r.location ? ` · ${A.escapeHtml(r.location)}` : ''
+            } (${r.occupancy}/${r.capacity})${
               full ? ' - kín' : ''
             }${r.locked ? ' 🔒' : ''}</option>`;
           })
@@ -459,6 +471,7 @@
     renderPending();
     renderSwapSelects();
     syncLockBtn();
+    renderPickMode();
 
     A.applyEditLock(panel, lockNote);
   }
@@ -695,6 +708,7 @@
     const data = await A.run(addBtn, addMsg, 'Đang thêm...', () =>
       A.request('POST', '/api/admin/rooms', {
         name: newName.value,
+        location: newLocation.value,
         gender: newGender.value,
         capacity: newCapacity.value,
         note: newNote.value,
@@ -704,6 +718,7 @@
 
     A.done(addMsg, `Đã thêm phòng "${data.room.name}".`);
     newName.value = '';
+    newLocation.value = '';
     newNote.value = '';
     newName.focus();
     load();
@@ -840,10 +855,11 @@
   /* ---------- xuat CSV ---------- */
 
   exportBtn.addEventListener('click', () => {
-    const rows = [['Phòng', 'Dành cho', 'Sức chứa', 'Số người', 'Trạng thái', 'Ghi chú', 'Thành viên']];
+    const rows = [['Phòng', 'Vị trí', 'Dành cho', 'Sức chứa', 'Số người', 'Trạng thái', 'Ghi chú', 'Thành viên']];
     visibleRooms().forEach((r) => {
       rows.push([
         r.name,
+        r.location || '',
         A.genderLabel(r.gender),
         r.capacity,
         r.occupancy,
@@ -855,6 +871,43 @@
     A.downloadCsv('danh-sach-phong-ngu.csv', rows);
     A.done(roomListMsg, `Đã xuất ${rows.length - 1} phòng ra file CSV.`);
   });
+
+  /* ---------- cach nhan phong (quay ngau nhien / tu chon) ---------- */
+
+  function renderPickMode() {
+    const modes = A.modes();
+    pickSeg.querySelectorAll('[data-pick-mode]').forEach((btn) => {
+      btn.setAttribute('aria-checked', String(btn.dataset.pickMode === modes.roomPickMode));
+    });
+    const pickText =
+      modes.roomPickMode === 'choose'
+        ? 'Mỗi người tự bấm chọn một phòng còn chỗ đúng giới tính.'
+        : 'Mỗi người bấm quay, hệ thống bốc phòng ngẫu nhiên đúng giới tính.';
+    const modeText =
+      modes.eventMode === 'rooms'
+        ? ' Sự kiện đang ở chế độ <strong>Chỉ ghép phòng</strong>.'
+        : ' Sự kiện đang chạy <strong>đủ 3 vòng</strong> — muốn chỉ ghép phòng thì đổi ở <a href="/admin/event.html">trang Sự kiện</a>.';
+    const html = A.escapeHtml(pickText) + modeText;
+    if (modeHint.dataset.html !== html) {
+      modeHint.dataset.html = html;
+      modeHint.innerHTML = html;
+    }
+  }
+
+  pickSeg.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-pick-mode]');
+    if (!btn || btn.disabled || btn.dataset.pickMode === A.modes().roomPickMode) return;
+    const data = await A.run(btn, actionMsg, 'Đang đổi cách nhận phòng...', () =>
+      A.request('POST', '/api/admin/event-mode', { roomPickMode: btn.dataset.pickMode })
+    );
+    if (!data) return;
+    A.applyModes({ eventMode: data.eventMode, roomPickMode: data.roomPickMode });
+    renderPickMode();
+    A.done(actionMsg, data.roomPickMode === 'choose' ? 'Đã đổi sang "Tự chọn phòng".' : 'Đã đổi sang "Quay ngẫu nhiên".');
+  });
+
+  A.onModes(renderPickMode);
+  A.modesReady.then(renderPickMode);
 
   /* ---------- realtime ---------- */
 
