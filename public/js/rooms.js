@@ -235,9 +235,28 @@ function roomFitsGender(room, gender) {
   return !room.gender || room.gender === gender;
 }
 
-// Giong roomAccepts() phia server: hop gioi, khong khoa, con cho
-function roomAccepts(room, gender) {
-  return !room.locked && room.occupancy < room.capacity && roomFitsGender(room, gender);
+// Gioi han so phong theo loai cho tung gioi (VD nam toi da 1 phong 4 nguoi) - server gui kem stats
+function roomLimits() {
+  return (serverStats && serverStats.limits) || null;
+}
+
+function limitFor(limits, gender, capacity) {
+  const value = limits && limits[gender] ? limits[gender][capacity] : undefined;
+  return Number.isInteger(value) ? value : Infinity;
+}
+
+// Gioi nay con duoc MO them 1 phong trong co suc chua nay khong
+function underLimit(list, capacity, gender, limits) {
+  const max = limitFor(limits, gender, capacity);
+  if (max === Infinity) return true;
+  return list.filter((r) => r.gender === gender && r.capacity === capacity).length < max;
+}
+
+// Giong roomAccepts() phia server: hop gioi, khong khoa, con cho, chua vuot gioi han loai phong
+function roomAccepts(room, gender, list = rooms) {
+  if (room.locked || room.occupancy >= room.capacity) return false;
+  if (room.gender) return room.gender === gender;
+  return underLimit(list, room.capacity, gender, roomLimits());
 }
 
 // So nguoi dang cho phong theo gioi (suy tu members + rooms dang hien)
@@ -251,28 +270,58 @@ function pendingByGender() {
 }
 
 // Giong computeShortfall() phia server: so nguoi het cho neu chia phong trong toi uu
+// (co tinh gioi han so phong theo loai cho tung gioi)
 function computeShortfall(list, pending) {
+  const limits = roomLimits();
   const free = { MALE: 0, FEMALE: 0 };
-  const open = [];
+  const taken = { MALE: {}, FEMALE: {} };
+  const groups = new Map();
   list.forEach((r) => {
+    if (r.gender) taken[r.gender][r.capacity] = (taken[r.gender][r.capacity] || 0) + 1;
     if (r.locked) return;
     const left = Math.max(0, r.capacity - r.occupancy);
     if (!left) return;
     if (r.gender) free[r.gender] += left;
-    else open.push(left);
+    else {
+      if (!groups.has(r.capacity)) groups.set(r.capacity, []);
+      groups.get(r.capacity).push(left);
+    }
   });
-  const total = open.reduce((sum, c) => sum + c, 0);
-  const reach = new Uint8Array(total + 1);
-  reach[0] = 1;
-  open.forEach((c) => {
-    for (let x = total; x >= c; x--) if (reach[x - c]) reach[x] = 1;
+
+  let dp = new Map([[0, 0]]); // so cho chia cho nu -> so cho lon nhat chia duoc cho nam
+  groups.forEach((lefts, capacity) => {
+    const maxF = Math.max(0, limitFor(limits, 'FEMALE', capacity) - (taken.FEMALE[capacity] || 0));
+    const maxM = Math.max(0, limitFor(limits, 'MALE', capacity) - (taken.MALE[capacity] || 0));
+    const countF = maxF !== Infinity;
+    const countM = maxM !== Infinity;
+    let cur = new Map();
+    dp.forEach((sM, sF) => cur.set(`${sF}:0:0`, sM));
+    lefts.forEach((left) => {
+      const next = new Map();
+      const put = (sF, f, m, sM) => {
+        const key = `${sF}:${f}:${m}`;
+        if (!next.has(key) || next.get(key) < sM) next.set(key, sM);
+      };
+      cur.forEach((sM, key) => {
+        const [sF, f, m] = key.split(':').map(Number);
+        put(sF, f, m, sM);
+        if (f < maxF) put(sF + left, countF ? f + 1 : 0, m, sM);
+        if (m < maxM) put(sF, f, countM ? m + 1 : 0, sM + left);
+      });
+      cur = next;
+    });
+    dp = new Map();
+    cur.forEach((sM, key) => {
+      const sF = Number(key.split(':')[0]);
+      if (!dp.has(sF) || dp.get(sF) < sM) dp.set(sF, sM);
+    });
   });
+
   let best = Infinity;
-  for (let x = 0; x <= total; x++) {
-    if (!reach[x]) continue;
-    const short = Math.max(0, pending.FEMALE - free.FEMALE - x) + Math.max(0, pending.MALE - free.MALE - (total - x));
+  dp.forEach((sM, sF) => {
+    const short = Math.max(0, pending.FEMALE - free.FEMALE - sF) + Math.max(0, pending.MALE - free.MALE - sM);
     if (short < best) best = short;
-  }
+  });
   return best === Infinity ? 0 : best;
 }
 
@@ -537,6 +586,10 @@ function pickButtonHtml(room, ctx) {
     `<button type="button" class="room-pick-btn" disabled><span>${text}</span></button>`;
   if (room.locked) return disabled('Phòng đang khóa');
   if (locked) return disabled('Vòng đang tạm khóa');
+  // Gioi minh da o du so phong loai nay (VD nam toi da 1 phong 4 nguoi)
+  if (!room.gender && !underLimit(rooms, room.capacity, ctx.gender, roomLimits())) {
+    return disabled(`Các bạn ${ctx.gender === 'MALE' ? 'Nam' : 'Nữ'} đã đủ phòng ${room.capacity} người`);
+  }
   // Vao day thi gioi kia het cho -> de danh (server cung chan)
   if (!placementOk(room, ctx.gender, ctx.pending)) {
     return disabled(`Để dành cho các bạn ${ctx.gender === 'MALE' ? 'Nữ' : 'Nam'}`);

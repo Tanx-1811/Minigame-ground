@@ -102,6 +102,23 @@
                 </div>
               </div>
 
+              <!-- Gioi han so phong theo loai cho tung gioi (luat chia phong) -->
+              <details class="admin-card is-collapsible-head" id="limitCard"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="scale"></i> Giới hạn phòng theo giới</h3>
+                    <p>Mỗi giới được ở tối đa bao nhiêu phòng của từng loại, VD nam tối đa 1 phòng 4 người thì các bạn nam còn lại ở phòng 2 người. Để trống là không giới hạn. Áp dụng cho quay, tự chọn và "Ghép phòng cho tất cả"; hệ thống tự chừa phòng để không ai hết chỗ.</p>
+                  </div>
+                  <span id="limitCount" class="admin-chip"></span>
+                </summary>
+                <div class="admin-card-body">
+                  <div id="limitGrid" class="admin-limit-grid"></div>
+                  <div class="admin-btn-row">
+                    <button id="limitSaveBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu giới hạn</button>
+                  </div>
+                  <p id="limitMsg" class="admin-msg" aria-live="polite"></p>
+                </div>
+              </details>
+
               <!-- Chi dinh phong khi quay: chi admin thay, khong lo ra trang cong khai -->
               <details class="admin-card is-collapsible-head" id="reserveCard"><summary class="admin-card-head">
                   <div>

@@ -19,6 +19,12 @@ const {
   computeShortfall,
   computeShortfallWith,
   MAX_RESERVATIONS,
+  MAX_ROOM_LIMIT,
+  parseRoomLimits,
+  loadRoomLimits,
+  limitFor,
+  underLimit,
+  roomAccepts,
   placementOk,
   pickRoom,
   assignAllPending,
@@ -77,10 +83,16 @@ function drawRoomFor(member, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const [slots, pending, reservations] = await Promise.all([loadRoomSlots(tx), loadPending(tx), loadReservations(tx)]);
+      const [slots, pending, reservations, limits] = await Promise.all([
+        loadRoomSlots(tx),
+        loadPending(tx),
+        loadReservations(tx),
+        loadRoomLimits(tx),
+      ]);
       // Nguoi duoc admin chi dinh phong chi roi vao phong cho phep; nguoi khac
-      // khong duoc chiem mat cho phai giu cho ho (xem server/rooms.js)
-      const { room, reason } = pickRoom(slots, current.gender, pending, { reservations, memberId: member.id });
+      // khong duoc chiem mat cho phai giu cho ho; moi gioi khong vuot gioi han
+      // so phong theo loai (xem server/rooms.js)
+      const { room, reason } = pickRoom(slots, current.gender, pending, { reservations, limits, memberId: member.id });
       if (!room) {
         if (reason === 'NONE') throw pickError('NO_ROOM_FOR_GENDER', current.gender);
         if (reason === 'RESERVED') throw pickError('ROOMS_RESERVED', current.gender);
@@ -102,14 +114,26 @@ function chooseRoomFor(member, roomId, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const [slots, pending, reservations] = await Promise.all([loadRoomSlots(tx), loadPending(tx), loadReservations(tx)]);
+      const [slots, pending, reservations, limits] = await Promise.all([
+        loadRoomSlots(tx),
+        loadPending(tx),
+        loadReservations(tx),
+        loadRoomLimits(tx),
+      ]);
       const room = slots.find((r) => r.id === roomId);
       if (!room) throw pickError('ROOM_NOT_FOUND', current.gender);
       if (room.gender && room.gender !== current.gender) throw pickError('ROOM_WRONG_GENDER', current.gender);
       if (room.locked) throw pickError('ROOM_LOCKED', current.gender);
       if (room.occupancy >= room.capacity) throw pickError('ROOM_FULL', current.gender);
+      // Phong trong loai nay gioi minh da o du so phong cho phep
+      if (!room.gender && !underLimit(slots, room.capacity, current.gender, limits)) {
+        const err = pickError('ROOM_LIMIT', current.gender);
+        err.capacity = room.capacity;
+        err.max = limitFor(limits, current.gender, room.capacity);
+        throw err;
+      }
       // Vao phong nay ma lam gioi kia het cho -> khong cho (giu cho cho nguoi den sau)
-      if (!placementOk(slots, pending, room, current.gender, { reservations, memberId: member.id })) {
+      if (!placementOk(slots, pending, room, current.gender, { reservations, limits, memberId: member.id })) {
         throw pickError('ROOM_RESERVED', current.gender);
       }
 
@@ -149,6 +173,11 @@ const PUBLIC_ERRORS = {
   ROOM_RESERVED: [409, (g, other) => `Nếu bạn vào phòng này thì các bạn ${other} sẽ thiếu chỗ — chọn phòng khác nhé`],
   ROOM_NOT_FOUND: [404, 'Phòng này không còn tồn tại — chọn phòng khác nhé'],
   ROOM_WRONG_GENDER: [400, (g, other) => `Phòng này đã có các bạn ${other} ở — chọn phòng khác nhé`],
+  ROOM_LIMIT: [
+    409,
+    (g, other, err) =>
+      `Các bạn ${g} chỉ được ở tối đa ${err.max} phòng ${err.capacity} người và đã đủ rồi — chọn phòng khác nhé`,
+  ],
   ROOM_LOCKED: [409, 'Phòng này vừa bị admin khóa — chọn phòng khác nhé'],
   ROOM_FULL: [409, 'Phòng này vừa kín chỗ — chọn phòng khác nhé'],
   NOT_ELIGIBLE: [403, 'Bạn không nằm trong danh sách tham gia ghép phòng lần này'],
@@ -248,7 +277,9 @@ function sendPickError(res, err, fallback) {
   const known = PUBLIC_ERRORS[err.message];
   if (known) {
     const message =
-      typeof known[1] === 'function' ? known[1](genderLabel(err.gender), genderLabel(otherGender(err.gender))) : known[1];
+      typeof known[1] === 'function'
+        ? known[1](genderLabel(err.gender), genderLabel(otherGender(err.gender)), err)
+        : known[1];
     return res.status(known[0]).json({ error: message, code: err.message });
   }
   console.error(err);
@@ -577,8 +608,8 @@ router.post('/admin/rooms/auto-create', requireAdmin, async (req, res) => {
 
       // So nguoi het cho cua tung gioi, SAU KHI da chia cac phong chua dinh gioi theo
       // cach tot nhat. Chi dem nguoi THAM GIA ghep phong ma chua co phong.
-      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
-      const shortfall = computeShortfall(slots, pending);
+      const [slots, pending, limits] = await Promise.all([loadRoomSlots(tx), loadPending(tx), loadRoomLimits(tx)]);
+      const shortfall = computeShortfall(slots, pending, limits);
 
       for (const gender of GENDERS) {
         const missing = Math.ceil(shortfall[gender] / parsedCapacity);
@@ -900,13 +931,20 @@ router.post('/admin/rooms/reservations', requireAdmin, async (req, res) => {
         // Nguoi nay chua co phong: kiem tra chi dinh con thuc hien duoc va khong
         // lam nguoi khac het cho
         if (!member.roomId && member.joinRoom) {
-          const pending = await loadPending(prisma);
-          const others = (await loadReservations(prisma)).filter((r) => r.memberId !== memberId);
+          const [pending, allReservations, limits] = await Promise.all([
+            loadPending(prisma),
+            loadReservations(prisma),
+            loadRoomLimits(prisma),
+          ]);
+          const others = allReservations.filter((r) => r.memberId !== memberId);
           const mine = { memberId, gender: member.gender, roomIds: new Set(roomIds) };
-          const before = computeShortfallWith(slots, pending, others).total;
-          const after = computeShortfallWith(slots, pending, [...others, mine]).total;
-          if (!chosen.some((r) => !r.locked && r.occupancy < r.capacity && (!r.gender || r.gender === member.gender))) {
-            return { status: 400, error: `Các phòng đã chọn hiện không còn chỗ cho ${member.name} (kín, đang khóa hoặc đã là phòng khác giới)` };
+          const before = computeShortfallWith(slots, pending, others, limits).total;
+          const after = computeShortfallWith(slots, pending, [...others, mine], limits).total;
+          if (!chosen.some((r) => roomAccepts(r, member.gender, { slots, limits }))) {
+            return {
+              status: 400,
+              error: `Các phòng đã chọn hiện không còn chỗ cho ${member.name} (kín, đang khóa, đã là phòng khác giới hoặc ${genderLabel(member.gender).toLowerCase()} đã đủ số phòng loại này)`,
+            };
           }
           if (after > before) {
             return { status: 400, error: `Chỉ định này làm ${after - before} người khác không còn chỗ — chọn thêm phòng` };
@@ -934,6 +972,83 @@ router.post('/admin/rooms/reservations', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi lưu chỉ định phòng' });
+  }
+});
+
+/* ---------- admin: gioi han so phong theo loai cho tung gioi ---------- */
+
+function describeLimits(limits) {
+  const parts = [];
+  GENDERS.forEach((gender) => {
+    Object.keys(limits[gender] || {})
+      .map(Number)
+      .sort((a, b) => b - a)
+      .forEach((capacity) => {
+        parts.push(`${genderLabel(gender)} tối đa ${limits[gender][capacity]} phòng ${capacity} người`);
+      });
+  });
+  return parts.join(', ');
+}
+
+// POST /api/admin/rooms/limits - { limits: { MALE: { "4": 1 }, FEMALE: {} } }
+// Gia tri '' / null = bo gioi han. Tu choi neu gioi han moi lam co nguoi het cho.
+router.post('/admin/rooms/limits', requireAdmin, async (req, res) => {
+  const raw = (req.body || {}).limits;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return res.status(400).json({ error: 'Thiếu cấu hình giới hạn phòng' });
+  }
+
+  // Kiem tra chat tung o (parseRoomLimits bo qua o sai - o day phai bao loi)
+  for (const gender of Object.keys(raw)) {
+    if (!GENDERS.includes(gender)) return res.status(400).json({ error: 'Giới tính không hợp lệ' });
+    const byCap = raw[gender];
+    if (!byCap || typeof byCap !== 'object' || Array.isArray(byCap)) {
+      return res.status(400).json({ error: 'Cấu hình giới hạn không hợp lệ' });
+    }
+    for (const [cap, value] of Object.entries(byCap)) {
+      if (!parseCapacity(cap)) return res.status(400).json({ error: `Sức chứa ${cap} không hợp lệ` });
+      if (value === null || value === '') continue;
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < 0 || n > MAX_ROOM_LIMIT) {
+        return res.status(400).json({ error: `Số phòng tối đa phải là số nguyên từ 0 đến ${MAX_ROOM_LIMIT}` });
+      }
+    }
+  }
+  const limits = parseRoomLimits(raw);
+
+  try {
+    const outcome = await withLock(ROOMS_LOCK, async () => {
+      const [slots, pending, reservations, current] = await Promise.all([
+        loadRoomSlots(prisma),
+        loadPending(prisma),
+        loadReservations(prisma),
+        loadRoomLimits(prisma),
+      ]);
+      const before = computeShortfallWith(slots, pending, reservations, current).total;
+      const after = computeShortfallWith(slots, pending, reservations, limits).total;
+      if (after > before) {
+        return {
+          status: 400,
+          error: `Giới hạn này làm ${after - before} người không còn chỗ (hoặc người được chỉ định không vào được phòng đã chọn) — nới giới hạn hoặc thêm phòng`,
+        };
+      }
+      await setSetting('roomGenderLimits', JSON.stringify(limits));
+      return { changed: JSON.stringify(current) !== JSON.stringify(limits) };
+    });
+    if (outcome.error) return res.status(outcome.status).json({ error: outcome.error });
+
+    const payload = await emitRooms(req);
+    if (outcome.changed) {
+      const text = describeLimits(limits);
+      await activity.log(
+        { type: 'admin', icon: 'scale', message: text ? `Giới hạn phòng: ${text}` : 'Bỏ giới hạn phòng theo giới' },
+        req.io
+      );
+    }
+    res.json({ ok: true, limits, stats: payload.stats });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lưu giới hạn phòng' });
   }
 });
 

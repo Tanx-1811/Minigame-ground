@@ -11,6 +11,9 @@
 // Vi phong dung chung, gioi nhan phong truoc co the chiem phong lung tung lam gioi
 // sau het cho. Moi luot xep deu qua computeShortfall(): chi chap nhan neu so nguoi
 // "het cho" (theo cach chia phong trong toi uu nhat) KHONG tang len.
+//
+// Gioi han theo loai phong (Setting 'roomGenderLimits'): moi gioi chi duoc o toi da
+// N phong co suc chua X (VD nam toi da 1 phong 4 nguoi, con lai o phong 2 nguoi).
 
 const GENDERS = ['MALE', 'FEMALE'];
 const GENDER_LABEL = { MALE: 'Nam', FEMALE: 'Nữ' };
@@ -102,42 +105,122 @@ async function loadPending(client) {
   return pending;
 }
 
+/* ---------- gioi han so phong theo loai cho tung gioi ----------
+   Setting 'roomGenderLimits' = { "MALE": { "4": 1 }, "FEMALE": {} }: nam chi duoc
+   o toi da 1 phong 4 nguoi (con lai o phong nho hon). Khong ghi = khong gioi han.
+   Dem theo gioi HIEU LUC cua phong (co dinh hoac dang co nguoi gioi do). Chi chan
+   viec MO them phong trong cho gioi do - admin xep tay van lam duoc. */
+
+const MAX_ROOM_LIMIT = 999;
+
+function parseRoomLimits(raw) {
+  let data = raw;
+  if (typeof raw === 'string' || raw === null || raw === undefined) {
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      data = {};
+    }
+  }
+  const limits = { MALE: {}, FEMALE: {} };
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return limits;
+  GENDERS.forEach((gender) => {
+    const byCap = data[gender];
+    if (!byCap || typeof byCap !== 'object' || Array.isArray(byCap)) return;
+    Object.entries(byCap).forEach(([cap, max]) => {
+      const capacity = parseCapacity(cap);
+      const value = max === null || max === '' ? NaN : Number(max);
+      if (!capacity || !Number.isInteger(value) || value < 0 || value > MAX_ROOM_LIMIT) return;
+      limits[gender][capacity] = value;
+    });
+  });
+  return limits;
+}
+
+async function loadRoomLimits(client) {
+  const row = await client.setting.findUnique({ where: { key: 'roomGenderLimits' } });
+  return parseRoomLimits(row ? row.value : null);
+}
+
+// So phong toi da gioi nay duoc o voi suc chua nay (Infinity = khong gioi han)
+function limitFor(limits, gender, capacity) {
+  const value = limits && limits[gender] ? limits[gender][capacity] : undefined;
+  return Number.isInteger(value) ? value : Infinity;
+}
+
+// Gioi nay con duoc MO them 1 phong trong co suc chua nay khong
+function underLimit(slots, capacity, gender, limits) {
+  const max = limitFor(limits, gender, capacity);
+  if (max === Infinity) return true;
+  return slots.filter((r) => r.gender === gender && r.capacity === capacity).length < max;
+}
+
 // So nguoi se KHONG co cho neu chia cac phong trong (chua dinh) cho 2 gioi theo
 // cach tot nhat. Phong dang khoa khong nhan them ai nen khong tinh cho trong.
-// Bai toan chia = subset-sum tren suc chua cac phong trong (vai chuc phong, <= 50
-// cho moi phong -> mang vai nghin phan tu, rat nhanh).
+// Bai toan chia = quy hoach dong tren cac phong trong: trang thai = so cho chia cho
+// nu -> so cho lon nhat chia duoc cho nam. Nhom phong co gioi han (VD nam toi da 1
+// phong 4 nguoi) dem them so phong da chia cho tung gioi trong nhom do.
 // Tra ve { total, FEMALE, MALE } - so nguoi thieu cho cua tung gioi.
-function computeShortfall(slots, pending) {
+function computeShortfall(slots, pending, limits) {
   const free = { MALE: 0, FEMALE: 0 };
-  const open = [];
+  const taken = { MALE: {}, FEMALE: {} }; // so phong (theo suc chua) dang thuoc tung gioi
+  const groups = new Map(); // suc chua -> [so cho trong cua tung phong trong]
   slots.forEach((r) => {
+    if (r.gender) taken[r.gender][r.capacity] = (taken[r.gender][r.capacity] || 0) + 1;
     if (r.locked) return;
     const left = Math.max(0, r.capacity - r.occupancy);
     if (!left) return;
     if (r.gender) free[r.gender] += left;
-    else open.push(left);
+    else {
+      if (!groups.has(r.capacity)) groups.set(r.capacity, []);
+      groups.get(r.capacity).push(left);
+    }
   });
 
-  const total = open.reduce((sum, c) => sum + c, 0);
-  const reach = new Uint8Array(total + 1);
-  reach[0] = 1;
-  open.forEach((c) => {
-    for (let s = total; s >= c; s--) if (reach[s - c]) reach[s] = 1;
+  let dp = new Map([[0, 0]]); // so cho chia cho nu -> so cho lon nhat chia duoc cho nam
+  groups.forEach((lefts, capacity) => {
+    const maxF = Math.max(0, limitFor(limits, 'FEMALE', capacity) - (taken.FEMALE[capacity] || 0));
+    const maxM = Math.max(0, limitFor(limits, 'MALE', capacity) - (taken.MALE[capacity] || 0));
+    const countF = maxF !== Infinity; // chi dem so phong khi co gioi han
+    const countM = maxM !== Infinity;
+    let cur = new Map();
+    dp.forEach((sM, sF) => cur.set(`${sF}:0:0`, sM));
+    lefts.forEach((left) => {
+      const next = new Map();
+      const put = (sF, f, m, sM) => {
+        const key = `${sF}:${f}:${m}`;
+        if (!next.has(key) || next.get(key) < sM) next.set(key, sM);
+      };
+      cur.forEach((sM, key) => {
+        const [sF, f, m] = key.split(':').map(Number);
+        put(sF, f, m, sM); // de trong
+        if (f < maxF) put(sF + left, countF ? f + 1 : 0, m, sM);
+        if (m < maxM) put(sF, f, countM ? m + 1 : 0, sM + left);
+      });
+      cur = next;
+    });
+    dp = new Map();
+    cur.forEach((sM, key) => {
+      const sF = Number(key.split(':')[0]);
+      if (!dp.has(sF) || dp.get(sF) < sM) dp.set(sF, sM);
+    });
   });
 
   let best = null;
-  for (let s = 0; s <= total; s++) {
-    if (!reach[s]) continue;
-    const female = Math.max(0, (pending.FEMALE || 0) - free.FEMALE - s);
-    const male = Math.max(0, (pending.MALE || 0) - free.MALE - (total - s));
+  dp.forEach((sM, sF) => {
+    const female = Math.max(0, (pending.FEMALE || 0) - free.FEMALE - sF);
+    const male = Math.max(0, (pending.MALE || 0) - free.MALE - sM);
     if (!best || female + male < best.total) best = { total: female + male, FEMALE: female, MALE: male };
-  }
+  });
   return best || { total: 0, FEMALE: 0, MALE: 0 };
 }
 
-// Phong nay co nhan them 1 nguoi gioi `gender` khong (chua xet giu cho cho gioi kia)
-function roomAccepts(room, gender) {
-  return !room.locked && room.occupancy < room.capacity && (!room.gender || room.gender === gender);
+// Phong nay co nhan them 1 nguoi gioi `gender` khong (chua xet giu cho cho gioi kia).
+// ctx = { slots, limits }: phong trong chi mo cho gioi nay khi chua cham gioi han.
+function roomAccepts(room, gender, ctx) {
+  if (room.locked || room.occupancy >= room.capacity) return false;
+  if (room.gender) return room.gender === gender;
+  return !ctx || !ctx.limits ? true : underLimit(ctx.slots, room.capacity, gender, ctx.limits);
 }
 
 function placeInto(slots, room, gender) {
@@ -188,20 +271,20 @@ async function loadReservations(client) {
 // Nhu computeShortfall nhung tinh ca nguoi duoc chi dinh: thu dat tung nguoi vao 1
 // phong cho phep (it nguoi, it phong -> vai tram to hop), lay cach tot nhat. Nguoi
 // duoc chi dinh ma khong con phong cho phep nao nhan -> tinh la 1 nguoi het cho.
-function computeShortfallWith(slots, pending, reservations) {
-  if (!reservations || !reservations.length) return computeShortfall(slots, pending);
+function computeShortfallWith(slots, pending, reservations, limits) {
+  if (!reservations || !reservations.length) return computeShortfall(slots, pending, limits);
   let best = null;
   const visit = (i, curSlots, curPending, unplaced) => {
     if (best && best.total === 0) return; // khong the tot hon
     if (i === reservations.length) {
-      const sf = computeShortfall(curSlots, curPending);
+      const sf = computeShortfall(curSlots, curPending, limits);
       const total = sf.total + unplaced;
       if (!best || total < best.total) best = { ...sf, total };
       return;
     }
     const res = reservations[i];
     const nextPending = { ...curPending, [res.gender]: Math.max(0, (curPending[res.gender] || 0) - 1) };
-    const options = curSlots.filter((r) => res.roomIds.has(r.id) && roomAccepts(r, res.gender));
+    const options = curSlots.filter((r) => res.roomIds.has(r.id) && roomAccepts(r, res.gender, { slots: curSlots, limits }));
     if (!options.length) {
       visit(i + 1, curSlots, nextPending, unplaced + 1);
       return;
@@ -214,14 +297,16 @@ function computeShortfallWith(slots, pending, reservations) {
 
 // Xep thu 1 nguoi vao phong -> co lam tang so nguoi het cho khong (tinh ca cho phai
 // giu cho nguoi duoc chi dinh)? `pending` phai DANG tinh ca nguoi nay.
-// opts.reservations: danh sach chi dinh con hieu luc; opts.memberId: nguoi dang xep.
+// opts.reservations: danh sach chi dinh con hieu luc; opts.memberId: nguoi dang xep;
+// opts.limits: gioi han so phong theo loai cho tung gioi.
 function placementOk(slots, pending, room, gender, opts = {}) {
-  if (!roomAccepts(room, gender)) return false;
+  const { limits } = opts;
+  if (!roomAccepts(room, gender, { slots, limits })) return false;
   const reservations = opts.reservations || [];
-  const before = computeShortfallWith(slots, pending, reservations).total;
+  const before = computeShortfallWith(slots, pending, reservations, limits).total;
   const nextPending = { ...pending, [gender]: Math.max(0, (pending[gender] || 0) - 1) };
   const nextReservations = reservations.filter((r) => r.memberId !== opts.memberId);
-  return computeShortfallWith(placeInto(slots, room, gender), nextPending, nextReservations).total <= before;
+  return computeShortfallWith(placeInto(slots, room, gender), nextPending, nextReservations, limits).total <= before;
 }
 
 // Chon phong cho 1 nguoi: phong nhan duoc gioi nay (cung gioi hoac con trong, chua
@@ -233,7 +318,7 @@ function pickRoom(slots, gender, pending, opts = {}) {
   const reservations = opts.reservations || [];
   const own = reservations.find((r) => r.memberId === opts.memberId);
   if (!slots.some((r) => !r.gender || r.gender === gender)) return { room: null, reason: 'NONE' };
-  let accepting = slots.filter((r) => roomAccepts(r, gender));
+  let accepting = slots.filter((r) => roomAccepts(r, gender, { slots, limits: opts.limits }));
   if (own) accepting = accepting.filter((r) => own.roomIds.has(r.id));
   if (!accepting.length) return { room: null, reason: 'FULL' };
   const valid = accepting.filter((r) => placementOk(slots, pending, r, gender, opts));
@@ -274,6 +359,7 @@ async function assignAllPending(tx, options = {}) {
   const slots = await loadRoomSlots(tx);
   const pending = await loadPending(tx);
   let reservations = await loadReservations(tx);
+  const limits = await loadRoomLimits(tx);
   const waiting = await tx.member.findMany({
     where: { roomId: null },
     select: { id: true, name: true, gender: true, joinRoom: true },
@@ -295,7 +381,7 @@ async function assignAllPending(tx, options = {}) {
   const reservedIds = new Set(reservations.map((r) => r.memberId));
   const queue = [...eligibleNow.filter((m) => reservedIds.has(m.id)), ...eligibleNow.filter((m) => !reservedIds.has(m.id))];
   for (const member of queue) {
-    const { room, reason } = pickRoom(slots, member.gender, pending, { reservations, memberId: member.id });
+    const { room, reason } = pickRoom(slots, member.gender, pending, { reservations, limits, memberId: member.id });
     if (!room) {
       skipped.push({ name: member.name, reason: pickFailReason(reason, member.gender) });
       continue;
@@ -359,7 +445,7 @@ async function findRoomPayload(client, id) {
 }
 
 async function loadRoomsPayload(client) {
-  const [rooms, members] = await Promise.all([
+  const [rooms, members, limits] = await Promise.all([
     client.room.findMany({
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: {
@@ -370,6 +456,7 @@ async function loadRoomsPayload(client) {
       },
     }),
     client.member.findMany({ select: { id: true, gender: true, roomId: true, joinRoom: true } }),
+    loadRoomLimits(client),
   ]);
 
   const serialized = rooms.map(serializeRoom);
@@ -379,7 +466,7 @@ async function loadRoomsPayload(client) {
     if (m.gender && !m.roomId) pending[m.gender] += 1;
   });
   const openRooms = serialized.filter((r) => !r.gender);
-  const shortfall = computeShortfall(serialized, pending);
+  const shortfall = computeShortfall(serialized, pending, limits);
 
   const stats = {
     totalMembers: members.length,
@@ -395,6 +482,9 @@ async function loadRoomsPayload(client) {
     openCapacity: openRooms.reduce((sum, r) => sum + r.capacity, 0),
     // So nguoi se khong co cho du chia phong trong theo cach tot nhat
     shortfall,
+    // Gioi han so phong theo loai cho tung gioi - trang cong khai can de biet phong
+    // trong nao con mo cho minh (che do tu chon)
+    limits,
     byGender: GENDERS.reduce((acc, gender) => {
       const ofGender = eligible.filter((m) => m.gender === gender);
       const roomsOfGender = serialized.filter((r) => r.gender === gender);
@@ -431,6 +521,11 @@ module.exports = {
   loadPending,
   computeShortfall,
   computeShortfallWith,
+  MAX_ROOM_LIMIT,
+  parseRoomLimits,
+  loadRoomLimits,
+  limitFor,
+  underLimit,
   parseReservationMap,
   loadReservations,
   MAX_RESERVATIONS,

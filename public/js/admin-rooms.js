@@ -55,6 +55,10 @@
   const reserveRooms = document.getElementById('reserveRooms');
   const reserveSaveBtn = document.getElementById('reserveSaveBtn');
   const reserveMsg = document.getElementById('reserveMsg');
+  const limitCount = document.getElementById('limitCount');
+  const limitGrid = document.getElementById('limitGrid');
+  const limitSaveBtn = document.getElementById('limitSaveBtn');
+  const limitMsg = document.getElementById('limitMsg');
   const modeHint = document.getElementById('roomModeHint');
 
   const FILTERS = [
@@ -478,6 +482,7 @@
     syncLockBtn();
     renderPickMode();
     renderTurn();
+    renderLimits();
     renderReservations();
 
     A.applyEditLock(panel, lockNote);
@@ -1027,6 +1032,92 @@
     });
     if (!ok) return;
     saveReservation(remove, Number(remove.dataset.reserveRemove), [], `Đã bỏ chỉ định của ${item ? item.name : 'thành viên'}.`);
+  });
+
+  /* ---------- gioi han so phong theo loai cho tung gioi ---------- */
+
+  // Dang go o gioi han -> cap nhat realtime khong ve lai luoi (mat so dang go)
+  let limitDirty = false;
+
+  function currentLimits() {
+    return (stats && stats.limits) || { MALE: {}, FEMALE: {} };
+  }
+
+  function renderLimits() {
+    const limits = currentLimits();
+    const active = ['FEMALE', 'MALE'].reduce((sum, g) => sum + Object.keys(limits[g] || {}).length, 0);
+    limitCount.textContent = active ? `${active} giới hạn` : '';
+    limitCount.classList.toggle('is-accent', !!active);
+
+    if (limitDirty || A.isBusy(limitGrid)) return;
+
+    // Moi loai phong (theo suc chua) dang co + loai da dat gioi han nhung khong con phong
+    const caps = new Set(rooms.map((r) => r.capacity));
+    ['FEMALE', 'MALE'].forEach((g) => Object.keys(limits[g] || {}).forEach((c) => caps.add(Number(c))));
+    const sorted = [...caps].sort((a, b) => b - a);
+    if (!sorted.length) {
+      limitGrid.innerHTML = '<p class="admin-help">Chưa có phòng nào — tạo phòng trước rồi đặt giới hạn.</p>';
+      return;
+    }
+
+    const cell = (gender, cap) => {
+      const value = limits[gender] && Number.isInteger(limits[gender][cap]) ? limits[gender][cap] : '';
+      const using = rooms.filter((r) => r.gender === gender && r.capacity === cap).length;
+      const label = `${A.genderLabel(gender)} tối đa — phòng ${cap} người`;
+      return `
+        <label class="admin-limit-cell">
+          <span class="admin-limit-cell-label" aria-hidden="true">${A.genderLabel(gender)} tối đa</span>
+          <input type="number" min="0" max="999" step="1" inputmode="numeric"
+            placeholder="Không giới hạn" aria-label="${label}"
+            data-limit-gender="${gender}" data-limit-cap="${cap}" value="${value}" />
+          <small>đang ở ${using} phòng</small>
+        </label>`;
+    };
+
+    limitGrid.innerHTML = `
+      <div class="admin-limit-row admin-limit-head" aria-hidden="true">
+        <span>Loại phòng</span><span>Nữ tối đa</span><span>Nam tối đa</span>
+      </div>
+      ${sorted
+        .map((cap) => {
+          const total = rooms.filter((r) => r.capacity === cap).length;
+          return `
+            <div class="admin-limit-row">
+              <span class="admin-limit-type"><strong>Phòng ${cap} người</strong><small>${total} phòng</small></span>
+              ${cell('FEMALE', cap)}
+              ${cell('MALE', cap)}
+            </div>`;
+        })
+        .join('')}`;
+  }
+
+  limitGrid.addEventListener('input', () => {
+    limitDirty = true;
+    A.setMsg(limitMsg, '');
+  });
+
+  limitSaveBtn.addEventListener('click', async () => {
+    const limits = { FEMALE: {}, MALE: {} };
+    let invalid = false;
+    limitGrid.querySelectorAll('[data-limit-gender]').forEach((input) => {
+      const raw = input.value.trim();
+      if (!raw) return;
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 0) invalid = true;
+      else limits[input.dataset.limitGender][input.dataset.limitCap] = n;
+    });
+    if (invalid) {
+      A.setMsg(limitMsg, 'Số phòng tối đa phải là số nguyên từ 0 trở lên (để trống = không giới hạn)', 'err');
+      return;
+    }
+    const data = await A.run(limitSaveBtn, limitMsg, 'Đang lưu...', () =>
+      A.request('POST', '/api/admin/rooms/limits', { limits })
+    );
+    if (!data) return;
+    limitDirty = false;
+    if (stats) stats = { ...stats, ...data.stats };
+    render();
+    A.done(limitMsg, 'Đã lưu giới hạn phòng.');
   });
 
   /* ---------- luot nhan phong (ca hai / chi nu / chi nam) ---------- */
