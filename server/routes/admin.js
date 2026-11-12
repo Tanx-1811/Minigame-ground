@@ -21,7 +21,7 @@ const {
   ROOM_PICK_MODES,
   invalidateSettingCache,
 } = require('../settings');
-const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity } = require('../rooms');
+const { parseGender, genderLabel, loadRoomsPayload, MAX_ROOM_CAPACITY, parseCapacity, parseReservationMap } = require('../rooms');
 
 // Gioi hieu luc cua phong khi BO QUA nhung nguoi trong `ignoreIds` (ho dang duoc xep lai):
 // co dinh boi admin, khong thi theo nguoi dang o, phong trong = null (ai vao cung duoc).
@@ -1657,6 +1657,19 @@ router.post('/admin/import', requireAdmin, async (req, res) => {
             update: { value: st.value ?? null },
             create: { key: st.key, value: st.value ?? null },
           });
+        }
+
+        // Chi dinh phong khi quay luu theo id CU -> doi sang id moi vua tao, neu
+        // khong se tro nham nguoi / nham phong sau khi phuc hoi
+        const reservationRow = (data.settings || []).find((st) => st && st.key === 'roomReservations');
+        if (reservationRow) {
+          const remapped = {};
+          Object.entries(parseReservationMap(reservationRow.value)).forEach(([oldMemberId, oldRoomIds]) => {
+            const newMemberId = memberIdMap.get(Number(oldMemberId));
+            const newRoomIds = oldRoomIds.map((id) => roomIdMap.get(id)).filter(Boolean);
+            if (newMemberId && newRoomIds.length) remapped[newMemberId] = newRoomIds;
+          });
+          await tx.setting.update({ where: { key: 'roomReservations' }, data: { value: JSON.stringify(remapped) } });
         }
 
         return {

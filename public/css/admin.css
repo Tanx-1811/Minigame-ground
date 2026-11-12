@@ -3706,3 +3706,83 @@ details.admin-card[open] > .admin-card-body {
 .admin-tab.is-off .admin-tab-badge {
   display: none;
 }
+
+/* ===================== chi dinh phong khi quay ===================== */
+
+.admin-room-picks {
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.admin-room-picks legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.admin-room-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+  gap: 8px;
+}
+
+.admin-room-pick {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.admin-room-pick:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.admin-room-pick input {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.admin-room-pick small {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-reserve-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.admin-reserve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.admin-reserve-name {
+  font-weight: 700;
+}
+
+.admin-reserve-rooms {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 0.84rem;
+  color: var(--ink-2);
+}

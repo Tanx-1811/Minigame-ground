@@ -14,7 +14,11 @@ const {
   otherGender,
   loadRoomSlots,
   loadPending,
+  loadReservations,
+  parseReservationMap,
   computeShortfall,
+  computeShortfallWith,
+  MAX_RESERVATIONS,
   placementOk,
   pickRoom,
   assignAllPending,
@@ -73,8 +77,10 @@ function drawRoomFor(member, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
-      const { room, reason } = pickRoom(slots, current.gender, pending);
+      const [slots, pending, reservations] = await Promise.all([loadRoomSlots(tx), loadPending(tx), loadReservations(tx)]);
+      // Nguoi duoc admin chi dinh phong chi roi vao phong cho phep; nguoi khac
+      // khong duoc chiem mat cho phai giu cho ho (xem server/rooms.js)
+      const { room, reason } = pickRoom(slots, current.gender, pending, { reservations, memberId: member.id });
       if (!room) {
         if (reason === 'NONE') throw pickError('NO_ROOM_FOR_GENDER', current.gender);
         if (reason === 'RESERVED') throw pickError('ROOMS_RESERVED', current.gender);
@@ -96,14 +102,16 @@ function chooseRoomFor(member, roomId, io) {
       const current = await lockedMember(tx, member.id);
       if (current.roomId) return { roomId: current.roomId, fresh: false, gender: current.gender };
 
-      const [slots, pending] = await Promise.all([loadRoomSlots(tx), loadPending(tx)]);
+      const [slots, pending, reservations] = await Promise.all([loadRoomSlots(tx), loadPending(tx), loadReservations(tx)]);
       const room = slots.find((r) => r.id === roomId);
       if (!room) throw pickError('ROOM_NOT_FOUND', current.gender);
       if (room.gender && room.gender !== current.gender) throw pickError('ROOM_WRONG_GENDER', current.gender);
       if (room.locked) throw pickError('ROOM_LOCKED', current.gender);
       if (room.occupancy >= room.capacity) throw pickError('ROOM_FULL', current.gender);
       // Vao phong nay ma lam gioi kia het cho -> khong cho (giu cho cho nguoi den sau)
-      if (!placementOk(slots, pending, room, current.gender)) throw pickError('ROOM_RESERVED', current.gender);
+      if (!placementOk(slots, pending, room, current.gender, { reservations, memberId: member.id })) {
+        throw pickError('ROOM_RESERVED', current.gender);
+      }
 
       await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
       return { roomId: room.id, fresh: true, gender: current.gender };
@@ -810,6 +818,122 @@ router.post('/admin/rooms/lock', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Có lỗi xảy ra khi đổi trạng thái vòng ghép phòng' });
+  }
+});
+
+/* ---------- admin: chi dinh phong khi quay (an voi nguoi choi) ---------- */
+
+async function reservationList() {
+  const [row, rooms] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: 'roomReservations' } }),
+    prisma.room.findMany({ select: { id: true, name: true, location: true } }),
+  ]);
+  const map = parseReservationMap(row ? row.value : null);
+  const ids = Object.keys(map).map(Number);
+  const members = ids.length
+    ? await prisma.member.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, gender: true, roomId: true, joinRoom: true },
+      })
+    : [];
+  const roomById = new Map(rooms.map((r) => [r.id, r]));
+  return members.map((m) => {
+    const allowed = map[m.id].filter((id) => roomById.has(id));
+    let status = 'waiting';
+    if (!m.joinRoom) status = 'excluded';
+    else if (m.roomId) status = allowed.includes(m.roomId) ? 'done' : 'outside';
+    return {
+      memberId: m.id,
+      name: m.name,
+      gender: m.gender,
+      roomIds: allowed,
+      rooms: allowed.map((id) => roomById.get(id)),
+      currentRoom: m.roomId ? roomById.get(m.roomId) || null : null,
+      status,
+    };
+  });
+}
+
+// GET /api/admin/rooms/reservations - danh sach nguoi duoc chi dinh phong khi quay
+router.get('/admin/rooms/reservations', requireAdmin, async (req, res) => {
+  try {
+    res.json({ items: await reservationList(), max: MAX_RESERVATIONS });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Không thể tải danh sách chỉ định phòng' });
+  }
+});
+
+// POST /api/admin/rooms/reservations - { memberId, roomIds: [...] } dat chi dinh;
+// roomIds rong = bo chi dinh. Chi luu trong bang Setting, khong lo ra API cong khai.
+router.post('/admin/rooms/reservations', requireAdmin, async (req, res) => {
+  const memberId = parseId((req.body || {}).memberId);
+  const rawRooms = Array.isArray((req.body || {}).roomIds) ? req.body.roomIds : null;
+  if (!memberId || !rawRooms) {
+    return res.status(400).json({ error: 'Cần chọn thành viên và danh sách phòng' });
+  }
+  const roomIds = [...new Set(rawRooms.map(parseId).filter(Boolean))];
+
+  try {
+    const outcome = await withLock(ROOMS_LOCK, async () => {
+      const member = await prisma.member.findUnique({ where: { id: memberId } });
+      if (!member) return { status: 404, error: 'Không tìm thấy thành viên' };
+
+      const row = await prisma.setting.findUnique({ where: { key: 'roomReservations' } });
+      const map = parseReservationMap(row ? row.value : null);
+
+      if (!roomIds.length) {
+        delete map[memberId];
+      } else {
+        if (!member.gender) return { status: 400, error: `${member.name} chưa có giới tính — đặt giới tính trước` };
+        const slots = await loadRoomSlots(prisma);
+        const chosen = roomIds.map((id) => slots.find((r) => r.id === id));
+        if (chosen.some((r) => !r)) return { status: 404, error: 'Có phòng không còn tồn tại' };
+        const wrong = chosen.filter((r) => r.fixedGender && r.fixedGender !== member.gender);
+        if (wrong.length) {
+          return { status: 400, error: `Phòng ${wrong.map((r) => r.name).join(', ')} chỉ dành cho ${genderLabel(wrong[0].fixedGender)}` };
+        }
+        if (!map[memberId] && Object.keys(map).length >= MAX_RESERVATIONS) {
+          return { status: 400, error: `Chỉ định tối đa ${MAX_RESERVATIONS} người` };
+        }
+
+        // Nguoi nay chua co phong: kiem tra chi dinh con thuc hien duoc va khong
+        // lam nguoi khac het cho
+        if (!member.roomId && member.joinRoom) {
+          const pending = await loadPending(prisma);
+          const others = (await loadReservations(prisma)).filter((r) => r.memberId !== memberId);
+          const mine = { memberId, gender: member.gender, roomIds: new Set(roomIds) };
+          const before = computeShortfallWith(slots, pending, others).total;
+          const after = computeShortfallWith(slots, pending, [...others, mine]).total;
+          if (!chosen.some((r) => !r.locked && r.occupancy < r.capacity && (!r.gender || r.gender === member.gender))) {
+            return { status: 400, error: `Các phòng đã chọn hiện không còn chỗ cho ${member.name} (kín, đang khóa hoặc đã là phòng khác giới)` };
+          }
+          if (after > before) {
+            return { status: 400, error: `Chỉ định này làm ${after - before} người khác không còn chỗ — chọn thêm phòng` };
+          }
+        }
+        map[memberId] = roomIds;
+      }
+
+      await setSetting('roomReservations', JSON.stringify(map));
+      return { member };
+    });
+
+    if (outcome.error) return res.status(outcome.status).json({ error: outcome.error });
+    await activity.log(
+      {
+        type: 'admin',
+        icon: 'pin',
+        message: roomIds.length
+          ? `Chỉ định phòng khi quay cho ${outcome.member.name} (${roomIds.length} phòng)`
+          : `Bỏ chỉ định phòng của ${outcome.member.name}`,
+      },
+      req.io
+    );
+    res.json({ ok: true, items: await reservationList(), max: MAX_RESERVATIONS });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lưu chỉ định phòng' });
   }
 });
 

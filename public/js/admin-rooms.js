@@ -49,6 +49,12 @@
   const exportBtn = document.getElementById('roomExportBtn');
   const pickSeg = document.getElementById('roomPickSeg');
   const turnSeg = document.getElementById('roomTurnSeg');
+  const reserveCount = document.getElementById('reserveCount');
+  const reserveList = document.getElementById('reserveList');
+  const reserveMember = document.getElementById('reserveMember');
+  const reserveRooms = document.getElementById('reserveRooms');
+  const reserveSaveBtn = document.getElementById('reserveSaveBtn');
+  const reserveMsg = document.getElementById('reserveMsg');
   const modeHint = document.getElementById('roomModeHint');
 
   const FILTERS = [
@@ -472,6 +478,7 @@
     syncLockBtn();
     renderPickMode();
     renderTurn();
+    renderReservations();
 
     A.applyEditLock(panel, lockNote);
   }
@@ -490,6 +497,15 @@
       turn = roomRes.turn || 'ALL';
       members = memberRes;
       loaded = true;
+      if (A.canEdit()) {
+        try {
+          reservations = (await A.request('GET', '/api/admin/rooms/reservations')).items || [];
+        } catch (err) {
+          /* loi da hien o toast cua A.request; giu danh sach cu */
+        }
+      } else {
+        reservations = [];
+      }
 
       if (roomRes.defaultCapacity) {
         if (!autoCapacity.dataset.touched) autoCapacity.value = roomRes.defaultCapacity;
@@ -871,6 +887,146 @@
     });
     A.downloadCsv('danh-sach-phong-ngu.csv', rows);
     A.done(roomListMsg, `Đã xuất ${rows.length - 1} phòng ra file CSV.`);
+  });
+
+  /* ---------- chi dinh phong khi quay ---------- */
+
+  // [{ memberId, name, gender, roomIds, rooms, currentRoom, status }]
+  let reservations = [];
+  // Dang tick do o danh sach phong -> cap nhat realtime khong duoc ve lai o tick
+  let reserveDirty = false;
+
+  const RESERVE_STATUS = {
+    waiting: ['Chưa quay', 'is-warn'],
+    done: ['Đã vào đúng phòng', 'is-ok'],
+    outside: ['Đang ở phòng ngoài danh sách', 'is-danger'],
+    excluded: ['Đang tắt quyền ghép phòng', ''],
+  };
+
+  function roomLabel(r) {
+    return `${A.escapeHtml(r.name)}${r.location ? ` · ${A.escapeHtml(r.location)}` : ''}`;
+  }
+
+  function renderReserveRooms() {
+    const member = members.find((m) => String(m.id) === reserveMember.value);
+    const current = reservations.find((r) => String(r.memberId) === reserveMember.value);
+    const checked = new Set(current ? current.roomIds : []);
+    if (!member) {
+      reserveRooms.innerHTML = '<p class="admin-help">Chọn một thành viên để chọn phòng.</p>';
+      return;
+    }
+    reserveRooms.innerHTML = rooms
+      .map((r) => {
+        // Phong co dinh / dang la phong khac gioi thi khong chon duoc
+        const wrong = r.gender && r.gender !== member.gender;
+        const state = wrong
+          ? `đang là phòng ${A.genderLabel(r.gender).toLowerCase()}`
+          : `${r.occupancy}/${r.capacity} người${r.gender ? '' : ' · nam hoặc nữ'}`;
+        return `
+          <label class="admin-room-pick">
+            <input type="checkbox" value="${r.id}" ${checked.has(r.id) ? 'checked' : ''} ${wrong ? 'disabled data-keep-disabled="1"' : ''} />
+            <span>${roomLabel(r)} <small>${r.capacity} chỗ · ${state}</small></span>
+          </label>`;
+      })
+      .join('');
+  }
+
+  function renderReservations() {
+    reserveCount.textContent = reservations.length ? `${reservations.length} người` : '';
+
+    reserveList.innerHTML = reservations.length
+      ? `<div class="admin-reserve-list">${reservations
+          .map((r) => {
+            const [text, cls] = RESERVE_STATUS[r.status] || RESERVE_STATUS.waiting;
+            return `
+              <div class="admin-reserve">
+                <span class="admin-reserve-name">${A.escapeHtml(r.name)}</span>
+                <span class="admin-reserve-rooms">${r.rooms.map(roomLabel).join(' / ') || 'Không còn phòng nào'}${
+                  r.currentRoom ? ` — đang ở <strong>${A.escapeHtml(r.currentRoom.name)}</strong>` : ''
+                }</span>
+                <span class="admin-chip ${cls}">${text}</span>
+                <button type="button" class="admin-row-btn" data-reserve-edit="${r.memberId}">${A.icon('pencil')} Sửa</button>
+                <button type="button" class="admin-row-btn danger" data-reserve-remove="${r.memberId}">${A.icon('x')} Bỏ</button>
+              </div>`;
+          })
+          .join('')}</div>`
+      : '';
+
+    // O chon thanh vien: chi nguoi tham gia ghep phong va da co gioi tinh
+    const options =
+      '<option value="">Chọn thành viên…</option>' +
+      members
+        .filter((m) => m.joinRoom !== false && m.gender)
+        .map((m) => {
+          const has = reservations.some((r) => r.memberId === m.id);
+          return `<option value="${m.id}">${A.escapeHtml(m.name)} (${A.genderLabel(m.gender)})${has ? ' — đã chỉ định' : ''}</option>`;
+        })
+        .join('');
+    setOptions(reserveMember, options);
+
+    if (!reserveDirty && !A.isBusy(reserveRooms)) renderReserveRooms();
+  }
+
+  reserveMember.addEventListener('change', () => {
+    reserveDirty = false;
+    A.setMsg(reserveMsg, '');
+    renderReserveRooms();
+    A.applyEditLock(panel, lockNote);
+  });
+
+  reserveRooms.addEventListener('change', () => {
+    reserveDirty = true;
+  });
+
+  async function saveReservation(btn, memberId, roomIds, doneText) {
+    const data = await A.run(btn, reserveMsg, 'Đang lưu...', () =>
+      A.request('POST', '/api/admin/rooms/reservations', { memberId, roomIds })
+    );
+    if (!data) return false;
+    reservations = data.items || [];
+    reserveDirty = false;
+    renderReservations();
+    A.applyEditLock(panel, lockNote);
+    A.done(reserveMsg, doneText);
+    return true;
+  }
+
+  reserveSaveBtn.addEventListener('click', () => {
+    const memberId = Number(reserveMember.value);
+    if (!memberId) {
+      A.setMsg(reserveMsg, 'Chọn thành viên trước', 'err');
+      return;
+    }
+    const roomIds = [...reserveRooms.querySelectorAll('input:checked')].map((el) => Number(el.value));
+    if (!roomIds.length) {
+      A.setMsg(reserveMsg, 'Tick ít nhất một phòng (muốn bỏ chỉ định thì bấm "Bỏ" ở danh sách trên)', 'err');
+      return;
+    }
+    const member = members.find((m) => m.id === memberId);
+    saveReservation(reserveSaveBtn, memberId, roomIds, `Đã chỉ định ${roomIds.length} phòng cho ${member ? member.name : 'thành viên'}.`);
+  });
+
+  reserveList.addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-reserve-edit]');
+    if (edit) {
+      reserveMember.value = edit.dataset.reserveEdit;
+      reserveDirty = false;
+      renderReserveRooms();
+      A.applyEditLock(panel, lockNote);
+      reserveMember.focus();
+      return;
+    }
+    const remove = e.target.closest('[data-reserve-remove]');
+    if (!remove) return;
+    const item = reservations.find((r) => String(r.memberId) === remove.dataset.reserveRemove);
+    const ok = await A.confirmAction({
+      title: 'Bỏ chỉ định phòng',
+      message: `Bỏ chỉ định phòng của <strong>${A.escapeHtml(item ? item.name : '')}</strong>? Người này sẽ quay ngẫu nhiên như mọi người.`,
+      okText: 'Bỏ chỉ định',
+      danger: false,
+    });
+    if (!ok) return;
+    saveReservation(remove, Number(remove.dataset.reserveRemove), [], `Đã bỏ chỉ định của ${item ? item.name : 'thành viên'}.`);
   });
 
   /* ---------- luot nhan phong (ca hai / chi nu / chi nam) ---------- */

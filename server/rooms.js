@@ -140,28 +140,103 @@ function roomAccepts(room, gender) {
   return !room.locked && room.occupancy < room.capacity && (!room.gender || room.gender === gender);
 }
 
-// Xep thu 1 nguoi vao phong -> co lam tang so nguoi het cho khong?
-// `pending` phai DANG tinh ca nguoi nay (ho chua co phong).
-function placementOk(slots, pending, room, gender) {
+function placeInto(slots, room, gender) {
+  return slots.map((r) => (r.id === room.id ? { ...r, occupancy: r.occupancy + 1, gender: r.gender || gender } : r));
+}
+
+/* ---------- chi dinh phong khi quay (admin, an voi nguoi choi) ----------
+   Setting 'roomReservations' = { "<memberId>": [roomId, ...] }: nguoi nay quay
+   thi chi duoc roi vao 1 trong cac phong do. Moi luot xep cua NGUOI KHAC cung
+   phai chua lai cho cho ho (khong lap kin / khong bien het cac phong do thanh
+   phong khac gioi) - neu khong thi "chi dinh" chi con la mong muon. */
+
+const MAX_RESERVATIONS = 8; // so to hop thu = tich so phong cua tung nguoi -> giu nho
+
+function parseReservationMap(raw) {
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    data = {};
+  }
+  const map = {};
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return map;
+  Object.entries(data).forEach(([memberId, roomIds]) => {
+    const id = Number.parseInt(memberId, 10);
+    if (!Number.isInteger(id) || id <= 0 || !Array.isArray(roomIds)) return;
+    const rooms = [...new Set(roomIds.map((r) => Number.parseInt(r, 10)).filter((r) => Number.isInteger(r) && r > 0))];
+    if (rooms.length) map[id] = rooms;
+  });
+  return map;
+}
+
+// Chi dinh con hieu luc: nguoi do van dang cho phong (duoc tham gia, co gioi, chua co phong)
+async function loadReservations(client) {
+  const row = await client.setting.findUnique({ where: { key: 'roomReservations' } });
+  const map = parseReservationMap(row ? row.value : null);
+  const ids = Object.keys(map).map(Number);
+  if (!ids.length) return [];
+  const members = await client.member.findMany({
+    where: { id: { in: ids }, joinRoom: true, roomId: null, gender: { not: null } },
+    select: { id: true, gender: true },
+  });
+  return members
+    .map((m) => ({ memberId: m.id, gender: m.gender, roomIds: new Set(map[m.id]) }))
+    .slice(0, MAX_RESERVATIONS);
+}
+
+// Nhu computeShortfall nhung tinh ca nguoi duoc chi dinh: thu dat tung nguoi vao 1
+// phong cho phep (it nguoi, it phong -> vai tram to hop), lay cach tot nhat. Nguoi
+// duoc chi dinh ma khong con phong cho phep nao nhan -> tinh la 1 nguoi het cho.
+function computeShortfallWith(slots, pending, reservations) {
+  if (!reservations || !reservations.length) return computeShortfall(slots, pending);
+  let best = null;
+  const visit = (i, curSlots, curPending, unplaced) => {
+    if (best && best.total === 0) return; // khong the tot hon
+    if (i === reservations.length) {
+      const sf = computeShortfall(curSlots, curPending);
+      const total = sf.total + unplaced;
+      if (!best || total < best.total) best = { ...sf, total };
+      return;
+    }
+    const res = reservations[i];
+    const nextPending = { ...curPending, [res.gender]: Math.max(0, (curPending[res.gender] || 0) - 1) };
+    const options = curSlots.filter((r) => res.roomIds.has(r.id) && roomAccepts(r, res.gender));
+    if (!options.length) {
+      visit(i + 1, curSlots, nextPending, unplaced + 1);
+      return;
+    }
+    options.forEach((r) => visit(i + 1, placeInto(curSlots, r, res.gender), nextPending, unplaced));
+  };
+  visit(0, slots, pending, 0);
+  return best;
+}
+
+// Xep thu 1 nguoi vao phong -> co lam tang so nguoi het cho khong (tinh ca cho phai
+// giu cho nguoi duoc chi dinh)? `pending` phai DANG tinh ca nguoi nay.
+// opts.reservations: danh sach chi dinh con hieu luc; opts.memberId: nguoi dang xep.
+function placementOk(slots, pending, room, gender, opts = {}) {
   if (!roomAccepts(room, gender)) return false;
-  const before = computeShortfall(slots, pending).total;
-  const nextSlots = slots.map((r) =>
-    r.id === room.id ? { ...r, occupancy: r.occupancy + 1, gender: r.gender || gender } : r
-  );
+  const reservations = opts.reservations || [];
+  const before = computeShortfallWith(slots, pending, reservations).total;
   const nextPending = { ...pending, [gender]: Math.max(0, (pending[gender] || 0) - 1) };
-  return computeShortfall(nextSlots, nextPending).total <= before;
+  const nextReservations = reservations.filter((r) => r.memberId !== opts.memberId);
+  return computeShortfallWith(placeInto(slots, room, gender), nextPending, nextReservations).total <= before;
 }
 
 // Chon phong cho 1 nguoi: phong nhan duoc gioi nay (cung gioi hoac con trong, chua
-// khoa, con cho) VA khong lam gioi kia het cho. Uu tien phong DANG CO NGUOI cung
-// gioi nhung chua day de lap kin tung phong (khong de nhieu phong le loi 1 nguoi),
-// random giua cac phong cung muc lap day nen ai o voi ai van hoan toan ngau nhien.
+// khoa, con cho) VA khong lam ai het cho. Nguoi duoc admin chi dinh phong thi chi
+// chon trong cac phong do. Uu tien phong DANG CO NGUOI cung gioi nhung chua day de
+// lap kin tung phong, random giua cac phong cung muc lap day.
 // Tra ve { room } hoac { room: null, reason: 'NONE' | 'FULL' | 'RESERVED' }.
-function pickRoom(slots, gender, pending) {
+function pickRoom(slots, gender, pending, opts = {}) {
+  const reservations = opts.reservations || [];
+  const own = reservations.find((r) => r.memberId === opts.memberId);
   if (!slots.some((r) => !r.gender || r.gender === gender)) return { room: null, reason: 'NONE' };
-  const accepting = slots.filter((r) => roomAccepts(r, gender));
+  let accepting = slots.filter((r) => roomAccepts(r, gender));
+  if (own) accepting = accepting.filter((r) => own.roomIds.has(r.id));
   if (!accepting.length) return { room: null, reason: 'FULL' };
-  const valid = accepting.filter((r) => placementOk(slots, pending, r, gender));
+  const valid = accepting.filter((r) => placementOk(slots, pending, r, gender, opts));
   if (!valid.length) return { room: null, reason: 'RESERVED' };
   const maxFilled = Math.max(...valid.map((r) => r.occupancy));
   const candidates = valid.filter((r) => r.occupancy === maxFilled);
@@ -198,6 +273,7 @@ async function assignAllPending(tx, options = {}) {
 
   const slots = await loadRoomSlots(tx);
   const pending = await loadPending(tx);
+  let reservations = await loadReservations(tx);
   const waiting = await tx.member.findMany({
     where: { roomId: null },
     select: { id: true, name: true, gender: true, joinRoom: true },
@@ -213,9 +289,13 @@ async function assignAllPending(tx, options = {}) {
     else if (turn !== 'ALL' && m.gender !== turn) skipped.push({ name: m.name, reason: `Chưa tới lượt ${genderLabel(m.gender)}` });
   });
 
-  const queue = shuffle(waiting.filter((m) => m.joinRoom && m.gender && (turn === 'ALL' || m.gender === turn)));
+  // Nguoi duoc chi dinh phong xep TRUOC (chac chan vao dung phong), roi moi
+  // den nhung nguoi con lai theo thu tu ngau nhien
+  const eligibleNow = shuffle(waiting.filter((m) => m.joinRoom && m.gender && (turn === 'ALL' || m.gender === turn)));
+  const reservedIds = new Set(reservations.map((r) => r.memberId));
+  const queue = [...eligibleNow.filter((m) => reservedIds.has(m.id)), ...eligibleNow.filter((m) => !reservedIds.has(m.id))];
   for (const member of queue) {
-    const { room, reason } = pickRoom(slots, member.gender, pending);
+    const { room, reason } = pickRoom(slots, member.gender, pending, { reservations, memberId: member.id });
     if (!room) {
       skipped.push({ name: member.name, reason: pickFailReason(reason, member.gender) });
       continue;
@@ -223,6 +303,7 @@ async function assignAllPending(tx, options = {}) {
     room.occupancy += 1;
     room.gender = room.gender || member.gender;
     pending[member.gender] = Math.max(0, pending[member.gender] - 1);
+    reservations = reservations.filter((r) => r.memberId !== member.id);
     await tx.member.update({ where: { id: member.id }, data: { roomId: room.id } });
     assigned.push({ name: member.name, roomName: room.name, roomId: room.id });
   }
@@ -349,6 +430,10 @@ module.exports = {
   loadRoomSlots,
   loadPending,
   computeShortfall,
+  computeShortfallWith,
+  parseReservationMap,
+  loadReservations,
+  MAX_RESERVATIONS,
   roomAccepts,
   placementOk,
   pickRoom,

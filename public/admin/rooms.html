@@ -102,6 +102,34 @@
                 </div>
               </div>
 
+              <!-- Chi dinh phong khi quay: chi admin thay, khong lo ra trang cong khai -->
+              <details class="admin-card is-collapsible-head" id="reserveCard"><summary class="admin-card-head">
+                  <div>
+                    <h3><i data-lucide="pin"></i> Chỉ định phòng khi quay</h3>
+                    <p>Người được chỉ định vẫn quay bình thường nhưng vòng quay chỉ dừng ở các phòng bạn chọn. Hệ thống giữ chỗ cho họ — người khác quay trước cũng không lấy mất. Người chơi không thấy cấu hình này.</p>
+                  </div>
+                  <span id="reserveCount" class="admin-chip"></span>
+                </summary>
+                <div class="admin-card-body">
+                  <div id="reserveList"></div>
+
+                  <div class="admin-form-grid">
+                    <div class="admin-field">
+                      <label for="reserveMember"><i data-lucide="user"></i> Thành viên</label>
+                      <select id="reserveMember"></select>
+                    </div>
+                  </div>
+                  <fieldset class="admin-room-picks">
+                    <legend>Chỉ được vào một trong các phòng</legend>
+                    <div id="reserveRooms" class="admin-room-picks-grid"></div>
+                  </fieldset>
+                  <div class="admin-btn-row">
+                    <button id="reserveSaveBtn" class="admin-btn" type="button"><i data-lucide="save"></i> Lưu chỉ định</button>
+                  </div>
+                  <p id="reserveMsg" class="admin-msg" aria-live="polite"></p>
+                </div>
+              </details>
+
               <details class="admin-card is-collapsible-head"><summary class="admin-card-head">
                   <div>
                     <h3><i data-lucide="door-closed"></i> Thêm phòng thủ công</h3>
