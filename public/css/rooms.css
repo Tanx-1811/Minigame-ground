@@ -97,13 +97,13 @@
 .rooms-page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 16px 56px;
+  padding: 0 16px 32px;
 }
 
 .rooms-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .rooms-stack > * {
@@ -125,14 +125,14 @@
 /* ---------- banner + tieu de ---------- */
 
 .rooms-banner {
-  max-width: 900px;
-  margin: 16px auto 0;
+  max-width: 720px;
+  margin: 8px auto 0;
   padding: 0;
 }
 
 .rooms-hero {
   text-align: center;
-  padding: 24px 0 22px;
+  padding: 14px 0 14px;
 }
 
 .rooms-hero-badge {
@@ -147,8 +147,8 @@
 
 /* style.css to chu tieu de bang gradient -> chu phang mot mau */
 .rooms-body .rooms-hero h1 {
-  margin: 10px 0 8px;
-  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  margin: 4px 0 4px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.02em;
@@ -162,8 +162,8 @@
   margin: 0 auto;
   max-width: 60ch;
   color: var(--muted);
-  font-size: clamp(0.92rem, 2vw, 1rem);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* ---------- the noi dung ---------- */
@@ -188,8 +188,8 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px 12px;
-  padding: 18px 20px 0;
+  gap: 6px 12px;
+  padding: 14px 16px 0;
 }
 
 .rooms-card-titles {
@@ -200,21 +200,21 @@
 .rooms-body .rooms-card-head h2 {
   display: block;
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 1rem;
   font-weight: 750;
   line-height: 1.3;
   color: var(--ink);
 }
 
 .rooms-card-head p {
-  margin: 3px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 
 .rooms-card-body {
-  padding: 16px 20px 20px;
+  padding: 12px 16px 16px;
 }
 
 /* Khu nhan phong la hanh dong chinh -> vien du 4 canh mang mau nhan */
@@ -232,7 +232,7 @@
 .rooms-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-end;
 }
 
@@ -243,7 +243,7 @@
 
 .rooms-field label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink-2);
@@ -255,7 +255,7 @@
 
 .rooms-select select {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   padding: 0 42px 0 14px;
   -webkit-appearance: none;
   appearance: none;
@@ -297,8 +297,8 @@
 
 .rooms-body .rooms-draw-btn {
   flex: 0 0 auto;
-  min-height: 48px;
-  padding: 0 26px;
+  min-height: 44px;
+  padding: 0 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -365,11 +365,11 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0 0;
-  padding: 10px 14px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
   border-radius: var(--r-sm);
-  font-size: 0.88rem;
-  line-height: 1.5;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .rooms-me {
@@ -403,9 +403,9 @@
 .rooms-jump-btn {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  margin-top: 12px;
-  padding: 0 18px;
+  min-height: 40px;
+  margin-top: 10px;
+  padding: 0 16px;
   border: 1px solid var(--accent);
   border-radius: var(--r-pill);
   background: var(--accent);
@@ -425,7 +425,7 @@
 
 .rooms-reel {
   position: relative;
-  margin-top: 16px;
+  margin-top: 12px;
   height: 88px; /* = REEL_ITEM_HEIGHT trong rooms.js */
   overflow: hidden;
   border: 1px solid var(--accent-line);
@@ -478,15 +478,18 @@
 /* ---------- ket qua ---------- */
 
 .rooms-result-wrap {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
+/* "Cua ban" (khung ket qua, the phong cua ban, dong ten ban) dung MAU NHAN cho
+   ca nam lan nu; mau hong / xanh chi danh cho gioi tinh cua phong. Truoc day o
+   "ban" lay mau hong nhat cua gioi tren nen hong nhat cua the -> chim mat. */
 .rooms-result {
   scroll-margin-top: 80px; /* chua cho thanh dieu huong dinh */
-  padding: 18px 20px 20px;
-  border: 1px solid var(--tone-line, var(--accent-line));
+  padding: 14px 16px 16px;
+  border: 1px solid var(--accent-line);
   border-radius: var(--r);
-  background: var(--tone-soft, var(--accent-soft));
+  background: var(--accent-soft);
 }
 
 .rooms-result.pop {
@@ -516,16 +519,16 @@
 }
 
 .rooms-result-kicker {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--tone, var(--accent));
+  color: var(--accent-ink);
 }
 
 .rooms-result-room {
-  margin: 6px 0 2px;
-  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  margin: 4px 0 0;
+  font-size: clamp(1.3rem, 3.6vw, 1.6rem);
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.015em;
@@ -535,93 +538,82 @@
 
 .rooms-result-loc {
   display: block;
-  margin: 0 0 6px;
-  font-size: 0.92rem;
+  margin: 1px 0 0;
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--muted);
 }
 
 .rooms-result-mates {
-  margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.55;
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
   color: var(--ink-2);
 }
 
-.rooms-result-mates strong {
-  color: var(--ink);
-}
-
+/* Nguoi trong phong: vien thuoc gon xep thanh dong, khong chia o luoi */
 .rooms-result-people {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .rooms-result .room-card-note {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .rooms-result-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .rooms-result-btn {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--tone-line, var(--accent-line));
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-pill);
   background: var(--surface);
-  color: var(--ink-2);
+  color: var(--accent-ink);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color var(--fast), color var(--fast);
+  transition: border-color var(--fast);
 }
 
 .rooms-result-btn:hover {
-  border-color: var(--tone, var(--accent));
-  color: var(--tone, var(--accent));
+  border-color: var(--accent);
 }
 
 /* ---------- nguoi trong phong (the phong + ket qua + danh sach cho) ---------- */
 
 .rm-avatar {
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
   background: var(--tone-soft, var(--surface-3));
   color: var(--tone, var(--ink-2));
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-}
-
-.is-me > .rm-avatar {
-  background: var(--tone, var(--accent));
-  color: var(--surface);
 }
 
 .rm-me-tag {
   flex: 0 0 auto;
   margin-left: auto;
-  padding: 1px 9px;
+  padding: 0 7px;
   border-radius: var(--r-pill);
-  background: var(--tone, var(--accent));
-  color: var(--surface);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 800;
   line-height: 1.6;
 }
@@ -630,58 +622,76 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
-.room-bed,
-.rooms-result-person {
+.room-bed {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 6px 10px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px 4px 4px;
   border-radius: var(--r-sm);
   background: var(--surface-2);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   color: var(--ink);
 }
 
 .rooms-result-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 3px 12px 3px 4px;
+  border-radius: var(--r-pill);
   background: var(--surface);
+  font-size: 0.86rem;
+  color: var(--ink);
 }
 
+.rooms-result-person .rm-me-tag {
+  margin-left: 2px;
+}
+
+/* ---- "Chinh ban": nen dac mau nhan, chu tuong phan cao (>= 4.5:1 voi mau
+   nhan mac dinh), cung mot kieu o the phong, khung ket qua va danh sach cho ---- */
 .room-bed.is-me,
-.rooms-result-person.is-me {
-  background: var(--tone-soft, var(--accent-soft));
+.rooms-result-person.is-me,
+.rooms-pending.is-me {
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 700;
 }
 
-.room-bed.is-empty,
-.rooms-result-person.is-empty {
-  justify-content: center;
-  background: transparent;
-  color: var(--muted-2);
-  font-size: 0.84rem;
+.is-me > .rm-avatar,
+.is-me > .rm-me-tag {
+  background: var(--on-accent);
+  color: var(--accent-strong);
 }
 
-/* Giuong trong: nen nhat hon giuong co nguoi nhung chu van du tuong phan
-   (truoc day mo di bang opacity -> chu chi con 2.5:1) */
-.room-bed.is-empty {
-  background: var(--surface-2);
-  font-weight: 500;
+/* Cho trong: 1 dong chu nhat (khong nen) - so cho da ghi ro */
+.room-bed.is-empty,
+.rooms-result-person.is-empty {
+  min-height: 26px;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--muted-2);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 /* ---------- o thong ke ---------- */
 
 .rooms-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: 10px;
 }
 
 .rooms-stat {
   min-width: 0;
-  padding: 14px 16px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface);
@@ -701,15 +711,15 @@
 
 .rooms-stat-label {
   display: block;
-  margin-bottom: 4px;
-  font-size: 0.8rem;
+  margin-bottom: 2px;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--tone, var(--muted));
 }
 
 .rooms-stat-value {
   display: block;
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -718,9 +728,9 @@
 
 .rooms-stat-sub {
   display: block;
-  margin-top: 4px;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  margin-top: 2px;
+  font-size: 0.76rem;
+  line-height: 1.35;
   color: var(--muted);
 }
 
@@ -729,15 +739,15 @@
 }
 
 .rooms-progress {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .rooms-progress-label {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
-  font-size: 0.86rem;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
   color: var(--muted);
 }
 
@@ -752,7 +762,7 @@
 }
 
 .rooms-progress .meter {
-  height: 10px;
+  height: 8px;
 }
 
 .rooms-body .meter > span {
@@ -768,8 +778,8 @@
 .rooms-sections {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 8px;
+  gap: 16px;
+  margin-top: 4px;
 }
 
 .rooms-section {
@@ -781,8 +791,8 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px 12px;
-  margin-bottom: 14px;
+  gap: 6px 12px;
+  margin-bottom: 10px;
 }
 
 .rooms-section-icon {
@@ -796,16 +806,16 @@
 
 .rooms-section-head h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.3;
   color: var(--ink);
 }
 
 .rooms-section-head p {
-  margin: 3px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 
@@ -817,8 +827,8 @@
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  gap: 10px;
 }
 
 /* ---------- the phong: vien du 4 canh, mau vien theo gioi cua phong ---------- */
@@ -827,22 +837,24 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px;
   border: 1px solid var(--tone-line, var(--line));
   border-radius: var(--r);
   background: var(--surface);
   transition: border-color var(--fast), background var(--slow), transform var(--fast);
 }
 
-/* Phong chua co ai: vien trung tinh (mau nhan danh cho chip "Con trong") */
+/* Phong chua co ai: vien trung tinh (mau nhan danh cho chip "Nam hoac nu") */
 .room-card.is-open {
   border-color: var(--line-strong);
 }
 
+/* Phong cua ban: vien day mau nhan, nen giu trang de dong "ban" (nen dac) noi
+   len. Vien 2px -> bot 1px padding de the khong bi xe dich. */
 .room-card.is-mine {
-  border-color: var(--tone, var(--accent));
-  background: var(--tone-soft, var(--accent-soft));
+  border: 2px solid var(--accent);
+  padding: 11px;
 }
 
 .room-card.is-locked {
@@ -862,7 +874,7 @@
 
 .room-card-title h3 {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 0.98rem;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -872,19 +884,19 @@
 
 .room-card-loc {
   display: block;
-  margin-top: 3px;
-  font-size: 0.82rem;
+  margin-top: 1px;
+  font-size: 0.76rem;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--muted);
 }
 
 .room-card-count {
   flex: 0 0 auto;
-  padding: 2px 10px;
+  padding: 1px 8px;
   border-radius: var(--r-pill);
   background: var(--surface-2);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: var(--ink-2);
 }
@@ -897,7 +909,12 @@
 .room-card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
+}
+
+.room-card .chip {
+  padding: 1px 8px;
+  font-size: 0.7rem;
 }
 
 /* Hang nhan trang thai khong co chip nao -> an, khong de khoang trong thua */
@@ -905,10 +922,14 @@
   display: none;
 }
 
-.room-mine-chip {
-  background: var(--tone, var(--accent));
-  color: var(--surface);
+.rooms-body .room-mine-chip {
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 800;
+}
+
+.room-card .meter {
+  height: 6px;
 }
 
 .room-card .meter > span {
@@ -932,7 +953,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Che do tu chon phong */
@@ -951,17 +972,18 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 44px;
+  min-height: 38px;
   margin-top: auto;
-  padding: 0 14px;
+  padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface-2);
   color: var(--muted);
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   font-weight: 750;
-  white-space: nowrap;
+  line-height: 1.3;
+  text-align: center;
   cursor: not-allowed;
 }
 
@@ -1054,7 +1076,7 @@
 }
 
 .room-card.is-skeleton {
-  min-height: 210px;
+  min-height: 140px;
 }
 
 @keyframes rm-skeleton {
@@ -1184,19 +1206,19 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .rooms-pending {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   max-width: 100%;
-  min-height: 40px;
-  padding: 4px 12px 4px 5px;
+  min-height: 32px;
+  padding: 3px 11px 3px 4px;
   border-radius: var(--r-pill);
   background: var(--surface-2);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   color: var(--ink);
 }
 
@@ -1204,16 +1226,16 @@
   margin-left: 0;
 }
 
-.rooms-pending.is-me {
-  background: var(--tone-soft, var(--accent-soft));
-  font-weight: 700;
-}
-
 .rooms-pending-tag {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--tone, var(--muted));
   white-space: nowrap;
+}
+
+/* Tren nen dac mau nhan cua "ban": chu gioi tinh dung mau chu cua nen */
+.rooms-pending.is-me .rooms-pending-tag {
+  color: var(--on-accent);
 }
 
 .rooms-pending-more {
@@ -1221,8 +1243,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 44px;
-  margin-top: 10px;
+  min-height: 40px;
+  margin-top: 8px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -1241,10 +1263,10 @@
 /* ---------- chan trang ---------- */
 
 .rooms-footer {
-  margin-top: 32px;
+  margin-top: 20px;
   text-align: center;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .rooms-footer p {
@@ -1353,15 +1375,15 @@
 
 @media (max-width: 620px) {
   .rooms-hero {
-    padding: 20px 0 18px;
+    padding: 10px 0 10px;
   }
 
   .rooms-card-head {
-    padding: 16px 16px 0;
+    padding: 12px 14px 0;
   }
 
   .rooms-card-body {
-    padding: 14px 16px 16px;
+    padding: 10px 14px 14px;
   }
 
   .rooms-field,
@@ -1374,27 +1396,113 @@
   }
 
   .rooms-result {
-    padding: 16px;
+    padding: 12px 14px 14px;
   }
 }
 
-/* Dien thoai: 4 o thong ke xep 2x2 gon thay vi 4 hang dai */
+/* Dien thoai: 4 o thong ke 2x2, danh sach phong 2 cot, bo chu phu trung lap */
 @media (max-width: 560px) {
+  /* Cau mo ta duoi tieu de lap lai noi dung khu nhan phong ngay ben duoi */
+  .rooms-hero .subtitle {
+    display: none;
+  }
+
   .rooms-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 
   .rooms-stat {
-    padding: 12px;
+    padding: 8px 10px;
   }
 
   .rooms-stat-value {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
   }
 
   .rooms-stack {
-    gap: 14px;
+    gap: 10px;
+  }
+
+  .rooms-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* The phong 2 cot: so dem "3/4" chuyen xuong canh thanh tien do de ten phong
+     co du ca chieu ngang (khong bi xuong dong). Dau the thanh display:contents
+     -> ten + so dem thanh o luoi cua the, xep lai bang order. */
+  .room-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    align-content: start; /* the ngan dung canh the dai: khong gian noi dung ra */
+    gap: 6px 8px;
+    padding: 10px;
+  }
+
+  .room-card > *,
+  .room-card-title {
+    grid-column: 1 / -1;
+  }
+
+  .room-card-head {
+    display: contents;
+  }
+
+  .room-card-title {
+    order: 0;
+  }
+
+  .room-card-tags {
+    order: 1;
+  }
+
+  .room-card > .meter {
+    order: 2;
+    grid-column: 1;
+  }
+
+  .room-card-count {
+    order: 3;
+    grid-column: 2;
+    padding: 0 6px;
+    font-size: 0.74rem;
+  }
+
+  .room-card-note,
+  .room-beds,
+  .room-pick-btn {
+    order: 4;
+  }
+
+  .room-card.is-mine {
+    padding: 9px;
+  }
+
+  .room-card-title h3 {
+    font-size: 0.9rem;
+  }
+
+  /* Chip trang thai vong dung ngang hang tieu de khu nhan phong */
+  .rooms-card-titles {
+    flex-basis: 0;
+  }
+
+  /* Cot hep: bo avatar chu cai trong the phong de ten co du cho */
+  .room-bed .rm-avatar {
+    display: none;
+  }
+
+  .room-bed {
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  .room-bed.is-empty {
+    min-height: 24px;
+    font-size: 0.76rem;
   }
 
   /* Danh sach cho dai -> tren dien thoai chi hien vai nguoi dau, bam de xem het */
@@ -1404,6 +1512,13 @@
 
   .rooms-pending-more {
     display: flex;
+  }
+}
+
+/* Man hinh rat hep (< 340px): 1 cot cho de doc */
+@media (max-width: 340px) {
+  .rooms-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

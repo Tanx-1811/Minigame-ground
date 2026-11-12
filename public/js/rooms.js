@@ -601,7 +601,7 @@ function pickButtonHtml(room, ctx) {
 
 function roomGenderChip(room) {
   if (room.gender) return genderChip(room.gender);
-  return `<span class="chip is-accent">Còn trống · nam hoặc nữ</span>`;
+  return `<span class="chip is-accent">Nam hoặc nữ</span>`;
 }
 
 function roomCardHtml(room, ctx) {
@@ -623,10 +623,11 @@ function roomCardHtml(room, ctx) {
     })
     .join('');
 
-  const emptyBeds = Array.from(
-    { length: Math.max(0, room.capacity - room.occupancy) },
-    () => `<li class="room-bed is-empty">${room.locked ? 'Đang khóa' : 'Còn trống'}</li>`
-  ).join('');
+  // Cho trong gop thanh 1 dong (truoc day moi giuong trong 1 dong -> the rat dai)
+  const free = Math.max(0, room.capacity - room.occupancy);
+  const emptyBeds = free
+    ? `<li class="room-bed is-empty">${room.locked ? `Đang khóa · ${free} chỗ` : `Còn ${free} chỗ trống`}</li>`
+    : '';
 
   // Mot luoi chung cho moi phong (giu dung thu tu vi tri), nen moi the tu ghi ro
   // dang la phong nu / nam hay con trong - mau vien the cung doi theo.
@@ -688,7 +689,7 @@ function listHeadHtml() {
     <span class="rooms-section-icon" aria-hidden="true"></span>
     <div class="rooms-section-titles">
       <h2 id="roomsListTitle">Danh sách phòng</h2>
-      <p><span class="num">${rooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người · ai vào phòng trống trước thì phòng thành phòng của giới đó</p>
+      <p><span class="num">${rooms.length}</span> phòng · <span class="num">${people}/${capacity}</span> chỗ đã có người</p>
     </div>
     <div class="rooms-section-meta">
       ${female ? `<span class="chip is-female">${female} phòng nữ</span>` : ''}
@@ -767,15 +768,17 @@ function renderResult(name) {
   const mates = room.members.filter((m) => m.name !== name);
   const free = Math.max(0, room.capacity - room.occupancy);
 
-  let summary;
-  if (mates.length) summary = `Cùng phòng với <strong>${escapeHtml(mates.map((m) => m.name).join(', '))}</strong>`;
-  else if (room.capacity > 1) summary = 'Hiện chỉ có bạn trong phòng — chờ thêm người nhận phòng nhé!';
-  else summary = 'Phòng riêng chỉ có bạn';
+  // Danh sach nguoi o ngay ben duoi da noi "cung phong voi ai" -> chi them 1 cau
+  // khi chua co ai khac
+  let summary = '';
+  if (!mates.length) {
+    summary = room.capacity > 1 ? 'Hiện chỉ có bạn trong phòng — chờ thêm người nhận phòng nhé!' : 'Phòng riêng chỉ có bạn';
+  }
 
   const people = [
     `<li class="rooms-result-person is-me">${avatarHtml(name)}<span class="room-bed-name">${escapeHtml(name)}</span><span class="rm-me-tag">Bạn</span></li>`,
     ...mates.map((m) => `<li class="rooms-result-person">${avatarHtml(m.name)}<span class="room-bed-name">${escapeHtml(m.name)}</span></li>`),
-    ...Array.from({ length: free }, () => `<li class="rooms-result-person is-empty"><span>Chờ người vào</span></li>`),
+    free ? `<li class="rooms-result-person is-empty"><span>Còn ${free} chỗ trống</span></li>` : '',
   ].join('');
 
   resultBox.innerHTML = `
@@ -786,8 +789,8 @@ function renderResult(name) {
       </div>
       <p class="rooms-result-room">${escapeHtml(room.name)}</p>
       ${locationHtml(room, 'rooms-result-loc')}
-      <p class="rooms-result-mates">${summary}</p>
-      <ul class="rooms-result-people">${people}</ul>
+      ${summary ? `<p class="rooms-result-mates">${summary}</p>` : ''}
+      <ul class="rooms-result-people" aria-label="Người ở phòng này">${people}</ul>
       ${room.note ? `<p class="room-card-note">${escapeHtml(room.note)}</p>` : ''}
       <div class="rooms-result-actions">
         <button type="button" class="rooms-result-btn" data-result-action="copy"><span>Sao chép kết quả</span></button>

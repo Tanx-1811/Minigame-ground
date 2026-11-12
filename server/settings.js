@@ -22,7 +22,7 @@ const TEXT_SETTINGS = {
   },
   startButtonText: { label: 'Chữ trên nút bắt đầu', fallback: 'Bắt đầu bốc thăm' },
   roomsBadge: { label: 'Dòng chữ nhỏ trên trang ghép phòng', fallback: 'Nam ở với nam · Nữ ở với nữ' },
-  roomsTitle: { label: 'Tiêu đề trang ghép phòng', fallback: 'Ghép Phòng Ngủ' },
+  roomsTitle: { label: 'Tiêu đề trang ghép phòng', fallback: 'Ghép Phòng Ngủ Hạnh Phúc' },
   roomsSubtitle: {
     label: 'Mô tả trang ghép phòng',
     fallback:
